@@ -262,7 +262,7 @@ function StepAssessment({
           ))}
         </div>
         {data.selfReportedLevel && (
-          <p className="text-xs text-[#6B5E44] mt-1">{cefrLabels[data.selfReportedLevel]}</p>
+          <p className="text-xs text-[#6B5E44] mt-1">{cefrLabels[data.selfReportedLevel as keyof typeof cefrLabels]}</p>
         )}
       </div>
 
