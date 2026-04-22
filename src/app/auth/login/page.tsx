@@ -27,16 +27,15 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-
-    if (result?.error) {
+    try {
+      await signIn("credentials", { email, password, redirect: false });
+      router.push(callbackUrl);
+      router.refresh();
+    } catch {
       setError(t.error);
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-    router.refresh();
   }
 
   async function handleGoogle() {
