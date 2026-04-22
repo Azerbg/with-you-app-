@@ -1,24 +1,17 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_SERVER_HOST,
-  port: Number(process.env.EMAIL_SERVER_PORT),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_SERVER_USER,
-    pass: process.env.EMAIL_SERVER_PASSWORD,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.EMAIL_FROM ?? "noreply@withyou.com";
+const FROM = "WithYou <onboarding@resend.dev>";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 export async function sendVerificationEmail(email: string, code: string) {
   if (process.env.NODE_ENV !== "production") {
     console.log(`\n[DEV] ✉️  Verification code for ${email}: ${code}\n`);
+    return;
   }
 
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: email,
     subject: "Your WithYou verification code",
@@ -70,7 +63,7 @@ export async function sendVerificationEmail(email: string, code: string) {
 }
 
 export async function sendTutorApplicationConfirmation(email: string, fullName: string) {
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: email,
     subject: "Votre candidature WithYou a bien été reçue",
@@ -88,7 +81,7 @@ export async function sendTutorApplicationConfirmation(email: string, fullName: 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const url = `${BASE_URL}/auth/reset-password?token=${token}`;
 
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: email,
     subject: "Reset your WithYou password",
