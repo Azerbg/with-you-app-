@@ -94,13 +94,12 @@ function DetailPanel({
   onClose,
   onStatusChange,
   onNoteAdded,
-  hrEmail: _hrEmail,
 }: {
   app: Application;
   onClose: () => void;
   onStatusChange: (id: string, status: string) => void;
   onNoteAdded: (id: string, note: HrNote) => void;
-  hrEmail: string;
+  hrEmail?: string;
 }) {
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
