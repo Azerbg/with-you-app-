@@ -1,0 +1,827 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  TUTOR
+  HR
+  ADMIN
+}
+
+enum ProgramTier {
+  STARTER    // A1/A2, relaxed pace
+  CORE       // B1/B2, steady progress
+  INTENSIVE  // C1/C2, fast track
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+/// Phase 1 tutor verification tiers (background check deferred to Phase 2)
+enum TutorVerificationTier {
+  PROVISIONAL  // Application submitted, pending HR review — NOT visible to students
+  VERIFIED     // HR interview passed + agreement signed + ID verified — checkmark badge
+  TOP_TUTOR    // Verified + 6-month rating > 4.7 + > 50 lessons — gold star badge
+}
+
+enum LearningObjective {
+  CONVERSATIONAL
+  PROFESSIONAL   // +10% pricing premium
+  ACADEMIC
+  EXAM_PREP      // +15% pricing premium (DELF, IELTS, TEF, TOEFL)
+}
+
+enum SessionFrequency {
+  ONCE        // 1x/week  — 1.0x multiplier
+  TWICE       // 2x/week  — 1.9x multiplier (5% bundle discount)
+  THREE_TIMES // 3+/week  — 2.7x multiplier (10% bundle discount)
+}
+
+enum ProgramDuration {
+  PAY_PER_SESSION // On-demand, no discount
+  ONE_MONTH       // 0% discount
+  THREE_MONTHS    // 10% discount
+  SIX_MONTHS      // 18% discount
+}
+
+enum Currency {
+  USD
+  CAD
+  EUR
+  TND // Tunisian Dinar — tutor payouts only
+}
+
+enum ApplicationStatus {
+  NEW                  // Passed automated pre-screening
+  STAGE1_REVIEW        // HR assigned, async review in progress
+  INTERVIEW_SCHEDULED  // Interview date confirmed
+  INTERVIEW_COMPLETE   // Interview done, HR entering decision
+  OFFER_PENDING        // Digital agreement sent via DocuSign, awaiting signature
+  SIGNED               // Agreement signed, awaiting Stripe Connect setup
+  ACTIVE               // Fully onboarded — profile live on platform
+  REJECTED             // Rejected at any stage — 90-day reapplication block
+}
+
+enum BookingStatus {
+  PENDING    // Slot held, awaiting payment
+  CONFIRMED  // Payment captured — session is locked in
+  COMPLETED  // Session ended successfully
+  CANCELLED  // Cancelled by student or tutor
+  NO_SHOW    // One party did not attend
+}
+
+enum SessionType {
+  DISCOVERY    // 30-min fixed-price intro — max 1 per student
+  SINGLE       // On-demand single session
+  PROGRAM      // Session from a 1/3/6-month program enrollment
+  SUBSCRIPTION // From auto-renewing monthly subscription
+}
+
+enum DisputeType {
+  NO_SHOW
+  TECHNICAL_FAILURE
+  QUALITY_COMPLAINT
+  BILLING_ERROR
+  CONDUCT_VIOLATION
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+// ─── USERS ───────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  role          Role      @default(STUDENT)
+  locale        String    @default("en")
+  timezone      String    @default("UTC")
+  emailVerified DateTime?
+  image         String?
+
+  // 2FA (HR role only — TOTP via Google Authenticator / Authy)
+  totpSecret  String?           // Base32 secret, encrypted at rest
+  totpEnabled Boolean @default(false)
+
+  // Stripe
+  stripeCustomerId       String? // Students — for payment collection
+  stripeConnectAccountId String? // Tutors — for Stripe Connect payouts
+
+  platformCreditBalance Float @default(0) // Credits from late-cancellation refunds
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentProfile     StudentProfile?
+  tutorProfile       TutorProfile?
+  tutorCompensation  TutorCompensation?
+  studentPricing     StudentProgramPricing?
+  hrApplication      HrApplication?
+  accounts           Account[]
+  sessions           Session[]
+  verificationTokens VerificationToken[]
+  bookingsAsStudent  Booking[]             @relation("StudentBookings")
+  bookingsAsTutor    Booking[]             @relation("TutorBookings")
+  disputesAsStudent  Dispute[]             @relation("StudentDisputes")
+  disputesAsTutor    Dispute[]             @relation("TutorDisputes")
+  flashcards         Flashcard[]           @relation("StudentFlashcards")
+  reviewsGiven       Review[]              @relation("StudentReviews")
+  reviewsReceived    Review[]              @relation("TutorReviews")
+  messageThreadsAsStudent MessageThread[]  @relation("StudentThreads")
+  messageThreadsAsTutor   MessageThread[]  @relation("TutorThreads")
+  sentMessages       Message[]             @relation("SentMessages")
+  payoutsReceived    Payout[]              @relation("TutorPayouts")
+  auditActions       AuditLog[]            @relation("AuditActor")
+  hrNotesAuthored    HrNote[]              @relation("HrNoteAuthor")
+
+  @@map("users")
+}
+
+// ─── NEXTAUTH TABLES ─────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id      String   @id @default(cuid())
+  token   String   @unique
+  expires DateTime
+  userId  String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verification_tokens")
+}
+
+// ─── STUDENT PROFILE ─────────────────────────────────────────────────────────
+
+model StudentProfile {
+  id             String      @id @default(cuid())
+  userId         String      @unique
+
+  // Language goals (Phase 1: French and English only)
+  nativeLanguage String?
+  targetLanguage String?     // "French" | "English"
+  learningObjective LearningObjective?
+
+  // CEFR
+  cefrLevel         String?   // A1–C2 — set by placement quiz
+  selfReportedLevel String?   // Student's own estimate (A1–C2) before quiz
+  programTier       ProgramTier @default(CORE)
+
+  // Schedule preferences
+  availabilityDays    String[]          // MON, TUE, WED, THU, FRI, SAT, SUN
+  timeWindowPreference String[]         // MORNING (6-12), AFTERNOON (12-18), EVENING (18-23)
+  sessionFrequency    SessionFrequency?
+  programDuration     ProgramDuration?
+  preferredCurrency   Currency          @default(USD) // Auto-detected by IP, student can override
+
+  // Onboarding state
+  onboardingCompleted   Boolean   @default(false)
+  onboardingCompletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+// ─── STUDENT PROGRAM PRICING ──────────────────────────────────────────────────
+// Confidential — tutor role has NO API access to this table
+
+model StudentProgramPricing {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  programTier ProgramTier
+
+  // Per-session base rate (before discounts)
+  baseRateUsd Float
+
+  // Monthly rates after all discounts (or per-session if PAY_PER_SESSION)
+  monthlyRateUsd Float
+  monthlyRateCad Float
+  monthlyRateEur Float
+
+  // Discovery session fixed price (set in constants, stored here for record)
+  discoveryPriceUsd Float @default(15)
+  discoveryPriceCad Float @default(20)
+  discoveryPriceEur Float @default(13)
+
+  preferredCurrency Currency @default(USD)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_program_pricing")
+}
+
+// ─── TUTOR PROFILE ───────────────────────────────────────────────────────────
+
+model TutorProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Display info
+  bio           String?  // 300–500 words, rich text
+  videoIntroUrl String?  // 60–90 second intro (stored in DigitalOcean Spaces)
+  profilePhotoUrl String?
+
+  // Tunisia location (internal operational detail — NOT shown to students)
+  city String? // Tunis, Sfax, Sousse, etc.
+
+  // Teaching info
+  languagesTaught  String[]   // "French", "English" (Phase 1)
+  specializations  String[]   // CONVERSATIONAL, PROFESSIONAL, ACADEMIC, EXAM_PREP
+  certifications   String[]   // CELTA, DALF, TESOL, UNIVERSITY_DEGREE, etc.
+  yearsExperience  Int?
+  cefrTeachingMin  String?    // Lowest CEFR level tutor can teach (e.g. "A1")
+  cefrTeachingMax  String?    // Highest CEFR level tutor can teach (e.g. "C2")
+
+  // Availability settings (detail managed in TutorAvailability model)
+  bufferMinutes   Int @default(30)  // 15 | 30 | 60 — between sessions
+  maxWeeklyHours  Int @default(20)  // Agreed with HR at hiring
+
+  // Verification
+  verificationTier   TutorVerificationTier @default(PROVISIONAL)
+  verificationStatus VerificationStatus    @default(PENDING)
+
+  // Performance metrics (updated by cron jobs)
+  averageRating    Float @default(0)
+  totalReviews     Int   @default(0)
+  avgResponseHours Float @default(0) // Average message response time in hours
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability TutorAvailability[]
+
+  @@map("tutor_profiles")
+}
+
+// ─── TUTOR COMPENSATION ───────────────────────────────────────────────────────
+// Confidential — student role has NO API access to this table
+
+model TutorCompensation {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  hourlyRateTnd   Float?  // Rate in Tunisian Dinar (if currency pref = TND)
+  hourlyRateCad   Float?  // Rate in CAD (if currency pref = CAD)
+  currencyPref    Currency @default(TND) // Tutor chooses at HR interview
+
+  maxWeeklyHours  Int @default(20) // Cap agreed with HR
+
+  // Payout thresholds (from Phase1.md)
+  // TND: 50 TND minimum / CAD: $25 CAD minimum
+  minimumPayoutTnd Float @default(50)
+  minimumPayoutCad Float @default(25)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tutor_compensation")
+}
+
+// ─── TUTOR AVAILABILITY ───────────────────────────────────────────────────────
+
+model TutorAvailability {
+  id     String @id @default(cuid())
+  tutorProfileId String
+
+  // Recurring weekly slot (null = one-off block)
+  dayOfWeek Int?     // 0=Mon, 1=Tue, ..., 6=Sun
+  startTime String?  // "14:00" in Tunisia time (CET/CEST)
+  endTime   String?  // "20:00" in Tunisia time
+
+  // One-off date block (vacation, holidays)
+  blockedDate DateTime? // Full day block
+  blockReason String?   // Private note (e.g. "Eid al-Adha")
+
+  isRecurring Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
+
+  @@map("tutor_availability")
+}
+
+// ─── BOOKINGS (LESSON SESSIONS) ───────────────────────────────────────────────
+
+model Booking {
+  id        String @id @default(cuid())
+  studentId String
+  tutorId   String
+
+  sessionType  SessionType
+  status       BookingStatus @default(PENDING)
+  durationMins Int           // 30 | 45 | 60 | 90
+
+  scheduledAt DateTime // UTC — displayed in each party's local timezone
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  // Financials — separated by role for confidentiality
+  studentPriceUsd   Float?  // What student pays (hidden from tutor)
+  studentCurrency   Currency @default(USD)
+  tutorPayoutAmount Float?  // What tutor earns (hidden from student)
+  tutorCurrency     Currency @default(TND)
+  platformMargin    Float?  // Hidden from both
+
+  // Stripe
+  stripePaymentIntentId String?
+  stripeTransferId      String? // Set when payout is processed
+
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelledBy     String?   // "STUDENT" | "TUTOR" | "SYSTEM"
+  cancellationReason String?
+
+  // No-show
+  noShowReportedAt  DateTime?
+  noShowReportedBy  String?  // "STUDENT" | "TUTOR"
+
+  // Post-session
+  whiteboardSnapshotUrl String? // PNG saved to DigitalOcean Spaces
+  chatLogSaved          Boolean @default(false)
+  reviewLeft            Boolean @default(false) // Has student left a review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student  User     @relation("StudentBookings", fields: [studentId], references: [id])
+  tutor    User     @relation("TutorBookings", fields: [tutorId], references: [id])
+  disputes Dispute[]
+  lesson   Lesson?
+  review   Review?
+
+  @@map("bookings")
+}
+
+// ─── DISPUTES ────────────────────────────────────────────────────────────────
+
+model Dispute {
+  id        String @id @default(cuid())
+  bookingId String
+  studentId String
+  tutorId   String
+
+  type        DisputeType
+  status      DisputeStatus @default(OPEN)
+  priority    String        @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  assignedTo  String?       // Admin user ID
+
+  description      String
+  desiredResolution String?
+  evidenceUrls     String[] // Uploaded screenshots/recordings
+
+  resolution     String?   // Admin's resolution notes
+  resolvedAt     DateTime?
+
+  // SLA: must be resolved within 48 hours
+  slaDeadline    DateTime
+
+  // Must be opened within 72 hours of session end
+  openedAt       DateTime @default(now())
+  closedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  student  User    @relation("StudentDisputes", fields: [studentId], references: [id])
+  tutor    User    @relation("TutorDisputes", fields: [tutorId], references: [id])
+
+  @@map("disputes")
+}
+
+// ─── HR APPLICATIONS ─────────────────────────────────────────────────────────
+
+model HrApplication {
+  id     String @id @default(cuid())
+  userId String @unique // Linked to User account created during application
+
+  status      ApplicationStatus @default(NEW)
+  assignedHrId String?          // HR manager handling this application
+
+  // Personal information (Tunisia-based applicants)
+  fullName    String
+  nationalId  String?  // Tunisia national ID or residence permit
+  city        String?  // Tunis | Sfax | Sousse | Other
+  phone       String?  // Tunisia phone number
+  // email via User.email
+
+  // Professional information
+  languagesTaught  String[]  // French | English | Arabic
+  specializations  String[]  // CONVERSATIONAL | PROFESSIONAL | ACADEMIC | EXAM_PREP
+  certifications   String[]  // CELTA | DALF | TESOL | UNIVERSITY_DEGREE | OTHER
+  yearsExperience  Int?
+  certificateUrls  String[]  // Uploaded certificate files
+
+  // Availability preferences
+  availabilityDays     String[]  // MON, TUE, WED, THU, FRI, SAT, SUN
+  timeWindowPreference String[]  // MORNING | AFTERNOON | EVENING
+
+  // Application materials
+  bio          String?  // 500–1000 words
+  videoUrl     String?  // 60–90 sec intro video (DigitalOcean Spaces)
+
+  // Automated pre-screening results
+  emailVerified   Boolean @default(false)
+  phoneVerified   Boolean @default(false)
+  bioFlaggedAt    DateTime?  // Plagiarism check flag
+  videoFlaggedAt  DateTime?  // Profanity scan flag
+  prescreenPassedAt DateTime?
+
+  // HR Stage 1 rubric scores (1–5 each, total max 25)
+  scoreLanguageProficiency    Int? // Native/near-native fluency
+  scoreAudioVideoQuality      Int? // Clear audio, good lighting
+  scoreProfessionalPresentation Int? // Attire, confidence
+  scoreTeachingPhilosophy     Int? // Student-centered approach
+  scoreCulturalFit            Int? // Alignment with With You values
+  // Total 20-25: advance | 15-19: borderline | <15: reject
+
+  // Interview
+  interviewScheduledAt  DateTime?
+  interviewCompletedAt  DateTime?
+  interviewNotes        String?
+  interviewLanguage     String?   // "French" | "English"
+
+  // Offer / Agreement
+  offerSentAt     DateTime?
+  offerSignedAt   DateTime?
+  agreementUrl    String?   // DocuSign link or stored PDF
+  agreementLanguage String? // "French" | "Arabic"
+
+  // Rejection
+  rejectedAt     DateTime?
+  rejectionReason String?
+  reapplyAfter   DateTime? // 90-day reapplication block
+
+  // Activation
+  activatedAt DateTime?
+
+  preferredLanguage String @default("fr") // UI language for emails: fr | ar | en
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes HrNote[]
+
+  @@map("hr_applications")
+}
+
+// ─── HR NOTES ────────────────────────────────────────────────────────────────
+// HR staff can add multiple timestamped notes to an application (Kanban comments)
+
+model HrNote {
+  id            String @id @default(cuid())
+  applicationId String
+  authorId      String // HR user who wrote the note
+
+  content   String   // Free text, up to 2000 chars
+  isPinned  Boolean  @default(false) // Pinned notes show at top of card
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  application HrApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  author      User          @relation("HrNoteAuthor", fields: [authorId], references: [id])
+
+  @@map("hr_notes")
+}
+
+// ─── LESSONS ─────────────────────────────────────────────────────────────────
+// Separate from Booking: booking = payment/slot, lesson = what happened in the room
+
+model Lesson {
+  id        String @id @default(cuid())
+  bookingId String @unique
+
+  startedAt  DateTime?
+  endedAt    DateTime?
+  durationActualMins Int?
+
+  // Recording (opt-in, auto-deleted after 90 days)
+  recordingConsentStudent Boolean @default(false)
+  recordingConsentTutor   Boolean @default(false)
+  recordingUrl            String? // Encrypted URL in DigitalOcean Spaces
+  recordingDeletedAt      DateTime?
+
+  // Whiteboard (auto-saved at lesson end, accessible for 12 months)
+  whiteboardSnapshotUrl String? // PNG in DigitalOcean Spaces
+  whiteboardData        Json?   // CRDT state JSON
+
+  // Chat log
+  chatLogSaved Boolean @default(false)
+
+  // Post-session
+  reviewPromptSentAt DateTime? // 2 hours after session end
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking  Booking   @relation(fields: [bookingId], references: [id])
+  messages Message[] @relation("LessonMessages")
+
+  @@map("lessons")
+}
+
+// FluencyReport — Phase 2 only (AI transcription via Whisper + GPT-4o)
+// Schema will be added in Phase 2 migration. Not included in Phase 1.
+
+// ─── FLASHCARDS ───────────────────────────────────────────────────────────────
+
+model Flashcard {
+  id       String  @id @default(cuid())
+  studentId String
+  lessonId  String? // Optional link to a specific lesson
+
+  front String // e.g. French word / phrase
+  back  String // e.g. English translation or definition
+
+  // Tags for organization
+  tags String[] // e.g. ["Verbs", "Business", "Food"]
+
+  // Spaced repetition (Leitner box algorithm)
+  easeFactor   Float    @default(2.5)
+  interval     Int      @default(1)     // days until next review
+  nextReviewAt DateTime @default(now())
+  reviewCount  Int      @default(0)
+
+  // Source: manual or AI-generated (Phase 2)
+  source String @default("MANUAL") // "MANUAL" | "AI_GENERATED"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User @relation("StudentFlashcards", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("flashcards")
+}
+
+// ─── REVIEWS ─────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String @id @default(cuid())
+  bookingId String @unique
+  studentId String
+  tutorId   String
+
+  // 4 dimensions, 1–5 stars each
+  ratingCommunication Int // Clarity, responsiveness
+  ratingStructure     Int // Lesson plan, pacing
+  ratingAccuracy      Int // Language correctness, corrections
+  ratingValue         Int // Overall value for money / time
+  ratingComposite     Float // Computed: average of 4 dimensions
+
+  text String? // 20–500 characters
+
+  // Moderation
+  isPublished   Boolean   @default(false) // Admin approves after profanity filter
+  flaggedAt     DateTime?
+  publishedAt   DateTime?
+
+  // Tutor response (max 1 per review, max 300 chars)
+  tutorResponse     String?
+  tutorRespondedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  student User    @relation("StudentReviews", fields: [studentId], references: [id])
+  tutor   User    @relation("TutorReviews", fields: [tutorId], references: [id])
+
+  @@map("reviews")
+}
+
+// ─── MESSAGING ───────────────────────────────────────────────────────────────
+
+model MessageThread {
+  id          String @id @default(cuid())
+  studentId   String
+  tutorId     String
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student  User      @relation("StudentThreads", fields: [studentId], references: [id])
+  tutor    User      @relation("TutorThreads", fields: [tutorId], references: [id])
+  messages Message[] @relation("ThreadMessages")
+
+  @@unique([studentId, tutorId])
+  @@map("message_threads")
+}
+
+model Message {
+  id       String @id @default(cuid())
+  threadId String?  // Null for in-lesson chat messages
+  lessonId String?  // Set for in-lesson chat messages
+
+  senderId String
+
+  // Message content
+  type    String @default("TEXT") // TEXT | IMAGE | AUDIO | FILE
+  content String
+  fileUrl String?
+
+  // Anti-bypass detection
+  isFlagged      Boolean   @default(false)
+  flagReason     String?
+  flaggedAt      DateTime?
+
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  sender User          @relation("SentMessages", fields: [senderId], references: [id])
+  thread MessageThread? @relation("ThreadMessages", fields: [threadId], references: [id])
+  lesson Lesson?        @relation("LessonMessages", fields: [lessonId], references: [id])
+
+  @@map("messages")
+}
+
+// ─── PAYOUTS ─────────────────────────────────────────────────────────────────
+// Weekly payout every Friday via Stripe Connect
+
+model Payout {
+  id      String @id @default(cuid())
+  tutorId String
+
+  amount   Float
+  currency Currency // TND or CAD
+
+  status String @default("PENDING") // PENDING | PROCESSING | PAID | FAILED
+
+  periodStart DateTime
+  periodEnd   DateTime
+  sessionCount Int
+
+  stripeTransferId String?
+  initiatedAt      DateTime?
+  completedAt      DateTime?
+  failureReason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tutor User @relation("TutorPayouts", fields: [tutorId], references: [id])
+
+  @@map("payouts")
+}
+
+// ─── PLATFORM PRICING (Admin-Configurable) ────────────────────────────────────
+// FRD §3.16: Exact prices set by ops team — stored in DB, NOT hardcoded.
+// Changes do not affect existing enrolled students.
+
+model PlatformPricing {
+  id String @id @default(cuid())
+
+  tier ProgramTier @unique
+
+  // Base rate per session in CAD (internal reporting currency)
+  // Displayed to student in their currency (CAD/USD/EUR)
+  baseRatePerSessionCad Float
+
+  // Discovery session fixed price (CAD)
+  discoverySessionCad Float @default(20)
+
+  // Frequency multipliers
+  frequencyOnceMult        Float @default(1.0)
+  frequencyTwiceMult       Float @default(1.9)
+  frequencyThreeTimesMult  Float @default(2.7)
+
+  // Duration discounts
+  durationThreeMonthsDiscount Float @default(0.10)
+  durationSixMonthsDiscount   Float @default(0.18)
+
+  // Objective premiums
+  objectiveProfessionalPremium Float @default(0.10)
+  objectiveExamPrepPremium     Float @default(0.15)
+
+  isActive  Boolean  @default(true)
+  updatedBy String?  // Admin user ID who last updated
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("platform_pricing")
+}
+
+// ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
+// Every admin action logged. Retained indefinitely for compliance.
+
+model AuditLog {
+  id      String @id @default(cuid())
+  actorId String // Admin/HR user who performed the action
+
+  action       String // e.g. "SUSPEND_USER", "UPDATE_TUTOR_RATE", "RESOLVE_DISPUTE"
+  targetEntity String // e.g. "User", "Booking", "HrApplication"
+  targetId     String
+
+  payloadBefore Json?
+  payloadAfter  Json?
+  reason        String?
+  ipAddress     String?
+
+  createdAt DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─── CURRENCY EXCHANGE RATES ──────────────────────────────────────────────────
+// Updated weekly via Open Exchange Rates API. Used for CAD normalization in financial reports.
+
+model CurrencyExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency Currency
+  toCurrency   Currency
+  rate         Float
+  effectiveAt  DateTime @default(now())
+
+  @@index([fromCurrency, toCurrency, effectiveAt])
+  @@map("currency_exchange_rates")
+}
+
+// ─── PROMOTIONAL CODES ────────────────────────────────────────────────────────
+
+model PromoCode {
+  id String @id @default(cuid())
+
+  code        String  @unique
+  description String?
+
+  discountType String  // "PERCENT" | "FIXED_CAD"
+  discountValue Float
+
+  usageLimit  Int?  // Null = unlimited
+  usageCount  Int   @default(0)
+
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+
+  createdBy  String   // Admin user ID
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("promo_codes")
+}

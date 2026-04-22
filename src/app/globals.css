@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Brand Colors ── */
+  --color-yellow:       #F5C400;
+  --color-yellow-light: #FFDE59;
+  --color-yellow-pale:  #FFF3B0;
+  --color-golden:       #C49200;
+  --color-brown:        #5C3D00;
+  --color-gray-text:    #6B5E44;
+  --color-warm-white:   #FFFDF4;
+  --color-off-white:    #FAF8F0;
+
+  /* ── Typography ── */
+  --font-sans: 'Outfit', sans-serif;
+}
+
+:root {
+  --background: #FAF8F0;
+  --foreground: #5C3D00;
+}
+
+body {
+  background: transparent;
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Focus ring override — use yellow */
+*:focus-visible {
+  outline: 2px solid #F5C400;
+  outline-offset: 2px;
+}
