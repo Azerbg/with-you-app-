@@ -88,7 +88,7 @@ export default function Setup2FAPage() {
         </div>
 
         <details className="mb-4 text-xs text-gray-400 cursor-pointer">
-          <summary>Can't scan? Enter key manually</summary>
+          <summary>Can&apos;t scan? Enter key manually</summary>
           <p className="mt-1 font-mono break-all select-all bg-gray-50 rounded p-2">{secret}</p>
         </details>
 

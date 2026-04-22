@@ -214,6 +214,7 @@ export const QUESTION_BANK: QuizQuestion[] = [
 
 // ─── Adaptive Quiz Logic ──────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const QUESTION_SEQUENCE_BY_DIFFICULTY = [3, 4, 3, 5, 2, 4, 3, 5, 2, 4]; // B1 start
 
 /**

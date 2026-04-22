@@ -248,7 +248,7 @@ function StepAssessment({
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.levelLabel}</label>
         <div className="grid grid-cols-3 gap-2">
-          {Object.entries(cefrLabels).map(([val, label]) => (
+          {Object.entries(cefrLabels).map(([val]) => (
             <button
               key={val}
               type="button"

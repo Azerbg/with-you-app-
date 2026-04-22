@@ -94,7 +94,7 @@ function DetailPanel({
   onClose,
   onStatusChange,
   onNoteAdded,
-  hrEmail,
+  hrEmail: _hrEmail,
 }: {
   app: Application;
   onClose: () => void;
@@ -222,7 +222,7 @@ function DetailPanel({
           <Section title={`Notes (${app.notes.length})`}>
             <div className="space-y-3 mb-3">
               {app.notes.length === 0 && (
-                <p className="text-xs text-[#6B5E44]">Aucune note pour l'instant.</p>
+                <p className="text-xs text-[#6B5E44]">Aucune note pour l&apos;instant.</p>
               )}
               {app.notes.map(n => (
                 <div key={n.id} className="bg-[#FAF8F0] rounded-xl px-3 py-2">
