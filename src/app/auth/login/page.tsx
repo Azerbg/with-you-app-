@@ -29,11 +29,9 @@ function LoginForm() {
 
     try {
       await signIn("credentials", { email, password, redirect: false });
-      router.push(callbackUrl);
-      router.refresh();
+      window.location.href = callbackUrl;
     } catch {
       setError(t.error);
-    } finally {
       setLoading(false);
     }
   }
