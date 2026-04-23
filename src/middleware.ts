@@ -16,7 +16,12 @@ const roleProtectedRoutes: Record<string, string[]> = {
 const authRequiredPrefixes = ["/dashboard", "/console", "/onboarding", "/booking", "/classroom", "/messages"];
 
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const isSecure = process.env.NODE_ENV === "production";
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    cookieName: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+  });
   const isLoggedIn = !!token;
   const pathname = req.nextUrl.pathname;
 
