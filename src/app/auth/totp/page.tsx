@@ -31,10 +31,8 @@ export default function TotpPage() {
       return;
     }
 
-    // Mark TOTP as verified in JWT
     await update({ totpVerified: true });
-    router.push("/console/hr");
-    router.refresh();
+    window.location.href = "/console/hr";
   }
 
   return (

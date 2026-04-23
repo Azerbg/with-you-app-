@@ -49,9 +49,8 @@ export default function Setup2FAPage() {
     }
 
     setStep("done");
-    // Update session so totpEnabled = true and totpVerified = true
     await update({ totpVerified: true });
-    setTimeout(() => router.push("/console/hr"), 1500);
+    setTimeout(() => { window.location.href = "/console/hr"; }, 1500);
   }
 
   if (step === "loading") {
