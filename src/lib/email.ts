@@ -6,7 +6,7 @@ const FROM = "WithYou <onboarding@resend.dev>";
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 export async function sendVerificationEmail(email: string, code: string) {
-  if (process.env.NODE_ENV !== "production") {
+  if (!process.env.RESEND_API_KEY) {
     console.log(`\n[DEV] ✉️  Verification code for ${email}: ${code}\n`);
     return;
   }
