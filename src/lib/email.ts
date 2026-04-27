@@ -1,17 +1,24 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  auth: {
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_KEY,
+  },
+});
 
-const FROM = "WithYou <onboarding@resend.dev>";
+const FROM = `"WithYou" <${process.env.BREVO_SMTP_USER}>`;
 const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 export async function sendVerificationEmail(email: string, code: string) {
-  if (!process.env.RESEND_API_KEY) {
+  if (!process.env.BREVO_SMTP_KEY) {
     console.log(`\n[DEV] ✉️  Verification code for ${email}: ${code}\n`);
     return;
   }
 
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: email,
     subject: "Your WithYou verification code",
@@ -63,7 +70,9 @@ export async function sendVerificationEmail(email: string, code: string) {
 }
 
 export async function sendTutorApplicationConfirmation(email: string, fullName: string) {
-  await resend.emails.send({
+  if (!process.env.BREVO_SMTP_KEY) return;
+
+  await transporter.sendMail({
     from: FROM,
     to: email,
     subject: "Votre candidature WithYou a bien été reçue",
@@ -79,9 +88,11 @@ export async function sendTutorApplicationConfirmation(email: string, fullName: 
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
+  if (!process.env.BREVO_SMTP_KEY) return;
+
   const url = `${BASE_URL}/auth/reset-password?token=${token}`;
 
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: email,
     subject: "Reset your WithYou password",
