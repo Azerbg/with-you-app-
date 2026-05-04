@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import StudentSidebar from "@/components/StudentSidebar";
@@ -126,10 +127,19 @@ export default function DashboardContent(p: Props) {
                   ))}
                   <div className="space-y-1">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.cefrLevelShort}</p>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-4xl font-bold text-[#5C3D00]">{p.cefrLevel ?? "—"}</p>
-                      <p className="text-sm text-[#6B5E44]">{cefrDesc}</p>
-                    </div>
+                    {p.cefrLevel ? (
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-4xl font-bold text-[#5C3D00]">{p.cefrLevel}</p>
+                        <p className="text-sm text-[#6B5E44]">{cefrDesc}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-2xl font-bold text-[#5C3D00] mb-1">—</p>
+                        <Link href="/placement-test" className="inline-block text-xs font-semibold text-[#C49200] hover:text-[#5C3D00] underline underline-offset-2 transition">
+                          {lang === "fr" ? "Faire le test →" : "Take the test →"}
+                        </Link>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.goal}</p>

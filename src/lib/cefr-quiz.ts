@@ -158,6 +158,15 @@ export const QUESTION_BANK: QuizQuestion[] = [
     correct: 1,
   },
   {
+    id: "V-A1b",
+    category: "VOCABULARY",
+    level: "A1",
+    difficulty: 1,
+    question: 'What do you say when you meet someone for the first time?',
+    options: ["Goodbye", "Thank you", "Nice to meet you", "You're welcome"],
+    correct: 2,
+  },
+  {
     id: "V-B2",
     category: "VOCABULARY",
     level: "B2",
@@ -166,8 +175,35 @@ export const QUESTION_BANK: QuizQuestion[] = [
     options: ["remove", "eradicate", "delete", "vanish"],
     correct: 1,
   },
+  {
+    id: "V-B2b",
+    category: "VOCABULARY",
+    level: "B2",
+    difficulty: 4,
+    question: 'Select the word that best fits: "The company decided to ___ its losses by cutting staff."',
+    options: ["minimize", "ignore", "celebrate", "announce"],
+    correct: 0,
+  },
+  {
+    id: "V-C1b",
+    category: "VOCABULARY",
+    level: "C1",
+    difficulty: 5,
+    question: 'Choose the most appropriate word: "Her ___ remarks during the meeting made several colleagues uncomfortable."',
+    options: ["candid", "ambiguous", "acerbic", "verbose"],
+    correct: 2,
+  },
 
   // ── READING COMPREHENSION ─────────────────────────────────────────────────
+  {
+    id: "R-A1",
+    category: "READING",
+    level: "A1",
+    difficulty: 1,
+    question: 'Read: "Anna has a dog. The dog is small and white. Anna walks the dog every morning."\n\nWhen does Anna walk the dog?',
+    options: ["Every evening", "Every afternoon", "Every morning", "On weekends"],
+    correct: 2,
+  },
   {
     id: "R-A2",
     category: "READING",
@@ -181,6 +217,15 @@ export const QUESTION_BANK: QuizQuestion[] = [
       "His class started early.",
     ],
     correct: 1,
+  },
+  {
+    id: "R-A2b",
+    category: "READING",
+    level: "A2",
+    difficulty: 2,
+    question: 'Read: "Maria works in a hospital. She starts work at 7 am and finishes at 3 pm. She likes her job very much."\n\nWhat time does Maria finish work?',
+    options: ["7 am", "9 am", "3 pm", "5 pm"],
+    correct: 2,
   },
   {
     id: "R-B1",
@@ -197,6 +242,20 @@ export const QUESTION_BANK: QuizQuestion[] = [
     correct: 2,
   },
   {
+    id: "R-B1b",
+    category: "READING",
+    level: "B1",
+    difficulty: 3,
+    question: 'Read: "The city council voted to extend library hours on weekdays to help students who work part-time. The decision was welcomed by local schools."\n\nWhy did the council extend library hours?',
+    options: [
+      "To attract more tourists",
+      "To support working students",
+      "To save money on staff",
+      "Because schools requested longer hours",
+    ],
+    correct: 1,
+  },
+  {
     id: "R-B2",
     category: "READING",
     level: "B2",
@@ -207,6 +266,84 @@ export const QUESTION_BANK: QuizQuestion[] = [
       "It is opposed from opposite perspectives.",
       "Environmental groups support it fully.",
       "Industry representatives wrote it.",
+    ],
+    correct: 1,
+  },
+  {
+    id: "R-B2b",
+    category: "READING",
+    level: "B2",
+    difficulty: 4,
+    question: 'Read: "While remote work has boosted productivity for many employees, managers report difficulties in maintaining team cohesion and monitoring performance effectively."\n\nWhat is the main tension described?',
+    options: [
+      "Remote workers earn more than office workers.",
+      "Productivity gains are offset by management challenges.",
+      "Managers prefer remote work over office-based teams.",
+      "Performance has declined for most remote workers.",
+    ],
+    correct: 1,
+  },
+
+  // ── C1 GRAMMAR & VOCABULARY ───────────────────────────────────────────────
+  {
+    id: "G-C1c",
+    category: "GRAMMAR",
+    level: "C1",
+    difficulty: 5,
+    question: 'Choose the correct form: "Not until she retired ___ how demanding the job had been."',
+    options: [
+      "she realised",
+      "did she realise",
+      "she had realised",
+      "had she realised",
+    ],
+    correct: 1,
+  },
+  {
+    id: "R-C1",
+    category: "READING",
+    level: "C1",
+    difficulty: 5,
+    question: 'Read: "The paradox of choice suggests that while having options is desirable, an overwhelming number of alternatives can lead to decision paralysis and reduced satisfaction with the outcome chosen."\n\nWhat does the passage argue?',
+    options: [
+      "More choices always lead to better decisions.",
+      "People prefer having no choices at all.",
+      "Excessive options can impair decision-making and satisfaction.",
+      "Decision paralysis only affects inexperienced consumers.",
+    ],
+    correct: 2,
+  },
+
+  // ── C2 (difficulty 6) ─────────────────────────────────────────────────────
+  {
+    id: "G-C2",
+    category: "GRAMMAR",
+    level: "C2",
+    difficulty: 6,
+    question: 'Select the most natural option: "The CEO\'s resignation, ___ came as a surprise to the board, triggered an emergency shareholders\' meeting."',
+    options: ["which", "that", "what", "who"],
+    correct: 0,
+  },
+  {
+    id: "V-C2",
+    category: "VOCABULARY",
+    level: "C2",
+    difficulty: 6,
+    question: 'Choose the most precise word: "The diplomat\'s ___ response carefully avoided committing to any particular position."',
+    options: ["evasive", "ambivalent", "laconic", "equivocal"],
+    correct: 3,
+  },
+  {
+    id: "R-C2",
+    category: "READING",
+    level: "C2",
+    difficulty: 6,
+    question: 'Read: "Epistemic humility — the acknowledgement that one\'s knowledge is inherently limited and potentially flawed — is increasingly cited as a prerequisite for productive interdisciplinary dialogue."\n\nWhat is the author\'s central claim?',
+    options: [
+      "Interdisciplinary research is rarely productive.",
+      "Recognising the limits of one\'s knowledge facilitates cross-field collaboration.",
+      "Epistemic confidence is the foundation of academic progress.",
+      "Humility is only relevant in philosophical contexts.",
     ],
     correct: 1,
   },
@@ -295,3 +432,13 @@ export const CEFR_DESCRIPTIONS: Record<CefrLevel, string> = {
   C1: "You express yourself precisely, even on complex topics.",
   C2: "Near-native mastery — you're exceptional.",
 };
+
+/**
+ * Map a student's self-reported level (BEGINNER/INTERMEDIATE/ADVANCED)
+ * to the starting difficulty for the adaptive quiz (4.1 fix).
+ */
+export function selfReportedLevelToDifficulty(level: string | null | undefined): number {
+  if (level === "ADVANCED") return 5;
+  if (level === "INTERMEDIATE") return 3;
+  return 1; // BEGINNER or unknown
+}
