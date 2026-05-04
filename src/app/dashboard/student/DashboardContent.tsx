@@ -253,7 +253,7 @@ export default function DashboardContent(p: Props) {
                   <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
                 </div>
                 <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">
-                  {t.discoverySub} <span className="font-bold text-[#5C3D00]">15 $</span>.
+                  {t.discoverySub}
                 </p>
                 <button className="w-full bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition">
                   {t.bookNow}
