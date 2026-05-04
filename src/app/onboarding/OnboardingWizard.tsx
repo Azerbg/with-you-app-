@@ -5,70 +5,32 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  CardElement,
-  useStripe,
-  useElements,
-} from "@stripe/react-stripe-js";
-import {
-  pickQuestion,
-  nextDifficulty,
-  scoreCefrQuiz,
-  CEFR_LABELS,
-  CEFR_DESCRIPTIONS,
-  CefrLevel,
-  QuizQuestion,
-} from "@/lib/cefr-quiz";
-import { DISCOVERY_PRICE } from "@/lib/pricing";
 import { ProgramTier } from "@prisma/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface QuizAnswer {
-  question: QuizQuestion;
-  selectedIndex: number;
-  wasCorrect: boolean;
-}
 
 interface WizardData {
   timezone: string;
   nativeLanguage: string;
   targetLanguage: string;
   learningObjective: string;
-  selfReportedLevel: string;
+  selfReportedLevel: string;         // BEGINNER | INTERMEDIATE | ADVANCED
   availabilityDays: string[];
   timeWindowPreference: string[];
   sessionFrequency: string;
   programDuration: string;
+  country: string;
+  tutorLanguages: string[];
+  budgetPerSession: number;
   preferredCurrency: string;
-  cefrLevel: CefrLevel | null;
   programTier: ProgramTier | null;
-  pricing: {
-    monthlyRateUsd: number;
-    monthlyRateCad: number;
-    monthlyRateEur: number;
-    perSessionRateCad: number;
-    sessionsPerMonth: number;
-    durationDiscount: number;
-  } | null;
 }
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-
-// Phase 1: French and English ONLY
 const TARGET_LANGUAGES = ["French", "English"];
-
-const ALL_LANGUAGES = [
-  "English", "French", "Arabic", "Spanish", "German",
-  "Italian", "Portuguese", "Mandarin", "Japanese", "Korean",
-];
-
-const TOTAL_STEPS = 5;
-const QUIZ_LENGTH = 10;
-
-// ─── Shared class constants ────────────────────────────────────────────────────
+const ALL_LANGUAGES = ["English", "French", "Arabic", "Spanish", "German", "Italian", "Portuguese", "Mandarin", "Japanese", "Korean"];
+const TUTOR_LANGUAGES = ["English", "French", "Arabic", "Spanish", "Italian", "German", "Other"];
+const TOTAL_STEPS = 9;
 
 const inputCls = "w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 transition";
 const btnPrimary = "bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition";
@@ -76,8 +38,97 @@ const btnSecondary = "border-2 border-[#6B5E44]/30 text-[#5C3D00] font-bold roun
 const activeCard = "border-[#F5C400] bg-[#FFF3B0]";
 const inactiveCard = "border-[#6B5E44]/20 hover:border-[#F5C400]/50";
 
-// ─── Progress Bar ─────────────────────────────────────────────────────────────
+// ─── Quick placement test (3.4) ───────────────────────────────────────────────
+const QUICK_QUESTIONS = [
+  {
+    q: { en: "What is the plural of 'child'?", fr: "Quel est le pluriel de 'child' ?" },
+    options: ["childs", "children", "childes", "child"],
+    correct: 1, level: "BEGINNER",
+  },
+  {
+    q: { en: "Choose the correct sentence:", fr: "Choisissez la phrase correcte :" },
+    options: ["She go to school every day.", "She goes to school every day.", "She going to school every day.", "She gone to school every day."],
+    correct: 1, level: "BEGINNER",
+  },
+  {
+    q: { en: "He had already _____ when I arrived.", fr: "Il avait déjà _____ quand je suis arrivé." },
+    options: ["left", "leave", "leaving", "leaves"],
+    correct: 0, level: "INTERMEDIATE",
+  },
+  {
+    q: { en: "The report was _____ by the manager.", fr: "Le rapport a été _____ par le directeur." },
+    options: ["write", "written", "wrote", "writing"],
+    correct: 1, level: "INTERMEDIATE",
+  },
+  {
+    q: { en: "_____ he worked hard, he failed the exam.", fr: "_____ il a travaillé dur, il a échoué à l'examen." },
+    options: ["Because", "Although", "So", "Since"],
+    correct: 1, level: "ADVANCED",
+  },
+];
 
+function QuickTest({ onResult, onSkip, lang }: { onResult: (level: string) => void; onSkip: () => void; lang: string }) {
+  const [current, setCurrent] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  function handleAnswer(i: number) {
+    if (showFeedback) return;
+    setSelected(i);
+    const correct = i === QUICK_QUESTIONS[current].correct;
+    if (correct) setScore((s) => s + 1);
+    setShowFeedback(true);
+    setTimeout(() => {
+      if (current + 1 >= QUICK_QUESTIONS.length) {
+        const total = score + (correct ? 1 : 0);
+        const level = total <= 1 ? "BEGINNER" : total <= 3 ? "INTERMEDIATE" : "ADVANCED";
+        onResult(level);
+      } else {
+        setCurrent((c) => c + 1);
+        setSelected(null);
+        setShowFeedback(false);
+      }
+    }, 700);
+  }
+
+  const q = QUICK_QUESTIONS[current];
+  return (
+    <div>
+      <h3 className="text-lg font-bold text-[#5C3D00] mb-1">
+        {lang === "fr" ? "Test rapide" : "Quick test"} — {current + 1}/{QUICK_QUESTIONS.length}
+      </h3>
+      <div className="flex gap-1 mb-4">
+        {QUICK_QUESTIONS.map((_, i) => (
+          <div key={i} className={`flex-1 h-1.5 rounded-full ${i < current ? "bg-[#F5C400]" : "bg-gray-100"}`} />
+        ))}
+      </div>
+      <p className="text-sm text-[#5C3D00] font-medium mb-3 bg-[#FFF3B0] rounded-xl p-3 border border-[#F5C400]/30">
+        {q.q[lang as "en" | "fr"] ?? q.q.en}
+      </p>
+      <div className="space-y-2 mb-4">
+        {q.options.map((opt, i) => {
+          let cls = `${inactiveCard} text-[#5C3D00]`;
+          if (showFeedback) {
+            if (i === q.correct) cls = "border-green-500 bg-green-50 text-green-800";
+            else if (i === selected) cls = "border-red-400 bg-red-50 text-red-700";
+          } else if (selected === i) cls = `${activeCard} text-[#5C3D00]`;
+          return (
+            <button key={i} onClick={() => handleAnswer(i)}
+              className={`w-full text-left px-4 py-2.5 rounded-xl border-2 text-sm transition ${cls}`}>
+              <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span>{opt}
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={onSkip} className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">
+        {lang === "fr" ? "Passer le test →" : "Skip test →"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
   const { lang } = useLanguage();
   const t = T[lang].onboarding;
@@ -88,551 +139,347 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
         <span>{Math.round((step / total) * 100)}%</span>
       </div>
       <div className="w-full bg-[#FAF8F0] rounded-full h-2">
-        <div
-          className="bg-[#F5C400] h-2 rounded-full transition-all duration-300"
-          style={{ width: `${(step / total) * 100}%` }}
-        />
+        <div className="bg-[#F5C400] h-2 rounded-full transition-all duration-300" style={{ width: `${(step / total) * 100}%` }} />
       </div>
     </div>
   );
 }
 
-// ─── Step 1: Timezone ─────────────────────────────────────────────────────────
-
-function StepTimezone({
-  data, onChange, onNext,
-}: {
-  data: WizardData;
-  onChange: (key: keyof WizardData, value: string) => void;
-  onNext: () => void;
-}) {
+// ─── Step 1: Native language ──────────────────────────────────────────────────
+function StepNativeLanguage({ data, onChange, onNext }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void }) {
   const { lang } = useLanguage();
-  const t = T[lang].onboarding.timezone;
-
-  useEffect(() => {
-    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    onChange("timezone", detected || "UTC");
-  }, []);
-
-  const timezones = Intl.supportedValuesOf
-    ? Intl.supportedValuesOf("timeZone")
-    : ["UTC", "America/Toronto", "America/New_York", "Europe/Paris", "Africa/Tunis"];
-
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{t.title}</h2>
-      <p className="text-[#6B5E44] text-sm mb-6">{t.sub}</p>
-      <select
-        value={data.timezone}
-        onChange={(e) => onChange("timezone", e.target.value)}
-        className={`${inputCls} mb-6`}
-      >
-        {timezones.map((tz) => (
-          <option key={tz} value={tz}>{tz}</option>
-        ))}
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">
+        {lang === "fr" ? "Quelle est votre langue maternelle ?" : "What is your native language?"}
+      </h2>
+      <p className="text-[#6B5E44] text-sm mb-6">
+        {lang === "fr" ? "Cela nous aide à personnaliser votre expérience." : "This helps us personalise your experience."}
+      </p>
+      <select value={data.nativeLanguage} onChange={(e) => onChange("nativeLanguage", e.target.value)} className={`${inputCls} mb-6`}>
+        <option value="">{lang === "fr" ? "Sélectionner…" : "Select…"}</option>
+        {ALL_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
       </select>
-      <button onClick={onNext} disabled={!data.timezone} className={`w-full py-2.5 ${btnPrimary}`}>
-        {t.continue}
+      <button onClick={onNext} disabled={!data.nativeLanguage} className={`w-full py-2.5 ${btnPrimary}`}>
+        {lang === "fr" ? "Continuer" : "Continue"}
       </button>
     </div>
   );
 }
 
-// ─── Step 2: Languages & Goal ─────────────────────────────────────────────────
-
-function StepLanguages({
-  data, onChange, onNext, onBack,
-}: {
-  data: WizardData;
-  onChange: (key: keyof WizardData, value: string) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
+// ─── Step 2: Target language ──────────────────────────────────────────────────
+function StepTargetLanguage({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void; onBack: () => void }) {
   const { lang } = useLanguage();
-  const t = T[lang].onboarding.languages;
-  const icons = ["💬","💼","📚","🎯"];
-
-  const isValid =
-    data.nativeLanguage && data.targetLanguage && data.learningObjective &&
-    data.nativeLanguage !== data.targetLanguage;
-
+  const same = data.nativeLanguage && data.targetLanguage && data.nativeLanguage === data.targetLanguage;
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{t.title}</h2>
-      <p className="text-[#6B5E44] text-sm mb-6">{t.sub}</p>
-
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">{t.native}</label>
-          <select value={data.nativeLanguage} onChange={(e) => onChange("nativeLanguage", e.target.value)} className={inputCls}>
-            <option value="">{t.select}</option>
-            {ALL_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">{t.learn}</label>
-          <select value={data.targetLanguage} onChange={(e) => onChange("targetLanguage", e.target.value)} className={inputCls}>
-            <option value="">{t.select}</option>
-            {TARGET_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-          <p className="text-xs text-[#6B5E44] mt-1">{t.phase1}</p>
-        </div>
-      </div>
-      {data.nativeLanguage && data.targetLanguage && data.nativeLanguage === data.targetLanguage && (
-        <p className="text-xs text-red-500 mb-4">{t.sameError}</p>
-      )}
-
-      <label className="block text-sm font-semibold text-[#5C3D00] mb-2 mt-4">{t.goal}</label>
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {t.objectives.map((o, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => onChange("learningObjective", ["CONVERSATIONAL","PROFESSIONAL","ACADEMIC","EXAM_PREP"][i])}
-            className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition ${
-              data.learningObjective === ["CONVERSATIONAL","PROFESSIONAL","ACADEMIC","EXAM_PREP"][i] ? activeCard : inactiveCard
-            }`}
-          >
-            <span className="text-xl mb-1">{icons[i]}</span>
-            <span className="text-sm font-bold text-[#5C3D00]">{o.label}</span>
-            <span className="text-xs text-[#6B5E44]">{o.desc}</span>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">
+        {lang === "fr" ? "Quelle langue voulez-vous apprendre ?" : "Which language do you want to learn?"}
+      </h2>
+      <p className="text-[#6B5E44] text-sm mb-6">
+        {lang === "fr" ? "Français & Anglais disponibles en Phase 1." : "French & English available in Phase 1."}
+      </p>
+      <div className="flex gap-4 mb-4">
+        {TARGET_LANGUAGES.map((l) => (
+          <button key={l} onClick={() => onChange("targetLanguage", l)}
+            className={`flex-1 py-6 rounded-2xl border-2 text-lg font-bold transition ${data.targetLanguage === l ? activeCard : inactiveCard + " text-[#5C3D00]"}`}>
+            {l === "French" ? "🇫🇷 Français" : "🇬🇧 English"}
           </button>
         ))}
       </div>
-
+      {same && <p className="text-xs text-red-500 mb-4">{lang === "fr" ? "La langue maternelle et la langue cible ne peuvent pas être identiques." : "Native and target language can't be the same."}</p>}
       <div className="flex gap-3">
-        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{t.back}</button>
-        <button onClick={onNext} disabled={!isValid} className={`flex-1 py-2.5 ${btnPrimary}`}>{t.continue}</button>
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!data.targetLanguage || !!same} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
       </div>
     </div>
   );
 }
 
-// ─── Step 3: Assessment Preferences ──────────────────────────────────────────
-
-function StepAssessment({
-  data, onChange, onNext, onBack,
-}: {
-  data: WizardData;
-  onChange: (key: keyof WizardData, value: string | string[]) => void;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  function toggleDay(day: string) {
-    const cur = data.availabilityDays;
-    onChange("availabilityDays", cur.includes(day) ? cur.filter((d) => d !== day) : [...cur, day]);
-  }
-
-  function toggleWindow(w: string) {
-    const cur = data.timeWindowPreference;
-    onChange("timeWindowPreference", cur.includes(w) ? cur.filter((x) => x !== w) : [...cur, w]);
-  }
-
-  const isValid =
-    data.selfReportedLevel &&
-    data.availabilityDays.length > 0 &&
-    data.timeWindowPreference.length > 0 &&
-    data.sessionFrequency &&
-    data.programDuration;
-
+// ─── Step 3: Objective ────────────────────────────────────────────────────────
+function StepObjective({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void; onBack: () => void }) {
   const { lang } = useLanguage();
-  const t = T[lang].onboarding.assessment;
-  const cefrLabels = t.cefrLabels;
+  const t = T[lang].onboarding.languages;
+  const values = (t as unknown as { objectiveValues: string[] }).objectiveValues;
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Quel est votre objectif principal ?" : "What is your main goal?"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Choisissez ce qui vous correspond le mieux." : "Choose what fits you best."}</p>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {t.objectives.map((o, i) => (
+          <button key={i} type="button" onClick={() => onChange("learningObjective", values[i])}
+            className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition ${data.learningObjective === values[i] ? activeCard : inactiveCard}`}>
+            <span className="text-sm font-bold text-[#5C3D00]">{o.label}</span>
+            <span className="text-xs text-[#6B5E44] mt-1">{o.desc}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!data.learningObjective} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 4: Level (grouped) + quick test (3.3 + 3.4) ────────────────────────
+const LEVEL_GROUPS = [
+  {
+    value: "BEGINNER",
+    icon: "🟢",
+    label: { en: "Beginner", fr: "Débutant" },
+    range: "A1–A2",
+    desc: { en: "You're starting out or can use simple phrases in familiar situations.", fr: "Vous débutez ou pouvez utiliser des phrases simples dans des situations familières." },
+  },
+  {
+    value: "INTERMEDIATE",
+    icon: "🟡",
+    label: { en: "Intermediate", fr: "Intermédiaire" },
+    range: "B1–B2",
+    desc: { en: "You can communicate on familiar topics and handle most situations.", fr: "Vous pouvez communiquer sur des sujets familiers et gérer la plupart des situations." },
+  },
+  {
+    value: "ADVANCED",
+    icon: "🔵",
+    label: { en: "Advanced", fr: "Avancé" },
+    range: "C1–C2",
+    desc: { en: "You express yourself fluently and precisely in complex situations.", fr: "Vous vous exprimez avec fluidité et précision dans des situations complexes." },
+  },
+];
+
+function StepLevel({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void; onBack: () => void }) {
+  const { lang } = useLanguage();
+  const [showTest, setShowTest] = useState(false);
+
+  if (showTest) {
+    return (
+      <QuickTest
+        lang={lang}
+        onResult={(level) => { onChange("selfReportedLevel", level); setShowTest(false); }}
+        onSkip={() => setShowTest(false)}
+      />
+    );
+  }
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{t.title}</h2>
-      <p className="text-[#6B5E44] text-sm mb-6">{t.sub}</p>
-
-      {/* Self-reported level */}
-      <div className="mb-5">
-        <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.levelLabel}</label>
-        <div className="grid grid-cols-3 gap-2">
-          {Object.entries(cefrLabels).map(([val]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => onChange("selfReportedLevel", val)}
-              className={`py-2 px-3 rounded-xl border-2 text-sm font-bold transition ${
-                data.selfReportedLevel === val ? activeCard : `${inactiveCard} text-[#5C3D00]`
-              }`}
-            >
-              {val}
-            </button>
-          ))}
-        </div>
-        {data.selfReportedLevel && (
-          <p className="text-xs text-[#6B5E44] mt-1">{cefrLabels[data.selfReportedLevel as keyof typeof cefrLabels]}</p>
-        )}
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Quel est votre niveau actuel ?" : "What is your current level?"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Estimez votre niveau — votre tuteur affinera cela lors de la 1ère séance." : "Estimate your level — your tutor will refine this in the first session."}</p>
+      <div className="space-y-3 mb-4">
+        {LEVEL_GROUPS.map((g) => (
+          <button key={g.value} type="button" onClick={() => onChange("selfReportedLevel", g.value)}
+            className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition ${data.selfReportedLevel === g.value ? activeCard : inactiveCard}`}>
+            <span className="text-2xl mt-0.5">{g.icon}</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[#5C3D00]">{g.label[lang as "en"|"fr"]}</span>
+                <span className="text-xs text-[#9B8A6B] bg-white border border-[#E8DDD0] px-2 py-0.5 rounded-full">{g.range}</span>
+              </div>
+              <p className="text-xs text-[#6B5E44] mt-0.5">{g.desc[lang as "en"|"fr"]}</p>
+            </div>
+          </button>
+        ))}
       </div>
+      <button onClick={() => setShowTest(true)} className="w-full text-sm text-[#C49200] hover:text-[#5C3D00] font-semibold py-2 border border-dashed border-[#F5C400]/50 rounded-xl mb-5 transition hover:bg-[#FFFBEA]">
+        {lang === "fr" ? "Je ne connais pas mon niveau → Faire un test rapide" : "I don't know my level → Take a quick test"}
+      </button>
+      <div className="flex gap-3">
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!data.selfReportedLevel} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+      </div>
+    </div>
+  );
+}
 
-      {/* Preferred days */}
+// ─── Step 5: Schedule (days + time windows) ───────────────────────────────────
+function StepSchedule({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string | string[]) => void; onNext: () => void; onBack: () => void }) {
+  const { lang } = useLanguage();
+  const t = T[lang].onboarding.assessment;
+  function toggleDay(d: string) { const c = data.availabilityDays; onChange("availabilityDays", c.includes(d) ? c.filter((x) => x !== d) : [...c, d]); }
+  function toggleWindow(w: string) { const c = data.timeWindowPreference; onChange("timeWindowPreference", c.includes(w) ? c.filter((x) => x !== w) : [...c, w]); }
+  const isValid = data.availabilityDays.length > 0 && data.timeWindowPreference.length > 0;
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Vos jours et créneaux préférés" : "Your preferred days and time slots"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Choisissez quand vous êtes disponible." : "Choose when you're available."}</p>
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.daysLabel}</label>
         <div className="flex gap-2 flex-wrap">
           {DAYS.map((d) => (
             <button key={d} type="button" onClick={() => toggleDay(d)}
-              className={`px-3 py-1.5 rounded-full border-2 text-sm font-bold transition ${
-                data.availabilityDays.includes(d) ? activeCard : `${inactiveCard} text-[#5C3D00]`
-              }`}
-            >
-              {(t.dayLabels as Record<string,string>)[d]}
+              className={`px-3 py-1.5 rounded-full border-2 text-sm font-bold transition ${data.availabilityDays.includes(d) ? activeCard : inactiveCard + " text-[#5C3D00]"}`}>
+              {(t.dayLabels as Record<string, string>)[d]}
             </button>
           ))}
         </div>
       </div>
-
-      {/* Time windows */}
-      <div className="mb-5">
+      <div className="mb-6">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.windowsLabel}</label>
         <div className="flex gap-3">
           {(["MORNING","AFTERNOON","EVENING"] as const).map((val, i) => (
             <button key={val} type="button" onClick={() => toggleWindow(val)}
-              className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 text-sm transition ${
-                data.timeWindowPreference.includes(val) ? activeCard : `${inactiveCard} text-[#5C3D00]`
-              }`}
-            >
+              className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 text-sm transition ${data.timeWindowPreference.includes(val) ? activeCard : inactiveCard + " text-[#5C3D00]"}`}>
               <span className="font-bold">{t.windows[i].label}</span>
               <span className="text-xs mt-0.5 text-[#6B5E44]">{t.windows[i].time}</span>
             </button>
           ))}
         </div>
       </div>
+      <div className="flex gap-3">
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!isValid} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+      </div>
+    </div>
+  );
+}
 
-      {/* Session frequency */}
+// ─── Step 6: Frequency + Program (without discounts) ─────────────────────────
+function StepProgram({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void; onBack: () => void }) {
+  const { lang } = useLanguage();
+  const t = T[lang].onboarding.assessment;
+  const freqValues = ["ONCE","TWICE","THREE_TIMES","INTENSIVE"];
+  const progValues = ["PAY_PER_SESSION","ONE_MONTH","THREE_MONTHS","SIX_MONTHS"];
+  const isValid = data.sessionFrequency && data.programDuration;
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Votre programme" : "Your program"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Choisissez votre rythme et votre engagement." : "Choose your pace and commitment."}</p>
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.freqLabel}</label>
-        <div className="flex gap-3">
-          {(["ONCE","TWICE","THREE_TIMES"] as const).map((val, i) => (
-            <button key={val} type="button" onClick={() => onChange("sessionFrequency", val)}
-              className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition flex flex-col items-center ${
-                data.sessionFrequency === val ? activeCard : `${inactiveCard} text-[#5C3D00]`
-              }`}
-            >
-              <span>{t.freqs[i].label}</span>
-              {"note" in t.freqs[i] && t.freqs[i].note && <span className="text-xs font-normal text-green-600">{t.freqs[i].note}</span>}
+        <div className="grid grid-cols-4 gap-2">
+          {t.freqs.map((f, i) => (
+            <button key={i} type="button" onClick={() => onChange("sessionFrequency", freqValues[i])}
+              className={`py-2.5 rounded-xl border-2 text-sm font-bold transition flex flex-col items-center ${data.sessionFrequency === freqValues[i] ? activeCard : inactiveCard + " text-[#5C3D00]"}`}>
+              <span>{f.label}</span>
+              {f.note && <span className="text-xs font-normal text-[#6B5E44]">{f.note}</span>}
             </button>
           ))}
         </div>
       </div>
-
-      {/* Program duration */}
       <div className="mb-6">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">{t.programLabel}</label>
         <div className="grid grid-cols-2 gap-2">
-          {(["PAY_PER_SESSION","ONE_MONTH","THREE_MONTHS","SIX_MONTHS"] as const).map((val, i) => (
-            <button key={val} type="button" onClick={() => onChange("programDuration", val)}
-              className={`py-2.5 px-3 rounded-xl border-2 text-left text-sm transition ${
-                data.programDuration === val ? activeCard : inactiveCard
-              }`}
-            >
-              <span className="font-bold text-[#5C3D00] block">{t.programs[i].label}</span>
-              <span className="text-xs text-green-600">{t.programs[i].note}</span>
+          {t.programs.map((p, i) => (
+            <button key={i} type="button" onClick={() => onChange("programDuration", progValues[i])}
+              className={`py-3 px-3 rounded-xl border-2 text-left text-sm transition ${data.programDuration === progValues[i] ? activeCard : inactiveCard}`}>
+              <span className="font-bold text-[#5C3D00] block">{p.label}</span>
+              <span className="text-xs text-[#6B5E44]">{p.note}</span>
             </button>
           ))}
         </div>
       </div>
-
       <div className="flex gap-3">
-        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{t.back}</button>
-        <button onClick={onNext} disabled={!isValid} className={`flex-1 py-2.5 ${btnPrimary}`}>
-          {t.startQuiz}
-        </button>
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!isValid} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
       </div>
     </div>
   );
 }
 
-// ─── Step 4: Adaptive CEFR Quiz ───────────────────────────────────────────────
+// ─── Step 7: Country (3.8) ────────────────────────────────────────────────────
+const COUNTRIES = ["Anywhere / N'importe où","Tunisia","France","Algeria","Morocco","Belgium","Switzerland","Canada","United States","Germany","United Kingdom","Italy","Spain","Portugal","Senegal","Ivory Coast","Other"];
 
-function StepCefrQuiz({
-  onComplete,
-  onBack,
-}: {
-  onComplete: (answers: QuizAnswer[]) => void;
-  onBack: () => void;
-}) {
+function StepCountry({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string) => void; onNext: () => void; onBack: () => void }) {
   const { lang } = useLanguage();
-  const t = T[lang].onboarding.quiz;
-
-  const [answers, setAnswers] = useState<QuizAnswer[]>([]);
-  const [usedIds] = useState(new Set<string>());
-  const [currentQ, setCurrentQ] = useState<QuizQuestion | null>(() =>
-    pickQuestion(3, new Set()) // Start at B1 difficulty
-  );
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-
-  const questionNumber = answers.length + 1;
-  const isLastQuestion = questionNumber >= QUIZ_LENGTH;
-
-  if (!currentQ) {
-    return <p className="text-sm text-[#6B5E44]">{t.loading}</p>;
-  }
-
-  function handleSelect(i: number) {
-    if (showFeedback) return;
-    setSelectedIndex(i);
-  }
-
-  function handleConfirm() {
-    if (selectedIndex === null || !currentQ) return;
-    const wasCorrect = selectedIndex === currentQ.correct;
-    const newAnswer: QuizAnswer = { question: currentQ, selectedIndex, wasCorrect };
-    const newAnswers = [...answers, newAnswer];
-
-    usedIds.add(currentQ.id);
-    setAnswers(newAnswers);
-    setShowFeedback(true);
-
-    setTimeout(() => {
-      if (newAnswers.length >= QUIZ_LENGTH) {
-        onComplete(newAnswers);
-      } else {
-        const difficulty = nextDifficulty(currentQ.difficulty, wasCorrect);
-        const next = pickQuestion(difficulty, usedIds);
-        setCurrentQ(next);
-        setSelectedIndex(null);
-        setShowFeedback(false);
-      }
-    }, 800);
-  }
-
+  const [query, setQuery] = useState("");
+  const filtered = COUNTRIES.filter((c) => c.toLowerCase().includes(query.toLowerCase()));
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">{t.title}</h2>
-      <p className="text-[#6B5E44] text-sm mb-4">
-        {t.question} {questionNumber} {t.of} {QUIZ_LENGTH} · {t.categories[currentQ.category as keyof typeof t.categories]}
-      </p>
-
-      {/* Mini progress */}
-      <div className="flex gap-1 mb-6">
-        {Array.from({ length: QUIZ_LENGTH }).map((_, i) => (
-          <div key={i} className={`flex-1 h-1.5 rounded-full ${i < answers.length ? "bg-[#F5C400]" : "bg-[#FAF8F0]"}`} />
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Où souhaitez-vous apprendre ?" : "Where are you learning from?"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Cela nous aide à adapter le fuseau horaire et les recommandations." : "This helps us adapt timezone and recommendations."}</p>
+      <input
+        type="text"
+        placeholder={lang === "fr" ? "Rechercher un pays…" : "Search a country…"}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className={`${inputCls} mb-2`}
+      />
+      <div className="max-h-48 overflow-y-auto rounded-xl border border-[#D9CDBA] mb-6">
+        {filtered.map((c) => (
+          <button key={c} type="button" onClick={() => { onChange("country", c); setQuery(c); }}
+            className={`w-full text-left px-4 py-2.5 text-sm transition border-b border-[#FAF8F0] last:border-0 ${data.country === c ? "bg-[#FFF3B0] font-semibold text-[#5C3D00]" : "hover:bg-[#FFFBEA] text-[#5C3D00]"}`}>
+            {c}
+          </button>
         ))}
       </div>
-
-      <div className="bg-[#FFF3B0] rounded-xl p-4 mb-4 border border-[#F5C400]/40">
-        <span className="text-xs font-bold text-[#C49200] uppercase tracking-wide">{t.levelLabel} {currentQ.level}</span>
-        <p className="text-[#5C3D00] font-medium mt-1 whitespace-pre-line">{currentQ.question}</p>
-      </div>
-
-      <div className="space-y-2 mb-6">
-        {currentQ.options.map((option, i) => {
-          let cls = `${inactiveCard} text-[#5C3D00]`;
-          if (showFeedback) {
-            if (i === currentQ.correct) cls = "border-green-500 bg-green-50 text-green-800";
-            else if (i === selectedIndex) cls = "border-red-400 bg-red-50 text-red-700";
-          } else if (selectedIndex === i) {
-            cls = `${activeCard} text-[#5C3D00] font-semibold`;
-          }
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleSelect(i)}
-              className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm transition ${cls}`}
-            >
-              <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span>
-              {option}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="flex gap-3">
-        {answers.length === 0 && (
-          <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{t.back}</button>
-        )}
-        <button
-          onClick={handleConfirm}
-          disabled={selectedIndex === null || showFeedback}
-          className={`flex-1 py-2.5 ${btnPrimary}`}
-        >
-          {showFeedback ? (isLastQuestion ? t.calculating : t.next) : t.confirm}
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={!data.country} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 8: Tutor languages (3.9) ────────────────────────────────────────────
+function StepTutorLanguages({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string[]) => void; onNext: () => void; onBack: () => void }) {
+  const { lang } = useLanguage();
+  function toggle(l: string) { const c = data.tutorLanguages; onChange("tutorLanguages", c.includes(l) ? c.filter((x) => x !== l) : [...c, l]); }
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Langue(s) souhaitée(s) pour votre tuteur" : "Preferred language(s) for your tutor"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Sélection multiple possible." : "Multiple selection possible."}</p>
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {TUTOR_LANGUAGES.map((l) => (
+          <button key={l} type="button" onClick={() => toggle(l)}
+            className={`py-3 px-4 rounded-xl border-2 text-sm font-bold text-left transition ${data.tutorLanguages.includes(l) ? activeCard : inactiveCard + " text-[#5C3D00]"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={data.tutorLanguages.length === 0} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 9: Budget slider (3.10) ─────────────────────────────────────────────
+function StepBudget({ data, onChange, onNext, onBack, saving }: { data: WizardData; onChange: (k: keyof WizardData, v: number) => void; onNext: () => void; onBack: () => void; saving: boolean }) {
+  const { lang } = useLanguage();
+  const budget = data.budgetPerSession || 30;
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Votre budget par séance" : "Your budget per session"}</h2>
+      <p className="text-[#6B5E44] text-sm mb-8">{lang === "fr" ? "Glissez pour définir votre budget maximum." : "Slide to set your maximum budget."}</p>
+      <div className="text-center mb-6">
+        <span className="text-5xl font-bold text-[#5C3D00]">${budget}</span>
+        <span className="text-[#6B5E44] text-lg ml-1">USD</span>
+        <p className="text-xs text-[#9B8A6B] mt-1">{lang === "fr" ? "par séance" : "per session"}</p>
+      </div>
+      <input
+        type="range"
+        min={15}
+        max={150}
+        step={5}
+        value={budget}
+        onChange={(e) => onChange("budgetPerSession", parseInt(e.target.value))}
+        className="w-full accent-[#F5C400] mb-2"
+      />
+      <div className="flex justify-between text-xs text-[#9B8A6B] mb-8">
+        <span>$15</span>
+        <span>$150</span>
+      </div>
+      <div className="flex gap-3">
+        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={saving} className={`flex-1 py-2.5 ${btnPrimary}`}>
+          {saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              {lang === "fr" ? "Enregistrement…" : "Saving…"}
+            </span>
+          ) : (lang === "fr" ? "Trouver mon tuteur →" : "Find my tutor →")}
         </button>
       </div>
-    </div>
-  );
-}
-
-// ─── Step 5: Results + Pricing + Stripe ──────────────────────────────────────
-
-function CardSetupForm({ onSuccess, onSkip }: { onSuccess: () => void; onSkip: () => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const { lang } = useLanguage();
-  const t = T[lang].onboarding.results;
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [fetching, setFetching] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/stripe/setup-intent", { method: "POST" })
-      .then((r) => r.json())
-      .then((d) => { if (d.clientSecret) setClientSecret(d.clientSecret); else setError("Could not load payment form."); })
-      .catch(() => setError("Could not load payment form."))
-      .finally(() => setFetching(false));
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements || !clientSecret) return;
-    setLoading(true);
-    setError("");
-    const card = elements.getElement(CardElement);
-    if (!card) return;
-    const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, { payment_method: { card } });
-    setLoading(false);
-    if (stripeError) setError(stripeError.message ?? t.cardFailed);
-    else onSuccess();
-  }
-
-  if (fetching) return <p className="text-sm text-[#6B5E44]">{t.loadingPayment}</p>;
-  if (error && !clientSecret) return (
-    <div>
-      <p className="text-sm text-red-500 mb-3">{error}</p>
-      <button onClick={onSkip} className="text-sm text-[#C49200] hover:text-[#5C3D00] font-semibold">{t.skip}</button>
-    </div>
-  );
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="border border-[#6B5E44]/30 rounded-xl px-4 py-3 mb-3 bg-white">
-        <CardElement options={{ style: { base: { fontSize: "14px", color: "#5C3D00" } } }} />
-      </div>
-      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
-      <button type="submit" disabled={loading || !stripe}
-        className={`w-full py-2.5 mb-2 ${btnPrimary}`}>
-        {loading ? t.saving2 : t.saveCard}
-      </button>
-      <button type="button" onClick={onSkip} className="w-full text-sm text-[#6B5E44] hover:text-[#5C3D00] py-1 font-medium">
-        {t.skip}
-      </button>
-    </form>
-  );
-}
-
-function StepResults({
-  data,
-  stripeKey,
-  onFinish,
-  onCurrencyChange,
-  saving,
-}: {
-  data: WizardData;
-  stripeKey: string;
-  onFinish: () => void;
-  onCurrencyChange: (c: string) => void;
-  saving: boolean;
-}) {
-  const { lang } = useLanguage();
-  const t = T[lang].onboarding.results;
-  const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
-  const p = data.pricing;
-
-  const currencySymbols: Record<string, string> = { USD: "$", CAD: "CA$", EUR: "€" };
-  const preferredRate = data.preferredCurrency === "CAD"
-    ? p?.monthlyRateCad
-    : data.preferredCurrency === "EUR"
-    ? p?.monthlyRateEur
-    : p?.monthlyRateUsd;
-
-  const currSymbol = currencySymbols[data.preferredCurrency] ?? "$";
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">{t.title}</h2>
-      <p className="text-[#6B5E44] text-sm mb-6">{t.sub}</p>
-
-      {/* CEFR Result */}
-      <div className="bg-[#F5C400] rounded-xl p-4 mb-4">
-        <p className="text-xs font-bold text-[#5C3D00]/70 uppercase tracking-wide mb-1">{t.cefrLabel}</p>
-        <p className="text-5xl font-bold text-[#5C3D00]">{data.cefrLevel}</p>
-        <p className="text-sm text-[#5C3D00] mt-1 font-semibold">
-          {data.cefrLevel ? CEFR_LABELS[data.cefrLevel] : ""}
-        </p>
-        <p className="text-xs text-[#5C3D00]/70 mt-1">
-          {data.cefrLevel ? CEFR_DESCRIPTIONS[data.cefrLevel] : ""}
-        </p>
-      </div>
-
-      {/* Pricing */}
-      {p && (
-        <div className="bg-[#FFFDF4] border border-[#F5C400]/30 rounded-xl p-4 mb-4">
-          <p className="text-xs font-bold text-[#C49200] uppercase tracking-wide mb-3">{t.pricingLabel}</p>
-          <div className="flex items-end gap-2 mb-1">
-            <span className="text-3xl font-bold text-[#5C3D00]">
-              {currSymbol}{data.programDuration === "PAY_PER_SESSION"
-                ? (data.preferredCurrency === "USD" ? (p.perSessionRateCad * 0.74).toFixed(0)
-                  : data.preferredCurrency === "EUR" ? (p.perSessionRateCad * 0.68).toFixed(0)
-                  : p.perSessionRateCad.toFixed(0))
-                : preferredRate?.toFixed(0)}
-            </span>
-            <span className="text-[#6B5E44] text-sm mb-1">{t.durations[data.programDuration as keyof typeof t.durations] ?? ""}</span>
-          </div>
-          <div className="text-xs text-[#6B5E44] space-y-0.5">
-            <p>{p.sessionsPerMonth} {t.sessionsMonth}</p>
-            {p.durationDiscount > 0 && (
-              <p className="text-green-600 font-semibold">✓ {Math.round(p.durationDiscount * 100)}{t.discount}</p>
-            )}
-          </div>
-
-          {/* Currency selector */}
-          <div className="flex gap-2 mt-3">
-            {["USD", "CAD", "EUR"].map((c) => (
-              <button key={c} type="button"
-                onClick={() => onCurrencyChange(c)}
-                className={`px-3 py-1 rounded-full text-xs font-bold border-2 transition ${
-                  data.preferredCurrency === c
-                    ? "bg-[#5C3D00] text-[#F5C400] border-[#5C3D00]"
-                    : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#F5C400]"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Discovery session note */}
-      <div className="bg-[#FFF3B0] border border-[#F5C400]/40 rounded-xl px-4 py-3 mb-6 text-sm text-[#5C3D00]">
-        <p className="font-bold mb-0.5">{t.discoveryTitle}</p>
-        <p className="text-xs text-[#6B5E44]">{t.discoverySub} ${DISCOVERY_PRICE.USD} USD · CA${DISCOVERY_PRICE.CAD} · €{DISCOVERY_PRICE.EUR} {t.discoverySub2}</p>
-      </div>
-
-      {/* Stripe card setup */}
-      {saving ? (
-        <p className="text-sm text-[#6B5E44] text-center py-4">{t.saving}</p>
-      ) : (
-        <>
-          <p className="text-sm font-semibold text-[#5C3D00] mb-3">{t.addPayment}</p>
-          {stripePromise ? (
-            <Elements stripe={stripePromise}>
-              <CardSetupForm onSuccess={onFinish} onSkip={onFinish} />
-            </Elements>
-          ) : (
-            <div>
-              <p className="text-xs text-[#C49200] bg-[#FFF3B0] border border-[#F5C400]/40 rounded-xl p-3 mb-3">
-                {t.noStripe}
-              </p>
-              <button onClick={onFinish}
-                className={`w-full py-2.5 ${btnPrimary}`}>
-                {t.dashboard}
-              </button>
-            </div>
-          )}
-        </>
-      )}
     </div>
   );
 }
 
 // ─── Main Wizard ──────────────────────────────────────────────────────────────
-
-export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
+export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -647,24 +494,29 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
     timeWindowPreference: [],
     sessionFrequency: "",
     programDuration: "",
+    country: "",
+    tutorLanguages: [],
+    budgetPerSession: 30,
     preferredCurrency: "USD",
-    cefrLevel: null,
     programTier: null,
-    pricing: null,
   });
 
-  function update(key: keyof WizardData, value: string | string[]) {
+  // Auto-detect timezone silently (3.7)
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) setData((prev) => ({ ...prev, timezone: tz }));
+  }, []);
+
+  function update(key: keyof WizardData, value: string | string[] | number) {
     setData((prev) => ({ ...prev, [key]: value }));
   }
 
   function nextStep() { setStep((s) => Math.min(s + 1, TOTAL_STEPS)); }
   function prevStep() { setStep((s) => Math.max(s - 1, 1)); }
 
-  async function handleQuizComplete(answers: QuizAnswer[]) {
-    const cefrLevel = scoreCefrQuiz(answers);
+  async function handleFinish() {
     setSaving(true);
-
-    const res = await fetch("/api/onboarding", {
+    await fetch("/api/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -677,25 +529,13 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
         timeWindowPreference: data.timeWindowPreference,
         sessionFrequency: data.sessionFrequency,
         programDuration: data.programDuration,
+        country: data.country,
+        tutorLanguages: data.tutorLanguages,
+        budgetPerSession: data.budgetPerSession,
         preferredCurrency: data.preferredCurrency,
-        cefrLevel,
       }),
     });
-
-    const result = await res.json();
     setSaving(false);
-
-    setData((prev) => ({
-      ...prev,
-      cefrLevel,
-      programTier: result.tier ?? null,
-      pricing: result.pricing ?? null,
-    }));
-
-    setStep(5);
-  }
-
-  function handleFinish() {
     router.push("/dashboard/student");
   }
 
@@ -706,11 +546,15 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
         <div className="mb-5" />
         <ProgressBar step={step} total={TOTAL_STEPS} />
 
-        {step === 1 && <StepTimezone data={data} onChange={update} onNext={nextStep} />}
-        {step === 2 && <StepLanguages data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 3 && <StepAssessment data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 4 && <StepCefrQuiz onComplete={handleQuizComplete} onBack={prevStep} />}
-        {step === 5 && <StepResults data={data} stripeKey={stripeKey} onFinish={handleFinish} onCurrencyChange={(c) => update("preferredCurrency", c)} saving={saving} />}
+        {step === 1 && <StepNativeLanguage data={data} onChange={update} onNext={nextStep} />}
+        {step === 2 && <StepTargetLanguage data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 3 && <StepObjective data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 4 && <StepLevel data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 5 && <StepSchedule data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 6 && <StepProgram data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 7 && <StepCountry data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
+        {step === 9 && <StepBudget data={data} onChange={update} onNext={handleFinish} onBack={prevStep} saving={saving} />}
       </div>
     </div>
   );

@@ -37,15 +37,18 @@ enum TutorVerificationTier {
 
 enum LearningObjective {
   CONVERSATIONAL
-  PROFESSIONAL   // +10% pricing premium
+  PROFESSIONAL
+  TRAVEL
   ACADEMIC
-  EXAM_PREP      // +15% pricing premium (DELF, IELTS, TEF, TOEFL)
+  EXAM_PREP
+  CULTURAL
 }
 
 enum SessionFrequency {
-  ONCE        // 1x/week  — 1.0x multiplier
-  TWICE       // 2x/week  — 1.9x multiplier (5% bundle discount)
-  THREE_TIMES // 3+/week  — 2.7x multiplier (10% bundle discount)
+  ONCE        // 1x/week
+  TWICE       // 2x/week
+  THREE_TIMES // 3x/week
+  INTENSIVE   // 3+/week
 }
 
 enum ProgramDuration {
@@ -222,6 +225,11 @@ model StudentProfile {
   sessionFrequency    SessionFrequency?
   programDuration     ProgramDuration?
   preferredCurrency   Currency          @default(USD) // Auto-detected by IP, student can override
+
+  // Extended preferences (added M2 revision)
+  country              String?   // Country of the student
+  tutorLanguages       String[]  // Languages the student wants the tutor to speak
+  budgetPerSession     Int?      // Budget in USD per session
 
   // Onboarding state
   onboardingCompleted   Boolean   @default(false)
