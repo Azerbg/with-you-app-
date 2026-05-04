@@ -16,7 +16,7 @@ export default function HomePage() {
     { name: "Leila M.", lang: "French",  level: "Native", rating: "5.0", reviews: 87,  price: 42, tag: "New",       avatar: "LM", color: "#C49200" },
   ];
 
-  const languages = ["French", "English", "Spanish", "German", "Italian", "Arabic"];
+  const languages = t.languages as string[];
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #fdfaf4 0%, #fffef9 40%, #f8f3e8 100%)" }}>
@@ -108,10 +108,9 @@ export default function HomePage() {
             {/* Nav links — hide when logged in */}
             {!session?.user && (
               <nav className="hidden md:flex items-center gap-6 text-[13px] text-gray-500 font-medium">
-                <a href="#tutors"       className="hover:text-[#5C3D00] transition-colors">{t.nav.findTutor}</a>
                 <a href="#how-it-works" className="hover:text-[#5C3D00] transition-colors">{t.nav.howItWorks}</a>
                 <Link href="/tutors/apply" className="hover:text-[#5C3D00] transition-colors">{t.nav.becomeTutor}</Link>
-                <a href="#pricing"      className="hover:text-[#5C3D00] transition-colors">{t.nav.pricing}</a>
+                <a href="#pricing" className="hover:text-[#5C3D00] transition-colors">{lang === "fr" ? "Commencer" : "Get started"}</a>
               </nav>
             )}
 
@@ -292,14 +291,15 @@ export default function HomePage() {
       {!session?.user && <section className="max-w-7xl mx-auto w-full px-8 pt-16 pb-12 grid md:grid-cols-2 gap-12 items-center">
         {/* Left */}
         <div>
-          <h1 className="a2 text-5xl md:text-6xl font-bold text-[#5C3D00] leading-[1.05] mb-5">
+          <h1 className="a2 text-5xl md:text-7xl font-bold text-[#5C3D00] leading-[1.05] mb-5">
             {t.hero.heading1}<br />
             {t.hero.heading2}{" "}
             <span className="shimmer">{t.hero.shimmer}</span>
           </h1>
 
-          <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-            {t.hero.sub}
+          <p className="a3 text-xl text-gray-500 mb-8 leading-relaxed max-w-md">
+            {t.hero.sub}<br />
+            <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
           </p>
 
           {/* Language chips */}
@@ -353,7 +353,7 @@ export default function HomePage() {
                   <p className="font-bold text-[#5C3D00] text-sm">{tutor.name}</p>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: tutor.color + "30", color: tutor.color }}>{tutor.tag}</span>
                 </div>
-                <p className="text-xs text-gray-400">{tutor.lang} · {t.tutorCard.speaker} {tutor.level}</p>
+                <p className="text-xs text-gray-400">{tutor.lang}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="text-[#F5C400] text-xs">★</span>
                   <span className="text-xs font-semibold text-[#5C3D00]">{tutor.rating}</span>
@@ -361,8 +361,6 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="font-bold text-[#5C3D00] text-sm">${tutor.price}</p>
-                <p className="text-[10px] text-gray-400">{t.tutorCard.perSession}</p>
                 <Link href="/auth/register" className="mt-2 text-[10px] font-bold bg-[#F5C400] text-[#5C3D00] px-3 py-1 rounded-full hover:bg-[#FFDE59] transition inline-block">
                   {t.tutorCard.book}
                 </Link>
@@ -370,28 +368,20 @@ export default function HomePage() {
             </div>
           ))}
 
-          {/* Floating CEFR badge */}
-          <div className="card-float absolute -top-4 -right-4 bg-[#5C3D00] text-white rounded-2xl px-4 py-3 shadow-xl">
-            <p className="text-[10px] opacity-60 uppercase tracking-wider">{t.tutorCard.yourLevel}</p>
-            <p className="text-2xl font-bold text-[#F5C400]">B2</p>
-            <p className="text-[10px] opacity-70">{t.tutorCard.upperIntermediate}</p>
-          </div>
         </div>
       </section>}
 
       {/* ── Stats bar — shown only when NOT logged in ── */}
       {!session?.user &&
       <section className="border-y border-[#F5C400]/10 bg-white/50 backdrop-blur-sm py-8">
-        <div className="max-w-4xl mx-auto px-8 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+        <div className="max-w-4xl mx-auto px-8 grid grid-cols-2 sm:grid-cols-2 gap-8 text-center">
           {[
-            { val: "500+",  label: t.stats.students },
-            { val: "50+",   label: t.stats.tutors },
-            { val: "4.9★",  label: t.stats.rating },
-            { val: "3 min", label: t.stats.response },
+            { val: "500+", label: t.stats.students },
+            { val: "50+",  label: t.stats.tutors },
           ].map((s) => (
             <div key={s.label}>
-              <p className="text-2xl font-bold text-[#5C3D00]">{s.val}</p>
-              <p className="text-xs text-gray-400 mt-1">{s.label}</p>
+              <p className="text-3xl font-bold text-[#5C3D00]">{s.val}</p>
+              <p className="text-sm text-gray-400 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
@@ -447,14 +437,31 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Become a tutor ── */}
+      {(() => { const bt = (t as unknown as {becomeTutor: {label:string;title:string;desc:string;badge:string;cta:string}}).becomeTutor; return (
+      <section className="max-w-4xl mx-auto px-8 py-16">
+        <div className="bg-[#5C3D00] rounded-3xl p-10 flex flex-col sm:flex-row items-center gap-8">
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-xs font-bold text-[#F5C400] uppercase tracking-widest mb-2">{bt.label}</p>
+            <h2 className="text-3xl font-bold text-white mb-3">{bt.title}</h2>
+            <p className="text-white/70 text-base leading-relaxed mb-4">{bt.desc}</p>
+            <p className="text-[#F5C400] text-sm font-semibold">{bt.badge}</p>
+          </div>
+          <Link href="/tutors/apply" className="whitespace-nowrap bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base hover:bg-[#FFDE59] transition shadow-lg">
+            {bt.cta}
+          </Link>
+        </div>
+      </section>
+      ); })()}
+
       {/* ── Bottom CTA ── */}
       <section id="pricing" className="max-w-4xl mx-auto px-8 py-20 text-center">
         <p className="text-xs font-bold text-[#C49200] uppercase tracking-widest mb-3">{t.cta.label}</p>
         <h2 className="text-4xl font-bold text-[#5C3D00] mb-4">{t.cta.title}</h2>
-        <p className="text-gray-500 text-base mb-8 max-w-sm mx-auto">
-          {t.cta.sub} <span className="font-bold text-[#5C3D00]">$15</span>{t.cta.sub2}
+        <p className="text-gray-500 text-base mb-8 max-w-md mx-auto">
+          {t.cta.sub}
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
           <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-10 py-4 rounded-full font-bold text-base">
             {t.cta.btn1}
           </Link>
@@ -462,6 +469,7 @@ export default function HomePage() {
             {t.cta.btn2}
           </Link>
         </div>
+        <p className="text-sm text-gray-400 max-w-md mx-auto">{(t.cta as unknown as {micro: string}).micro}</p>
       </section>
       </>}
 
