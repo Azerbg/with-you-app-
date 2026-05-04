@@ -18,18 +18,27 @@ export default async function StudentDashboardPage() {
 
   const profile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
-    include: { user: { select: { email: true, timezone: true } } },
+    include: { user: { select: { email: true, timezone: true, firstName: true, lastName: true, image: true } } },
   });
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
   const tier = profile.programTier as ProgramTier;
   const tierInfo = TIER_DESCRIPTIONS[tier];
-  const initials = profile.user.email.slice(0, 2).toUpperCase();
+
+  const firstName = profile.user.firstName ?? null;
+  const lastName  = profile.user.lastName  ?? null;
+  const initials  = firstName && lastName
+    ? (firstName[0] + lastName[0]).toUpperCase()
+    : firstName
+    ? firstName.slice(0, 2).toUpperCase()
+    : profile.user.email.slice(0, 2).toUpperCase();
 
   return (
     <DashboardContent
       email={profile.user.email}
+      firstName={firstName}
+      image={profile.user.image ?? null}
       cefrLevel={profile.cefrLevel}
       tierLabel={tierInfo.label}
       tierSessions={tierInfo.sessions}
@@ -44,6 +53,7 @@ export default async function StudentDashboardPage() {
       timezone={profile.user.timezone}
       timeWindowPreference={profile.timeWindowPreference}
       availabilityDays={profile.availabilityDays}
+      country={profile.country ?? null}
     />
   );
 }

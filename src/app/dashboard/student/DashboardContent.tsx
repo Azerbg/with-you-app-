@@ -7,6 +7,8 @@ import StudentSidebar from "@/components/StudentSidebar";
 
 interface Props {
   email: string;
+  firstName: string | null;
+  image: string | null;
   cefrLevel: string | null;
   tierLabel: string;
   tierSessions: string;
@@ -21,6 +23,7 @@ interface Props {
   timezone: string;
   timeWindowPreference: string[];
   availabilityDays: string[];
+  country: string | null;
 }
 
 const DAYS_ORDER = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -29,15 +32,21 @@ export default function DashboardContent(p: Props) {
   const { lang } = useLanguage();
   const t = T[lang].dashboard;
 
-  const objLabel = p.learningObjective ? (t.objectives as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
-  const freqLabel = p.sessionFrequency ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
-  const durLabel  = p.programDuration  ? (t.durations  as Record<string,string>)[p.programDuration]  ?? p.programDuration  : "";
-  const cefrDesc  = p.cefrLevel        ? (t.cefr       as Record<string,string>)[p.cefrLevel]        ?? "" : "";
+  const objLabel  = p.learningObjective ? (t.objectives  as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
+  const freqLabel = p.sessionFrequency  ? (t.frequencies as Record<string,string>)[p.sessionFrequency]  ?? p.sessionFrequency  : "—";
+  const durLabel  = p.programDuration   ? (t.durations   as Record<string,string>)[p.programDuration]   ?? p.programDuration   : "";
+  const cefrDesc  = p.cefrLevel         ? (t.cefr        as Record<string,string>)[p.cefrLevel]         ?? "" : "";
+
+  // 5.1 — personalised greeting with firstName
+  const greetingName = p.firstName ? `, ${p.firstName}` : "";
+  const greeting = lang === "fr" ? `Bonjour${greetingName} 👋` : `Good day${greetingName} 👋`;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
       <StudentSidebar
         email={p.email}
+        firstName={p.firstName}
+        image={p.image}
         cefrLevel={p.cefrLevel}
         tier={p.tierLabel}
         initials={p.initials}
@@ -47,24 +56,42 @@ export default function DashboardContent(p: Props) {
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">{t.overview}</h1>
-          <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/05 flex items-center justify-center text-[#6B5E44] transition">
+          <div className="flex items-center gap-2">
+            {/* 5.9 — Messages icon */}
+            <button title={(t as Record<string,string>).messages} className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {/* Bell icon */}
+            <button className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
                 <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
               </svg>
             </button>
-            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
-              {p.initials}
-            </div>
+            {/* 5.10 — Settings icon */}
+            <button title={(t as Record<string,string>).settings} className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {/* 5.2 — Avatar: Google photo or initials */}
+            {p.image ? (
+              <img src={p.image} alt="" className="w-8 h-8 rounded-lg object-cover" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
+                {p.initials}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-8">
 
-          {/* Welcome */}
+          {/* 5.1 — Personalised welcome */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-[#5C3D00]">{t.greeting}</h2>
+            <h2 className="text-2xl font-bold text-[#5C3D00]">{greeting}</h2>
             <p className="text-sm text-[#6B5E44] mt-1">{t.greetingSub}</p>
           </div>
 
@@ -109,7 +136,7 @@ export default function DashboardContent(p: Props) {
             {/* Left 2/3 */}
             <div className="xl:col-span-2 space-y-6">
 
-              {/* Language profile */}
+              {/* 5.6 — My Learning Profile */}
               <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
                   <p className="font-bold text-[#5C3D00]">{t.profile}</p>
@@ -117,14 +144,16 @@ export default function DashboardContent(p: Props) {
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-6">
                   {[
-                    { label: t.nativeLang,     value: p.nativeLanguage ?? "—" },
-                    { label: t.learning,        value: p.targetLanguage ?? "—" },
+                    { label: t.nativeLang, value: p.nativeLanguage ?? "—" },
+                    { label: t.learning,   value: p.targetLanguage ?? "—" },
                   ].map((r) => (
                     <div key={r.label} className="space-y-1">
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{r.label}</p>
                       <p className="font-bold text-[#5C3D00]">{r.value}</p>
                     </div>
                   ))}
+
+                  {/* 5.4 — "Niveau actuel" / "Current Level" */}
                   <div className="space-y-1">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.cefrLevelShort}</p>
                     {p.cefrLevel ? (
@@ -141,10 +170,19 @@ export default function DashboardContent(p: Props) {
                       </div>
                     )}
                   </div>
+
                   <div className="space-y-1">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.goal}</p>
                     <p className="font-bold text-[#5C3D00]">{objLabel}</p>
                   </div>
+
+                  {/* 5.8 — Country */}
+                  {p.country && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{(t as Record<string,string>).country}</p>
+                      <p className="font-bold text-[#5C3D00]">{p.country}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -201,16 +239,7 @@ export default function DashboardContent(p: Props) {
                 </div>
               </div>
 
-              {/* Find tutor CTA */}
-              <div className="bg-[#1C1008] rounded-2xl p-6 flex items-center justify-between gap-6">
-                <div>
-                  <p className="text-[#F5C400] font-bold text-lg mb-1">{t.findTutor}</p>
-                  <p className="text-white/50 text-sm">{t.findTutorSub}</p>
-                </div>
-                <button className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-5 py-2.5 rounded-full font-bold text-sm hover:bg-[#FFDE59] transition shadow-[0_4px_14px_rgba(245,196,0,0.35)] whitespace-nowrap">
-                  {t.browseTutors}
-                </button>
-              </div>
+              {/* 5.7 — "Find a tutor" block removed */}
             </div>
 
             {/* Right 1/3 */}
@@ -231,9 +260,9 @@ export default function DashboardContent(p: Props) {
                 </div>
                 <div className="divide-y divide-black/4">
                   {[
-                    { label: t.sessionsCompleted, value: "0",                   icon: "📅" },
-                    { label: t.flashcardsCreated,  value: "0",                   icon: "🗂️" },
-                    { label: t.streak,             value: `0 ${t.days}`,         icon: "🔥" },
+                    { label: t.sessionsCompleted, value: "0", icon: "📅" },
+                    { label: t.flashcardsCreated, value: "0", icon: "🗂️" },
+                    { label: t.streak,            value: `0 ${t.days}`, icon: "🔥" },
                   ].map((s) => (
                     <div key={s.label} className="flex items-center justify-between px-5 py-3">
                       <div className="flex items-center gap-2.5">
@@ -252,9 +281,7 @@ export default function DashboardContent(p: Props) {
                   <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
                   <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
                 </div>
-                <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">
-                  {t.discoverySub}
-                </p>
+                <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">{t.discoverySub}</p>
                 <button className="w-full bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition">
                   {t.bookNow}
                 </button>
