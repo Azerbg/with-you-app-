@@ -40,15 +40,18 @@ export const BASE_RATE_CAD: Record<string, number> = {
 const OBJECTIVE_MULTIPLIER: Record<LearningObjective, number> = {
   CONVERSATIONAL: 1.0,
   ACADEMIC:       1.0,
-  PROFESSIONAL:   1.1,  // +10%
-  EXAM_PREP:      1.15, // +15%
+  TRAVEL:         1.0,
+  CULTURAL:       1.0,
+  PROFESSIONAL:   1.1,
+  EXAM_PREP:      1.15,
 };
 
 /** Session frequency — sessions per month and bundle discount factor (FRD §3.16) */
 const FREQUENCY_CONFIG: Record<SessionFrequency, { sessionsPerMonth: number; multiplier: number }> = {
-  ONCE:        { sessionsPerMonth: 4,  multiplier: 1.0  }, // 1×/week, no discount
-  TWICE:       { sessionsPerMonth: 8,  multiplier: 1.9  }, // 2×/week, 5% bundle discount
-  THREE_TIMES: { sessionsPerMonth: 12, multiplier: 2.7  }, // 3×/week, 10% bundle discount
+  ONCE:        { sessionsPerMonth: 4,  multiplier: 1.0 },
+  TWICE:       { sessionsPerMonth: 8,  multiplier: 1.9 },
+  THREE_TIMES: { sessionsPerMonth: 12, multiplier: 2.7 },
+  INTENSIVE:   { sessionsPerMonth: 16, multiplier: 3.5 },
 };
 
 /** Program duration discounts (FRD §3.16) */
