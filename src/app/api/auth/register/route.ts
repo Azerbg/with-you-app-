@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, password, role } = parsed.data;
+    const { email, password, firstName, lastName, role } = parsed.data;
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     const user = await db.user.create({
       data: {
         email,
+        firstName,
+        lastName,
         password: hashedPassword,
         role: role as Role,
       },

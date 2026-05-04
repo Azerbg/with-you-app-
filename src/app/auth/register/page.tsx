@@ -7,31 +7,27 @@ import { signIn } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 
-function PasswordStrength({ password, labels }: { password: string; labels: string[] }) {
-  const score = [
-    password.length >= 10,
-    /[A-Z]/.test(password),
-    /[0-9]/.test(password),
-    /[^A-Za-z0-9]/.test(password),
-  ].filter(Boolean).length;
-
-  const colors = ["", "#EF4444", "#F97316", "#EAB308", "#22C55E"];
-  if (!password) return null;
-
+// ── Password checklist (2.5) ──────────────────────────────────────────────
+function PasswordChecklist({ password, visible }: { password: string; visible: boolean }) {
+  if (!visible) return null;
+  const checks = [
+    { label: { en: "At least 10 characters", fr: "Minimum 10 caractères" },   ok: password.length >= 10 },
+    { label: { en: "Uppercase letter (A–Z)",  fr: "Lettre majuscule (A–Z)" },  ok: /[A-Z]/.test(password) },
+    { label: { en: "Number (0–9)",             fr: "Chiffre (0–9)" },           ok: /[0-9]/.test(password) },
+    { label: { en: "Symbol (!@#…)",            fr: "Symbole (!@#…)" },          ok: /[^A-Za-z0-9]/.test(password) },
+  ];
   return (
-    <div className="mt-2 space-y-1">
-      <div className="flex gap-1">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="h-1 flex-1 rounded-full transition-all duration-300"
-            style={{ background: i <= score ? colors[score] : "#E5E7EB" }}
-          />
-        ))}
-      </div>
-      <span className="text-xs font-semibold" style={{ color: colors[score] }}>
-        {labels[score]}
-      </span>
+    <div className="mt-2 p-3 bg-[#FFFBEA] border border-[#F5C400]/40 rounded-xl space-y-1.5">
+      {checks.map((c, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] flex-shrink-0 ${c.ok ? "bg-green-500" : "bg-gray-200"}`}>
+            {c.ok ? "✓" : ""}
+          </span>
+          <span className={`text-xs ${c.ok ? "text-green-700 font-medium" : "text-gray-400"}`}>
+            {c.label.en}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -49,10 +45,11 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
+// Left panel features (2.6)
 const FEATURES = [
-  { icon: "🎯", text: { en: "CEFR placement in under 5 minutes", fr: "Placement CEFR en moins de 5 minutes" } },
-  { icon: "🧑‍🏫", text: { en: "Matched with a verified expert tutor", fr: "Mis en relation avec un tuteur certifié" } },
-  { icon: "📅", text: { en: "Sessions on your schedule, any timezone", fr: "Séances selon votre emploi du temps" } },
+  { icon: "🎯", text: { en: "Find your level in minutes",                fr: "Trouvez votre niveau en quelques minutes" } },
+  { icon: "🧑‍🏫", text: { en: "Find the right tutor",                  fr: "Trouvez le bon tuteur" } },
+  { icon: "📅", text: { en: "Learn on a schedule that suits you",        fr: "Apprenez à des horaires qui vous conviennent" } },
 ];
 
 export default function RegisterPage() {
@@ -61,7 +58,8 @@ export default function RegisterPage() {
   const t = T[lang].auth.register;
 
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -69,6 +67,7 @@ export default function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -91,7 +90,13 @@ export default function RegisterPage() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role }),
+      body: JSON.stringify({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+      }),
     });
 
     const data = await res.json();
@@ -110,12 +115,10 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-4xl flex rounded-3xl overflow-hidden shadow-[0_24px_80px_rgba(92,61,0,0.22)]">
 
-        {/* ── Left panel ── */}
+        {/* ── Left panel (2.6) ── */}
         <div className="hidden lg:flex flex-col justify-between w-[44%] bg-[#2D1F0E] p-10 relative overflow-hidden">
-          {/* Subtle grid */}
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ backgroundImage: "linear-gradient(#F5C400 1px,transparent 1px),linear-gradient(90deg,#F5C400 1px,transparent 1px)", backgroundSize: "32px 32px" }} />
-          {/* Glow */}
           <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-20 blur-3xl"
             style={{ background: "radial-gradient(circle, #F5C400 0%, transparent 70%)" }} />
 
@@ -128,12 +131,14 @@ export default function RegisterPage() {
             </Link>
 
             <h2 className="text-white font-bold text-3xl leading-snug mb-3">
-              {lang === "fr" ? "Apprenez une langue avec le bon tuteur." : "Learn a language with the right tutor."}
+              {lang === "fr"
+                ? "Apprenez une langue avec le bon tuteur."
+                : "Learn a language with the right tutor."}
             </h2>
             <p className="text-[#C4A96B] text-sm leading-relaxed mb-10">
               {lang === "fr"
-                ? "Placement CEFR adaptatif, tuteurs vérifiés et séances 1-à-1 sur votre planning."
-                : "Adaptive CEFR placement, verified tutors, and live 1-on-1 sessions — on your schedule."}
+                ? "Trouvez des tuteurs experts et commencez à apprendre avec des cours individuels simples, à des horaires qui vous conviennent."
+                : "Find expert tutors and start learning with simple one-on-one sessions, on a schedule that works for you."}
             </p>
 
             <div className="space-y-4">
@@ -163,7 +168,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* ── Right panel (form) ── */}
+        {/* ── Right panel ── */}
         <div className="flex-1 bg-white/95 backdrop-blur-xl p-8 lg:p-10 flex flex-col justify-center overflow-y-auto">
 
           {/* Top bar */}
@@ -179,16 +184,16 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-[#1A1208] mb-1">{t.title}</h1>
-          <p className="text-sm text-[#8B7355] mb-7">
+          <p className="text-sm text-[#8B7355] mb-6">
             {t.hasAccount}{" "}
             <Link href="/auth/login" className="text-[#C49200] hover:text-[#5C3D00] font-semibold transition">{t.signin}</Link>
           </p>
 
-          {/* Google */}
+          {/* Google (2.4) */}
           <button
             onClick={handleGoogle}
             disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-[#E2D9C8] rounded-xl py-3 text-sm font-semibold text-[#3D2F00] hover:bg-[#FFFBF0] hover:border-[#F5C400] transition-all shadow-sm disabled:opacity-60 mb-5"
+            className="w-full flex items-center justify-center gap-3 bg-white border border-[#E2D9C8] rounded-xl py-3 text-sm font-semibold text-[#3D2F00] hover:bg-[#FFFBF0] hover:border-[#F5C400] transition-all shadow-sm disabled:opacity-60 mb-3"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -197,6 +202,19 @@ export default function RegisterPage() {
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             {googleLoading ? "…" : t.google}
+          </button>
+
+          {/* Apple (2.1) */}
+          <button
+            type="button"
+            disabled
+            className="w-full flex items-center justify-center gap-3 bg-black border border-black rounded-xl py-3 text-sm font-semibold text-white opacity-40 cursor-not-allowed mb-5"
+            title="Apple Sign-In — coming soon"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 fill-white">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            {t.apple}
           </button>
 
           {/* Divider */}
@@ -230,27 +248,46 @@ export default function RegisterPage() {
                   className={`flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
                     form.role === role
                       ? "border-[#F5C400] bg-[#FFFBEA] shadow-sm"
-                      : "border-[#E8DDD0] bg-white hover:border-[#F5C400]/50 hover:bg-[#FFFDF7]"
+                      : "border-[#E8DDD0] bg-white hover:border-[#F5C400]/50"
                   }`}
                 >
                   <span className="text-xl">{icon}</span>
-                  <span className={`text-sm font-bold leading-tight ${form.role === role ? "text-[#5C3D00]" : "text-[#3D2F00]"}`}>{label}</span>
-                  <span className="text-xs text-[#9B8A6B] leading-tight">{sub}</span>
+                  <span className={`text-sm font-bold ${form.role === role ? "text-[#5C3D00]" : "text-[#3D2F00]"}`}>{label}</span>
+                  <span className="text-xs text-[#9B8A6B]">{sub}</span>
                 </button>
               ))}
             </div>
 
-            {/* Name */}
-            <div>
-              <label className="block text-xs font-semibold text-[#5C3D00] uppercase tracking-wide mb-1.5">{t.name}</label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-3 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
-                placeholder={t.namePlaceholder}
-              />
+            {/* Prénom + Nom (2.2 + 2.3) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#5C3D00] uppercase tracking-wide mb-1.5">
+                  {(t as unknown as {firstName: string}).firstName}
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={form.firstName}
+                  onChange={handleChange}
+                  required
+                  className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
+                  placeholder={(t as unknown as {firstNamePlaceholder: string}).firstNamePlaceholder}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#5C3D00] uppercase tracking-wide mb-1.5">
+                  {(t as unknown as {lastName: string}).lastName}
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={form.lastName}
+                  onChange={handleChange}
+                  required
+                  className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
+                  placeholder={(t as unknown as {lastNamePlaceholder: string}).lastNamePlaceholder}
+                />
+              </div>
             </div>
 
             {/* Email */}
@@ -262,12 +299,12 @@ export default function RegisterPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
-                className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-3 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
+                className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
                 placeholder={t.emailPlaceholder}
               />
             </div>
 
-            {/* Password */}
+            {/* Password with checklist (2.5) */}
             <div>
               <label className="block text-xs font-semibold text-[#5C3D00] uppercase tracking-wide mb-1.5">{t.password}</label>
               <div className="relative">
@@ -276,8 +313,10 @@ export default function RegisterPage() {
                   name="password"
                   value={form.password}
                   onChange={handleChange}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   required
-                  className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 pr-12 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-3 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
+                  className="w-full border border-[#D9CDBA] rounded-xl px-4 py-2.5 pr-12 text-sm text-[#1A1208] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4B49A]"
                   placeholder="Min 10 chars, A–Z, 0–9, !@#"
                 />
                 <button type="button" onClick={() => setShowPassword((v) => !v)}
@@ -285,7 +324,7 @@ export default function RegisterPage() {
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
-              <PasswordStrength password={form.password} labels={t.strength} />
+              <PasswordChecklist password={form.password} visible={passwordFocused || form.password.length > 0} />
             </div>
 
             {/* Confirm password */}
@@ -298,7 +337,7 @@ export default function RegisterPage() {
                   value={form.confirmPassword}
                   onChange={handleChange}
                   required
-                  className={`w-full border rounded-xl px-4 py-2.5 pr-12 text-sm text-[#1A1208] bg-white focus:outline-none focus:ring-3 transition ${
+                  className={`w-full border rounded-xl px-4 py-2.5 pr-12 text-sm text-[#1A1208] bg-white focus:outline-none focus:ring-2 transition ${
                     form.confirmPassword && form.confirmPassword !== form.password
                       ? "border-red-300 focus:border-red-400 focus:ring-red-100"
                       : "border-[#D9CDBA] focus:border-[#F5C400] focus:ring-[#F5C400]/20"
