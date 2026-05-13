@@ -48,7 +48,7 @@ export default function StudentSidebar({ email, firstName, image, cefrLevel, tie
     >
       {/* Logo */}
       <div className="h-14 px-5 flex items-center flex-shrink-0">
-        <Link href="/" className="font-bold text-[#F5C400] text-base tracking-tight">WithYou</Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
       </div>
 
       {/* User */}

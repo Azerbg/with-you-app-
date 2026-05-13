@@ -560,7 +560,7 @@ export default function TutorApplyWizard() {
 
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
-          <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] inline-block px-3 py-1 rounded-lg">WithYou</Link>
+          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto" /></Link>
           <button
             onClick={() => setLang(lang === "fr" ? "en" : "fr")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#6B5E44]/20 text-xs font-bold text-[#5C3D00] hover:bg-[#FFF3B0] hover:border-[#F5C400] transition">

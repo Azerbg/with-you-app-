@@ -572,7 +572,7 @@ export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey:
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(92,61,0,0.12)] p-8 border border-[#F5C400]/30">
-        <Link href="/" className="text-[#F5C400] font-bold text-xl mb-1 bg-[#5C3D00] inline-block px-3 py-1 rounded-lg">WithYou</Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto mb-1" /></Link>
         <div className="mb-5" />
         <ProgressBar step={step} total={TOTAL_STEPS} />
 

@@ -95,11 +95,8 @@ export default function HomePage() {
           {/* Left — logo + nav */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-7 h-7 rounded-lg bg-[#5C3D00] flex items-center justify-center">
-                <span className="text-[#F5C400] font-black text-xs">W</span>
-              </div>
-              <span className="text-[15px] font-bold text-[#5C3D00] tracking-tight">WithYou</span>
+            <Link href="/">
+              <img src="/logo.svg" alt="WithYou" className="h-8 w-auto" />
             </Link>
 
             {/* Divider */}
@@ -477,7 +474,7 @@ export default function HomePage() {
       <footer className="border-t border-[#3d2900] bg-[#3d2900] px-8 py-10 mt-auto">
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
           <div>
-            <p className="font-bold text-[#F5C400] mb-4 text-lg">WithYou</p>
+            <img src="/logo.svg" alt="WithYou" className="h-8 w-auto mb-4 brightness-0 invert" />
             <p className="text-xs text-white/50 leading-relaxed">{t.footer.tagline}</p>
           </div>
           {t.footer.cols.map((col, colIdx) => (

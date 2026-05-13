@@ -309,7 +309,7 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
       {/* Top bar */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg">WithYou</Link>
+          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
           <span className="text-[#6B5E44] text-sm font-semibold">Console RH</span>
         </div>
         <div className="flex items-center gap-3">

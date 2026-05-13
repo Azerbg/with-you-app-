@@ -123,11 +123,8 @@ export default function RegisterPage() {
             style={{ background: "radial-gradient(circle, #F5C400 0%, transparent 70%)" }} />
 
           <div className="relative z-10">
-            <Link href="/" className="inline-flex items-center gap-2 mb-12">
-              <div className="w-8 h-8 bg-[#F5C400] rounded-lg flex items-center justify-center">
-                <span className="text-[#5C3D00] font-black text-sm">W</span>
-              </div>
-              <span className="text-white font-bold text-lg tracking-tight">WithYou</span>
+            <Link href="/" className="inline-block mb-12">
+              <img src="/logo.svg" alt="WithYou" className="h-9 w-auto brightness-0 invert" />
             </Link>
 
             <h2 className="text-white font-bold text-3xl leading-snug mb-3">
@@ -173,7 +170,7 @@ export default function RegisterPage() {
 
           {/* Top bar */}
           <div className="flex items-center justify-between mb-8">
-            <Link href="/" className="lg:hidden text-lg font-bold text-[#5C3D00] tracking-tight">WithYou</Link>
+            <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
             <div className="lg:hidden flex-1" />
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}
