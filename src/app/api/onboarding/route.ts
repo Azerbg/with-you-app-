@@ -18,6 +18,7 @@ const schema = z.object({
   country: z.string().optional(),
   tutorLanguages: z.array(z.string()).optional(),
   budgetPerSession: z.number().optional(),
+  examTarget: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
         country: d.country ?? null,
         tutorLanguages: d.tutorLanguages ?? [],
         budgetPerSession: d.budgetPerSession ?? null,
+        examTarget: d.examTarget ?? null,
         onboardingCompleted: true,
         onboardingCompletedAt: new Date(),
       },

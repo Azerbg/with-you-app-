@@ -213,6 +213,7 @@ model StudentProfile {
   nativeLanguage String?
   targetLanguage String?     // "French" | "English"
   learningObjective LearningObjective?
+  examTarget        String?   // Specific exam when learningObjective = EXAM_PREP
 
   // CEFR
   cefrLevel         String?   // A1–C2 — set by placement quiz

@@ -14,6 +14,7 @@ interface WizardData {
   nativeLanguage: string;
   targetLanguage: string;
   learningObjective: string;
+  examTarget: string;                // Specific exam when learningObjective = EXAM_PREP
   selfReportedLevel: string;         // BEGINNER | INTERMEDIATE | ADVANCED
   availabilityDays: string[];
   timeWindowPreference: string[];
@@ -201,22 +202,49 @@ function StepObjective({ data, onChange, onNext, onBack }: { data: WizardData; o
   const { lang } = useLanguage();
   const t = T[lang].onboarding.languages;
   const values = (t as unknown as { objectiveValues: string[] }).objectiveValues;
+  const examTargets = (t as unknown as { examTargets: { value: string; label: string; desc: string }[] }).examTargets;
+  const examLabel = (t as unknown as { examLabel: string }).examLabel;
+
+  const isExamPrep = data.learningObjective === "EXAM_PREP";
+  const canContinue = data.learningObjective && (!isExamPrep || !!data.examTarget);
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">{lang === "fr" ? "Quel est votre objectif principal ?" : "What is your main goal?"}</h2>
       <p className="text-[#6B5E44] text-sm mb-6">{lang === "fr" ? "Choisissez ce qui vous correspond le mieux." : "Choose what fits you best."}</p>
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {t.objectives.map((o, i) => (
-          <button key={i} type="button" onClick={() => onChange("learningObjective", values[i])}
+          <button key={i} type="button"
+            onClick={() => {
+              onChange("learningObjective", values[i]);
+              if (values[i] !== "EXAM_PREP") onChange("examTarget", "");
+            }}
             className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition ${data.learningObjective === values[i] ? activeCard : inactiveCard}`}>
             <span className="text-sm font-bold text-[#5C3D00]">{o.label}</span>
             <span className="text-xs text-[#6B5E44] mt-1">{o.desc}</span>
           </button>
         ))}
       </div>
+
+      {/* Exam sub-selection — appears when EXAM_PREP is selected */}
+      {isExamPrep && (
+        <div className="mb-5 border border-[#F5C400]/50 rounded-2xl p-4 bg-[#FFFBEA]">
+          <p className="text-sm font-semibold text-[#5C3D00] mb-3">{examLabel}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {examTargets.map((e) => (
+              <button key={e.value} type="button" onClick={() => onChange("examTarget", e.value)}
+                className={`flex flex-col items-start px-3 py-2.5 rounded-xl border-2 text-left transition ${data.examTarget === e.value ? activeCard : inactiveCard}`}>
+                <span className="text-sm font-bold text-[#5C3D00]">{e.label}</span>
+                <span className="text-xs text-[#9B8A6B] mt-0.5 leading-tight">{e.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
-        <button onClick={onNext} disabled={!data.learningObjective} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+        <button onClick={onNext} disabled={!canContinue} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
       </div>
     </div>
   );
@@ -489,6 +517,7 @@ export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey:
     nativeLanguage: "",
     targetLanguage: "",
     learningObjective: "",
+    examTarget: "",
     selfReportedLevel: "",
     availabilityDays: [],
     timeWindowPreference: [],
@@ -532,6 +561,7 @@ export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey:
         country: data.country,
         tutorLanguages: data.tutorLanguages,
         budgetPerSession: data.budgetPerSession,
+        examTarget: data.examTarget || undefined,
         preferredCurrency: data.preferredCurrency,
       }),
     });
