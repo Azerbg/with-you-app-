@@ -32,7 +32,7 @@ const CEFR_PROGRESS: Record<string, number> = {
 
 const MOTIVATIONS: Record<number, { en: string; fr: string }> = {
   0:   { en: "Your journey begins. Every session moves you forward.",  fr: "Votre parcours commence. Chaque séance vous fait avancer." },
-  5:   { en: "First steps taken. Keep going!",                         fr: "Les premiers pas sont faits. Continuez !" },
+  5:   { en: "Welcome! Joining is already the first step forward.",    fr: "Bienvenue ! S'inscrire, c'est déjà franchir le premier pas." },
   20:  { en: "Building momentum — you're progressing.",                fr: "Vous prenez de l'élan — vous progressez." },
   40:  { en: "Halfway through — real progress is showing.",            fr: "À mi-chemin — les progrès sont réels." },
   60:  { en: "Strong foundations. Upper level within reach.",          fr: "Des bases solides. Le niveau supérieur est à portée." },
@@ -45,7 +45,8 @@ function LearningJourney({ cefrLevel, lang, sessionsCompleted }: {
   lang: string;
   sessionsCompleted: number;
 }) {
-  const pct        = cefrLevel ? (CEFR_PROGRESS[cefrLevel] ?? 0) : 0;
+  // Minimum 5% for simply having joined the platform
+  const pct        = cefrLevel ? (CEFR_PROGRESS[cefrLevel] ?? 5) : 5;
   const motivation = (MOTIVATIONS[pct]?.[lang as "en"|"fr"]) ?? MOTIVATIONS[0][lang as "en"|"fr"];
   const label      = lang === "fr" ? "Progression" : "Progress";
 
@@ -63,11 +64,20 @@ function LearningJourney({ cefrLevel, lang, sessionsCompleted }: {
       <div className="relative mb-3" style={{ paddingTop: "22px" }}>
         {/* Bee */}
         <div
-          className="absolute top-0 -translate-x-1/2 transition-all duration-1000 ease-out select-none text-lg leading-none"
-          style={{ left: `${Math.max(pct, 2)}%` }}
+          className="absolute top-0 -translate-x-1/2 transition-all duration-1000 ease-out select-none text-xl leading-none"
+          style={{
+            left: `${pct}%`,
+            animation: "beeFloat 1.6s ease-in-out infinite",
+          }}
         >
           🐝
         </div>
+        <style>{`
+          @keyframes beeFloat {
+            0%,100% { transform: translateX(-50%) translateY(0px) rotate(-5deg); }
+            50%      { transform: translateX(-50%) translateY(-4px) rotate(5deg); }
+          }
+        `}</style>
         <div className="relative h-3 bg-[#F2EFE9] rounded-full overflow-hidden">
           <div
             className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out"
