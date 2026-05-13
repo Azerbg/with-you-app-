@@ -5,6 +5,16 @@ import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import StudentSidebar from "@/components/StudentSidebar";
 
+interface UpcomingBooking {
+  id: string;
+  tutorId: string;
+  tutorName: string;
+  tutorPhoto: string | null;
+  scheduledAt: string;
+  status: string;
+  durationMins: number;
+}
+
 interface Props {
   email: string;
   firstName: string | null;
@@ -23,6 +33,8 @@ interface Props {
   timeWindowPreference: string[];
   availabilityDays: string[];
   country: string | null;
+  targetLanguageCode: string | null;
+  upcomingBookings: UpcomingBooking[];
 }
 
 const DAYS_ORDER = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -359,17 +371,57 @@ export default function DashboardContent(p: Props) {
                 </div>
               </div>
 
-              {/* Discovery session */}
-              <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
+              {/* Upcoming sessions */}
+              {p.upcomingBookings.length > 0 ? (
+                <div className="bg-white border border-[#C4BAA8] rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-5 py-4 border-b border-[#D9D0C3] flex items-center justify-between">
+                    <p className="font-bold text-[#5C3D00] text-sm">Prochaines séances</p>
+                    <span className="text-[10px] font-bold text-[#5C3D00] bg-[#F5C400]/20 px-2 py-0.5 rounded-full">
+                      {p.upcomingBookings.length}
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#E8E0D4]">
+                    {p.upcomingBookings.map((b) => {
+                      const d = new Date(b.scheduledAt);
+                      const tutorInitials = b.tutorName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+                      const dateLabel = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Tunis" });
+                      const timeLabel = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" });
+                      return (
+                        <div key={b.id} className="flex items-center gap-3 px-5 py-3">
+                          {b.tutorPhoto ? (
+                            <img src={b.tutorPhoto} alt={b.tutorName} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+                              {tutorInitials}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#2D1A00] truncate">{b.tutorName}</p>
+                            <p className="text-[11px] text-[#6B5E44] capitalize">{dateLabel} · {timeLabel}</p>
+                          </div>
+                          <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                            {b.durationMins} min
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <p className="text-sm text-[#5C4A35] mb-4 leading-relaxed">{t.discoverySub}</p>
-                <Link href="/settings/payment" className="block w-full bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition text-center">
-                  {t.bookNow}
-                </Link>
-              </div>
+              ) : (
+                <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
+                    <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
+                  </div>
+                  <p className="text-sm text-[#5C4A35] mb-4 leading-relaxed">{t.discoverySub}</p>
+                  <Link
+                    href={p.targetLanguageCode ? `/find-tutors?lang=${p.targetLanguageCode}` : "/find-tutors"}
+                    className="block w-full bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition text-center"
+                  >
+                    {t.bookNow}
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

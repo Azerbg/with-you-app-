@@ -690,7 +690,8 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
       }),
     });
     setSaving(false);
-    router.push("/dashboard/student");
+    const lang = data.targetLanguage;
+    router.push(lang ? `/find-tutors?lang=${encodeURIComponent(lang)}` : "/find-tutors");
   }
 
   return (

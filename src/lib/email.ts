@@ -146,6 +146,54 @@ export async function sendInterviewEmail(
   `);
 }
 
+export async function sendBookingConfirmationEmail(
+  email: string,
+  {
+    studentName,
+    tutorName,
+    scheduledAt,
+    bookingId,
+  }: { studentName: string; tutorName: string; scheduledAt: Date; bookingId: string },
+) {
+  const BASE = process.env.AUTH_URL ?? "http://localhost:3000";
+  const dateStr = scheduledAt.toLocaleString("fr-FR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Tunis",
+  });
+
+  await send(email, "Votre séance de découverte WithYou est confirmée !", `
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#FFFDF5;border-radius:16px;overflow:hidden;border:1px solid #E8E0D4;">
+      <div style="background:#5C3D00;padding:28px 32px;">
+        <h1 style="color:#F5C400;margin:0;font-size:22px;font-weight:800;">WithYou</h1>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#5C3D00;margin:0 0 12px;">Bonjour ${studentName} !</h2>
+        <p style="color:#5C4A35;line-height:1.7;margin:0 0 20px;">
+          Votre séance de découverte avec <strong>${tutorName}</strong> est confirmée.
+        </p>
+        <div style="background:#FFF3B0;border:1px solid #F5C400;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <p style="margin:0 0 6px;color:#5C3D00;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Date &amp; Heure (heure de Tunis)</p>
+          <p style="margin:0 0 4px;color:#2D1A00;font-size:16px;font-weight:700;">${dateStr}</p>
+          <p style="margin:0;color:#6B5E44;font-size:13px;">Durée : 30 minutes · Tarif : 15 USD</p>
+        </div>
+        <p style="color:#6B5E44;font-size:13px;line-height:1.6;margin:0 0 20px;">
+          Un lien de visioconférence vous sera envoyé 24h avant la séance.<br>
+          Référence de réservation : <code style="color:#5C3D00;font-weight:600;">${bookingId.slice(0, 8).toUpperCase()}</code>
+        </p>
+        <a href="${BASE}/dashboard/student" style="display:inline-block;background:#F5C400;color:#5C3D00;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+          Voir mes séances →
+        </a>
+        <p style="color:#9B8A6B;font-size:12px;margin:24px 0 0;">WithYou · Plateforme d&apos;apprentissage des langues</p>
+      </div>
+    </div>
+  `);
+}
+
 export async function sendTutorApplicationConfirmation(email: string, fullName: string) {
   await send(email, "Votre candidature WithYou a bien été reçue", `
     <div style="font-family:sans-serif;max-width:480px;margin:auto">
