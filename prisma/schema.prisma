@@ -120,6 +120,7 @@ model User {
   timezone      String    @default("UTC")
   emailVerified DateTime?
   image         String?
+  nickname      String?   // Custom display name set by student
 
   // 2FA (HR role only — TOTP via Google Authenticator / Authy)
   totpSecret  String?           // Base32 secret, encrypted at rest

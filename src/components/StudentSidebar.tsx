@@ -1,22 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
+import ProfileEditPanel from "@/components/ProfileEditPanel";
 
 interface Props {
   email: string;
   firstName: string | null;
+  nickname: string | null;
   image: string | null;
   cefrLevel: string | null;
   tier: string;
   initials: string;
 }
 
-export default function StudentSidebar({ email, firstName, image, cefrLevel, tier, initials }: Props) {
+export default function StudentSidebar({ email, firstName, nickname, image, cefrLevel, tier, initials }: Props) {
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
+
+  // Local state so display updates instantly after save (no full reload)
+  const [displayName, setDisplayName] = useState(nickname || firstName || email.split("@")[0]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(image);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const NAV = [
     {
@@ -42,94 +50,116 @@ export default function StudentSidebar({ email, firstName, image, cefrLevel, tie
   ];
 
   return (
-    <aside
-      className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
-      style={{ background: "linear-gradient(160deg, #2D1F0E 0%, #1A1208 100%)" }}
-    >
-      {/* Logo */}
-      <div className="h-14 px-5 flex items-center flex-shrink-0">
-        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
-      </div>
-
-      {/* User */}
-      <div className="px-3 pb-4 mb-2">
-        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/5 transition cursor-pointer">
-          {image ? (
-            <img src={image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
-              {initials}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white/80 truncate leading-tight">{firstName ?? email}</p>
-            <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
-              {cefrLevel} · {tier}
-            </p>
-          </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-white/20 flex-shrink-0">
-            <path d="M6 9l6 6 6-6" />
-          </svg>
+    <>
+      <aside
+        className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
+        style={{ background: "linear-gradient(160deg, #2D1F0E 0%, #1A1208 100%)" }}
+      >
+        {/* Logo */}
+        <div className="h-14 px-5 flex items-center flex-shrink-0">
+          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
         </div>
-      </div>
 
-      <div className="mx-4 h-px bg-white/6 mb-3" />
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 space-y-4 overflow-y-auto pb-3">
-        {NAV.map((group, gi) => (
-          <div key={gi}>
-            {group.label && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest px-2.5 mb-1.5" style={{ color: "rgba(245,196,0,0.3)" }}>
-                {group.label}
-              </p>
+        {/* User — clickable to open profile edit */}
+        <div className="px-3 pb-4 mb-2">
+          <button
+            onClick={() => setPanelOpen(true)}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/8 transition group text-left"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 ring-1 ring-white/10 group-hover:ring-[#F5C400]/40 transition" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+                {initials}
+              </div>
             )}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <button
-                  key={item.label}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left relative ${
-                    item.active ? "text-[#5C3D00]" : "text-white/35 hover:text-white/70 hover:bg-white/5"
-                  }`}
-                  style={item.active ? { background: "#F5C400" } : {}}
-                >
-                  <span className={item.active ? "text-[#5C3D00]" : "text-white/25"}>{item.icon}</span>
-                  <span className="flex-1">{item.label}</span>
-                  {"badge" in item && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                      item.active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-white/8 text-white/25"
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-white/80 truncate leading-tight group-hover:text-white transition">{displayName}</p>
+              <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
+                {cefrLevel} · {tier}
+              </p>
             </div>
-          </div>
-        ))}
-      </nav>
+            {/* Edit pencil icon */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5 text-white/15 group-hover:text-[#F5C400]/60 transition flex-shrink-0">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        </div>
 
-      {/* Bottom */}
-      <div className="px-3 pb-5 pt-3 space-y-0.5">
-        <div className="mx-1 h-px bg-white/6 mb-3" />
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
-          </svg>
-          {s.help}
-        </button>
+        <div className="mx-4 h-px bg-white/6 mb-3" />
 
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-          </svg>
-          {s.logout}
-        </button>
-      </div>
-    </aside>
+        {/* Nav */}
+        <nav className="flex-1 px-3 space-y-4 overflow-y-auto pb-3">
+          {NAV.map((group, gi) => (
+            <div key={gi}>
+              {group.label && (
+                <p className="text-[10px] font-semibold uppercase tracking-widest px-2.5 mb-1.5" style={{ color: "rgba(245,196,0,0.3)" }}>
+                  {group.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <button
+                    key={item.label}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left relative ${
+                      item.active ? "text-[#5C3D00]" : "text-white/35 hover:text-white/70 hover:bg-white/5"
+                    }`}
+                    style={item.active ? { background: "#F5C400" } : {}}
+                  >
+                    <span className={item.active ? "text-[#5C3D00]" : "text-white/25"}>{item.icon}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {"badge" in item && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
+                        item.active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-white/8 text-white/25"
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Bottom */}
+        <div className="px-3 pb-5 pt-3 space-y-0.5">
+          <div className="mx-1 h-px bg-white/6 mb-3" />
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
+            </svg>
+            {s.help}
+          </button>
+
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            {s.logout}
+          </button>
+        </div>
+      </aside>
+
+      {/* Profile edit panel */}
+      {panelOpen && (
+        <ProfileEditPanel
+          email={email}
+          displayName={displayName}
+          image={avatarUrl}
+          initials={initials}
+          onClose={() => setPanelOpen(false)}
+          onSaved={(newName, newImage) => {
+            setDisplayName(newName);
+            setAvatarUrl(newImage);
+          }}
+        />
+      )}
+    </>
   );
 }

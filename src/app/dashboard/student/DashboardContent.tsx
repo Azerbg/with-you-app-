@@ -8,6 +8,7 @@ import StudentSidebar from "@/components/StudentSidebar";
 interface Props {
   email: string;
   firstName: string | null;
+  nickname: string | null;
   image: string | null;
   cefrLevel: string | null;
   tierKey: string;
@@ -58,6 +59,7 @@ export default function DashboardContent(p: Props) {
       <StudentSidebar
         email={p.email}
         firstName={p.firstName}
+        nickname={p.nickname}
         image={p.image}
         cefrLevel={p.cefrLevel}
         tier={tierLabel}
