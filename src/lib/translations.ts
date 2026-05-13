@@ -307,6 +307,13 @@ export const T = {
       frequencies: { ONCE: "1× / week", TWICE: "2× / week", THREE_TIMES: "3× / week" },
       durations: { PAY_PER_SESSION: "Pay per session", ONE_MONTH: "1-month", THREE_MONTHS: "3-month", SIX_MONTHS: "6-month" },
       cefr: { A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper-Intermediate", C1: "Advanced", C2: "Proficient" },
+      tiers: {
+        STARTER:   { label: "Starter",   sessions: "4 sessions / month",  desc: "Perfect for beginners building confidence at a relaxed pace." },
+        CORE:      { label: "Core",      sessions: "8 sessions / month",  desc: "Balanced progress for learners with clear goals and steady commitment." },
+        INTENSIVE: { label: "Intensive", sessions: "12 sessions / month", desc: "Maximum results for learners who need rapid, structured progression." },
+      },
+      timeWindowLabels: { MORNING: "Morning", AFTERNOON: "Afternoon", EVENING: "Evening" },
+      languageNames: { English: "English", French: "French", Arabic: "Arabic", Spanish: "Spanish", German: "German", Italian: "Italian", Portuguese: "Portuguese", Mandarin: "Mandarin", Japanese: "Japanese", Korean: "Korean" },
     },
     sidebar: {
       overview: "Overview",
@@ -630,6 +637,13 @@ export const T = {
       frequencies: { ONCE: "1× / semaine", TWICE: "2× / semaine", THREE_TIMES: "3× / semaine" },
       durations: { PAY_PER_SESSION: "Par séance", ONE_MONTH: "1 mois", THREE_MONTHS: "3 mois", SIX_MONTHS: "6 mois" },
       cefr: { A1: "Débutant", A2: "Élémentaire", B1: "Intermédiaire", B2: "Intermédiaire avancé", C1: "Avancé", C2: "Maîtrise" },
+      tiers: {
+        STARTER:   { label: "Starter",   sessions: "4 séances / mois",   desc: "Idéal pour les débutants qui progressent à leur propre rythme." },
+        CORE:      { label: "Core",      sessions: "8 séances / mois",   desc: "Progression équilibrée pour les apprenants avec des objectifs clairs." },
+        INTENSIVE: { label: "Intensive", sessions: "12 séances / mois",  desc: "Résultats maximaux pour les apprenants qui ont besoin d'une progression rapide et structurée." },
+      },
+      timeWindowLabels: { MORNING: "Matin", AFTERNOON: "Après-midi", EVENING: "Soir" },
+      languageNames: { English: "Anglais", French: "Français", Arabic: "Arabe", Spanish: "Espagnol", German: "Allemand", Italian: "Italien", Portuguese: "Portugais", Mandarin: "Mandarin", Japanese: "Japonais", Korean: "Coréen" },
     },
     sidebar: {
       overview: "Aperçu",

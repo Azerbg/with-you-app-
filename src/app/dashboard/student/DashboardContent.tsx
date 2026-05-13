@@ -10,9 +10,7 @@ interface Props {
   firstName: string | null;
   image: string | null;
   cefrLevel: string | null;
-  tierLabel: string;
-  tierSessions: string;
-  tierDesc: string;
+  tierKey: string;
   tierCls: string;
   initials: string;
   nativeLanguage: string | null;
@@ -32,14 +30,28 @@ export default function DashboardContent(p: Props) {
   const { lang } = useLanguage();
   const t = T[lang].dashboard;
 
+  // Resolve tier info from translations (bilingual)
+  const tiers = (t as unknown as { tiers: Record<string, { label: string; sessions: string; desc: string }> }).tiers;
+  const tierInfo   = tiers[p.tierKey] ?? { label: p.tierKey, sessions: "", desc: "" };
+  const tierLabel   = tierInfo.label;
+  const tierSessions = tierInfo.sessions;
+  const tierDesc    = tierInfo.desc;
+
+  // Resolve language names from translations
+  const langNames = (t as unknown as { languageNames: Record<string, string> }).languageNames;
+  const nativeLangLabel  = p.nativeLanguage  ? (langNames[p.nativeLanguage]  ?? p.nativeLanguage)  : "—";
+  const targetLangLabel  = p.targetLanguage  ? (langNames[p.targetLanguage]  ?? p.targetLanguage)  : "—";
+
+  // Resolve time window labels from translations
+  const twLabels = (t as unknown as { timeWindowLabels: Record<string, string> }).timeWindowLabels;
+
   const objLabel  = p.learningObjective ? (t.objectives  as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
   const freqLabel = p.sessionFrequency  ? (t.frequencies as Record<string,string>)[p.sessionFrequency]  ?? p.sessionFrequency  : "—";
   const durLabel  = p.programDuration   ? (t.durations   as Record<string,string>)[p.programDuration]   ?? p.programDuration   : "";
   const cefrDesc  = p.cefrLevel         ? (t.cefr        as Record<string,string>)[p.cefrLevel]         ?? "" : "";
 
-  // 5.1 — personalised greeting with firstName
   const greetingName = p.firstName ? `, ${p.firstName}` : "";
-  const greeting = lang === "fr" ? `Bonjour${greetingName} 👋` : `Good day${greetingName} 👋`;
+  const greeting = lang === "fr" ? `Bonjour${greetingName} 👋` : `Hello${greetingName} 👋`;
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
@@ -48,7 +60,7 @@ export default function DashboardContent(p: Props) {
         firstName={p.firstName}
         image={p.image}
         cefrLevel={p.cefrLevel}
-        tier={p.tierLabel}
+        tier={tierLabel}
         initials={p.initials}
       />
 
@@ -104,12 +116,12 @@ export default function DashboardContent(p: Props) {
                 color: "text-[#C49200]", bg: "bg-[#FFF3B0]",
               },
               {
-                label: t.program, value: p.tierLabel, sub: p.tierSessions,
+                label: t.program, value: tierLabel, sub: tierSessions,
                 icon: <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>,
                 color: "text-[#5C3D00]", bg: "bg-[#F5C400]/20",
               },
               {
-                label: t.language, value: p.targetLanguage ?? "—", sub: `${t.from} ${p.nativeLanguage ?? "—"}`,
+                label: t.language, value: targetLangLabel, sub: `${t.from} ${nativeLangLabel}`,
                 icon: <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-3.754 1 1 0 111.93-.525c.11.41.237.805.38 1.187A17.165 17.165 0 006.5 7.81V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.992a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.992A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" /></svg>,
                 color: "text-emerald-700", bg: "bg-emerald-50",
               },
@@ -140,12 +152,12 @@ export default function DashboardContent(p: Props) {
               <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
                   <p className="font-bold text-[#5C3D00]">{t.profile}</p>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.tierCls}`}>{p.tierLabel}</span>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.tierCls}`}>{tierLabel}</span>
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-6">
                   {[
-                    { label: t.nativeLang, value: p.nativeLanguage ?? "—" },
-                    { label: t.learning,   value: p.targetLanguage ?? "—" },
+                    { label: t.nativeLang, value: nativeLangLabel },
+                    { label: t.learning,   value: targetLangLabel },
                   ].map((r) => (
                     <div key={r.label} className="space-y-1">
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{r.label}</p>
@@ -165,7 +177,7 @@ export default function DashboardContent(p: Props) {
                       <div>
                         <p className="text-2xl font-bold text-[#5C3D00] mb-1">—</p>
                         <Link href="/placement-test" className="inline-block text-xs font-semibold text-[#C49200] hover:text-[#5C3D00] underline underline-offset-2 transition">
-                          {lang === "fr" ? "Faire le test →" : "Take the test →"}
+                          {lang === "fr" ? "Passer le test →" : "Take the test →"}
                         </Link>
                       </div>
                     )}
@@ -211,7 +223,7 @@ export default function DashboardContent(p: Props) {
                       <div className="flex gap-2">
                         {p.timeWindowPreference.map((w) => (
                           <span key={w} className="px-3 py-1.5 bg-[#FFF3B0] text-[#C49200] text-xs font-bold rounded-lg border border-[#F5C400]/30">
-                            {w.charAt(0) + w.slice(1).toLowerCase()}
+                            {twLabels[w] ?? (w.charAt(0) + w.slice(1).toLowerCase())}
                           </span>
                         ))}
                       </div>
@@ -248,9 +260,9 @@ export default function DashboardContent(p: Props) {
               <div className="bg-[#5C3D00] rounded-2xl p-5 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-[#F5C400]/10 -translate-y-8 translate-x-8" />
                 <p className="text-[10px] font-bold text-[#F5C400]/50 uppercase tracking-widest mb-1">{t.yourProgram}</p>
-                <p className="text-2xl font-bold text-white">{p.tierLabel}</p>
-                <p className="text-sm text-white/50 mt-1 mb-4">{p.tierSessions}</p>
-                <div className="bg-white/8 rounded-xl p-3 text-xs text-white/60 leading-relaxed">{p.tierDesc}</div>
+                <p className="text-2xl font-bold text-white">{tierLabel}</p>
+                <p className="text-sm text-white/50 mt-1 mb-4">{tierSessions}</p>
+                <div className="bg-white/8 rounded-xl p-3 text-xs text-white/60 leading-relaxed">{tierDesc}</div>
               </div>
 
               {/* Activity */}

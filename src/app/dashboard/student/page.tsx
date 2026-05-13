@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { TIER_DESCRIPTIONS } from "@/lib/program-tier";
 import { ProgramTier } from "@prisma/client";
 import DashboardContent from "./DashboardContent";
 
@@ -24,7 +23,6 @@ export default async function StudentDashboardPage() {
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
   const tier = profile.programTier as ProgramTier;
-  const tierInfo = TIER_DESCRIPTIONS[tier];
 
   const firstName = profile.user.firstName ?? null;
   const lastName  = profile.user.lastName  ?? null;
@@ -40,9 +38,7 @@ export default async function StudentDashboardPage() {
       firstName={firstName}
       image={profile.user.image ?? null}
       cefrLevel={profile.cefrLevel}
-      tierLabel={tierInfo.label}
-      tierSessions={tierInfo.sessions}
-      tierDesc={tierInfo.desc}
+      tierKey={tier}
       tierCls={TIER_BADGE[tier].cls}
       initials={initials}
       nativeLanguage={profile.nativeLanguage}
