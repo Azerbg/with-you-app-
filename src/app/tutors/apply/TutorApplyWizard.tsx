@@ -648,7 +648,10 @@ export default function TutorApplyWizard() {
       });
       const json = await res.json();
       if (!res.ok) {
-        if (json.error === "email_taken") {
+        if (json.error === "reapply_blocked") {
+          const date = new Date(json.reapplyAfter).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "long", year: "numeric" });
+          setError(lang === "fr" ? `Votre candidature a été rejetée. Vous pourrez postuler à nouveau le ${date}.` : `Your application was rejected. You may reapply on ${date}.`);
+        } else if (json.error === "email_taken") {
           setError(lang === "fr" ? "Cette adresse e-mail est déjà utilisée." : "This email is already in use.");
         } else {
           setError(lang === "fr" ? "Une erreur est survenue. Veuillez réessayer." : "Something went wrong. Please try again.");

@@ -12,31 +12,79 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { status, interviewScheduledAt, interviewMeetingUrl, rejectionReason } = body;
+  const {
+    status,
+    // Interview
+    interviewScheduledAt,
+    interviewMeetingUrl,
+    // Rejection
+    rejectionReason,
+    // Rubric scores
+    scoreLanguageProficiency,
+    scoreAudioVideoQuality,
+    scoreProfessionalPresentation,
+    scoreTeachingPhilosophy,
+    scoreCulturalFit,
+    // Offer
+    offerHourlyRateTnd,
+    offerHourlyRateCad,
+    offerCurrency,
+    offerMaxWeeklyHours,
+  } = body;
 
-  if (!Object.values(ApplicationStatus).includes(status)) {
+  // Allow rubric-only saves (no status change)
+  const isRubricOnlySave = !status && (
+    scoreLanguageProficiency !== undefined ||
+    scoreAudioVideoQuality !== undefined ||
+    scoreProfessionalPresentation !== undefined ||
+    scoreTeachingPhilosophy !== undefined ||
+    scoreCulturalFit !== undefined
+  );
+
+  if (!isRubricOnlySave && !Object.values(ApplicationStatus).includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 422 });
   }
 
-  const updateData: Record<string, unknown> = { status };
+  const updateData: Record<string, unknown> = {};
+  if (status) updateData.status = status;
 
+  // ── Rubric scores ──────────────────────────────────────────────────────────
+  if (scoreLanguageProficiency !== undefined) updateData.scoreLanguageProficiency = scoreLanguageProficiency;
+  if (scoreAudioVideoQuality !== undefined)   updateData.scoreAudioVideoQuality   = scoreAudioVideoQuality;
+  if (scoreProfessionalPresentation !== undefined) updateData.scoreProfessionalPresentation = scoreProfessionalPresentation;
+  if (scoreTeachingPhilosophy !== undefined)  updateData.scoreTeachingPhilosophy  = scoreTeachingPhilosophy;
+  if (scoreCulturalFit !== undefined)         updateData.scoreCulturalFit         = scoreCulturalFit;
+
+  // ── Status-specific fields ─────────────────────────────────────────────────
   if (status === "REJECTED") {
-    updateData.rejectedAt = new Date();
-    updateData.reapplyAfter = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    updateData.rejectedAt    = new Date();
+    updateData.reapplyAfter  = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
     if (rejectionReason) updateData.rejectionReason = rejectionReason;
-  }
-
-  if (status === "ACTIVE") {
-    updateData.activatedAt = new Date();
   }
 
   if (status === "INTERVIEW_SCHEDULED") {
     if (interviewScheduledAt) updateData.interviewScheduledAt = new Date(interviewScheduledAt);
-    if (interviewMeetingUrl) updateData.interviewMeetingUrl = interviewMeetingUrl;
+    if (interviewMeetingUrl)  updateData.interviewMeetingUrl  = interviewMeetingUrl;
   }
 
   if (status === "INTERVIEW_COMPLETE") {
     updateData.interviewCompletedAt = new Date();
+  }
+
+  if (status === "OFFER_PENDING") {
+    updateData.offerSentAt = new Date();
+    if (offerHourlyRateTnd  !== undefined) updateData.offerHourlyRateTnd  = offerHourlyRateTnd;
+    if (offerHourlyRateCad  !== undefined) updateData.offerHourlyRateCad  = offerHourlyRateCad;
+    if (offerCurrency       !== undefined) updateData.offerCurrency        = offerCurrency;
+    if (offerMaxWeeklyHours !== undefined) updateData.offerMaxWeeklyHours  = offerMaxWeeklyHours;
+  }
+
+  if (status === "SIGNED") {
+    updateData.offerSignedAt = new Date();
+  }
+
+  if (status === "ACTIVE") {
+    updateData.activatedAt = new Date();
   }
 
   const updated = await db.hrApplication.update({
@@ -45,30 +93,113 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     include: { user: { select: { email: true } } },
   });
 
-  // Send emails (non-blocking)
-  const app = await db.hrApplication.findUnique({
+  // ── On ACTIVE: create TutorProfile + TutorCompensation + stub Stripe Connect ─
+  if (status === "ACTIVE") {
+    const app = await db.hrApplication.findUnique({
+      where: { id },
+      select: {
+        userId: true,
+        languagesTaught: true,
+        specializations: true,
+        certifications: true,
+        yearsExperience: true,
+        bio: true,
+        videoUrl: true,
+        city: true,
+        availabilityDays: true,
+        timeWindowPreference: true,
+        offerHourlyRateTnd: true,
+        offerHourlyRateCad: true,
+        offerCurrency: true,
+        offerMaxWeeklyHours: true,
+      },
+    });
+
+    if (app) {
+      const maxWeekly = app.offerMaxWeeklyHours ?? 20;
+
+      // Create TutorProfile (upsert in case it already exists)
+      await db.tutorProfile.upsert({
+        where: { userId: app.userId },
+        create: {
+          userId:           app.userId,
+          languagesTaught:  app.languagesTaught,
+          specializations:  app.specializations,
+          certifications:   app.certifications,
+          yearsExperience:  app.yearsExperience,
+          bio:              app.bio,
+          videoIntroUrl:    app.videoUrl,
+          city:             app.city,
+          maxWeeklyHours:   maxWeekly,
+          verificationTier:   "VERIFIED",
+          verificationStatus: "VERIFIED",
+        },
+        update: {
+          verificationTier:   "VERIFIED",
+          verificationStatus: "VERIFIED",
+          maxWeeklyHours:     maxWeekly,
+        },
+      });
+
+      // Create TutorCompensation (upsert)
+      await db.tutorCompensation.upsert({
+        where: { userId: app.userId },
+        create: {
+          userId:         app.userId,
+          hourlyRateTnd:  app.offerHourlyRateTnd,
+          hourlyRateCad:  app.offerHourlyRateCad,
+          currencyPref:   (app.offerCurrency as "TND" | "CAD") ?? "TND",
+          maxWeeklyHours: maxWeekly,
+        },
+        update: {
+          hourlyRateTnd:  app.offerHourlyRateTnd,
+          hourlyRateCad:  app.offerHourlyRateCad,
+          currencyPref:   (app.offerCurrency as "TND" | "CAD") ?? "TND",
+          maxWeeklyHours: maxWeekly,
+        },
+      });
+
+      // Stub Stripe Connect account ID
+      await db.user.update({
+        where: { id: app.userId },
+        data: { stripeConnectAccountId: `stub_${app.userId}` },
+      });
+    }
+  }
+
+  // ── Send emails (non-blocking) ──────────────────────────────────────────────
+  const appForEmail = await db.hrApplication.findUnique({
     where: { id },
-    select: { fullName: true, preferredLanguage: true, interviewScheduledAt: true, interviewMeetingUrl: true },
+    select: {
+      fullName: true,
+      preferredLanguage: true,
+      interviewScheduledAt: true,
+      interviewMeetingUrl: true,
+    },
   });
 
-  if (app) {
-    const lang = app.preferredLanguage ?? "fr";
+  if (appForEmail) {
+    const lang = appForEmail.preferredLanguage ?? "fr";
 
     if (status === "REJECTED") {
       sendRejectionEmail(
         updated.user.email,
-        app.fullName,
+        appForEmail.fullName,
         rejectionReason ?? "",
         lang
       ).catch(() => {});
     }
 
-    if (status === "INTERVIEW_SCHEDULED" && app.interviewScheduledAt && app.interviewMeetingUrl) {
+    if (
+      status === "INTERVIEW_SCHEDULED" &&
+      appForEmail.interviewScheduledAt &&
+      appForEmail.interviewMeetingUrl
+    ) {
       sendInterviewEmail(
         updated.user.email,
-        app.fullName,
-        app.interviewScheduledAt,
-        app.interviewMeetingUrl,
+        appForEmail.fullName,
+        appForEmail.interviewScheduledAt,
+        appForEmail.interviewMeetingUrl,
         lang
       ).catch(() => {});
     }

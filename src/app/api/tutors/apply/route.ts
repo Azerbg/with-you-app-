@@ -34,8 +34,19 @@ export async function POST(req: NextRequest) {
     const data = schema.parse(body);
 
     // Check if email already in use
-    const existing = await db.user.findUnique({ where: { email: data.email } });
+    const existing = await db.user.findUnique({
+      where: { email: data.email },
+      include: { hrApplication: { select: { reapplyAfter: true, status: true } } },
+    });
     if (existing) {
+      // Check 90-day reapplication block
+      const app = existing.hrApplication;
+      if (app?.reapplyAfter && app.reapplyAfter > new Date()) {
+        return NextResponse.json(
+          { error: "reapply_blocked", reapplyAfter: app.reapplyAfter },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: "email_taken" }, { status: 409 });
     }
 

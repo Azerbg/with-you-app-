@@ -520,6 +520,12 @@ model HrApplication {
   agreementUrl    String?   // DocuSign link or stored PDF
   agreementLanguage String? // "French" | "Arabic"
 
+  // Offer rate (set by HR when moving to OFFER_PENDING)
+  offerHourlyRateTnd  Float?   // Rate in Tunisian Dinar
+  offerHourlyRateCad  Float?   // Rate in CAD
+  offerCurrency       String?  // "TND" | "CAD"
+  offerMaxWeeklyHours Int?     // Agreed weekly hours cap
+
   // Rejection
   rejectedAt     DateTime?
   rejectionReason String?
