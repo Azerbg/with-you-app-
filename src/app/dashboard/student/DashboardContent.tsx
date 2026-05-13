@@ -26,110 +26,63 @@ interface Props {
 }
 
 const DAYS_ORDER = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
-const CEFR_LEVELS = ["A1","A2","B1","B2","C1","C2"] as const;
-
-const MOTIVATIONS: Record<string, { en: string; fr: string }> = {
-  A1: { en: "Great start! Every expert was once a beginner.",       fr: "Super départ ! Chaque expert a d'abord été débutant." },
-  A2: { en: "The basics are there — keep building your skills!",    fr: "Les bases sont là — continuez à progresser !" },
-  B1: { en: "Halfway there! You're making real progress.",          fr: "À mi-chemin ! Vous faites de vrais progrès." },
-  B2: { en: "Upper intermediate — almost advanced. Keep going!",    fr: "Intermédiaire avancé — presque au niveau avancé !" },
-  C1: { en: "Advanced level — just one step away from mastery!",    fr: "Niveau avancé — plus qu'un pas vers la maîtrise !" },
-  C2: { en: "Mastery achieved! You've reached the top level.",      fr: "Maîtrise atteinte ! Vous avez atteint le plus haut niveau." },
+const CEFR_PROGRESS: Record<string, number> = {
+  A1: 5, A2: 20, B1: 40, B2: 60, C1: 80, C2: 100,
 };
 
-function LearningJourney({ cefrLevel, lang, cefrDesc }: {
+const MOTIVATIONS: Record<number, { en: string; fr: string }> = {
+  0:   { en: "Your journey begins. Every session moves you forward.",  fr: "Votre parcours commence. Chaque séance vous fait avancer." },
+  5:   { en: "First steps taken. Keep going!",                         fr: "Les premiers pas sont faits. Continuez !" },
+  20:  { en: "Building momentum — you're progressing.",                fr: "Vous prenez de l'élan — vous progressez." },
+  40:  { en: "Halfway through — real progress is showing.",            fr: "À mi-chemin — les progrès sont réels." },
+  60:  { en: "Strong foundations. Upper level within reach.",          fr: "Des bases solides. Le niveau supérieur est à portée." },
+  80:  { en: "Almost there. One final push!",                          fr: "Presque au bout. Un dernier effort !" },
+  100: { en: "Maximum level reached. Outstanding.",                    fr: "Niveau maximum atteint. Exceptionnel." },
+};
+
+function LearningJourney({ cefrLevel, lang, sessionsCompleted }: {
   cefrLevel: string | null;
   lang: string;
-  cefrDesc: string;
+  sessionsCompleted: number;
 }) {
-  const cefrIdx = cefrLevel ? CEFR_LEVELS.indexOf(cefrLevel as typeof CEFR_LEVELS[number]) : -1;
-  const progressPct = cefrIdx >= 0 ? (cefrIdx / (CEFR_LEVELS.length - 1)) * 100 : 0;
-  const motivation = cefrLevel ? (MOTIVATIONS[cefrLevel]?.[lang as "en"|"fr"] ?? "") : null;
-
-  const journeyLabel = lang === "fr" ? "Votre parcours" : "Your journey";
-  const noLevelCta   = lang === "fr" ? "Passer le test de placement pour découvrir votre niveau →" : "Take the placement test to discover your level →";
+  const pct        = cefrLevel ? (CEFR_PROGRESS[cefrLevel] ?? 0) : 0;
+  const motivation = (MOTIVATIONS[pct]?.[lang as "en"|"fr"]) ?? MOTIVATIONS[0][lang as "en"|"fr"];
+  const label      = lang === "fr" ? "Progression" : "Progress";
 
   return (
-    <div className="bg-white border border-black/5 rounded-2xl px-6 pt-5 pb-4 mb-6 relative overflow-hidden">
-      {/* Decorative circle */}
-      <div className="pointer-events-none absolute top-0 right-0 w-40 h-40 rounded-full bg-[#F5C400]/5 -translate-y-16 translate-x-16" />
+    <div className="bg-white border border-black/5 rounded-2xl px-6 py-5 mb-6 relative overflow-hidden">
+      <div className="pointer-events-none absolute top-0 right-0 w-36 h-36 rounded-full bg-[#F5C400]/5 -translate-y-14 translate-x-14" />
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-[10px] font-bold text-[#6B5E44]/50 uppercase tracking-widest">{journeyLabel}</p>
-        {cefrLevel ? (
-          <div className="flex items-center gap-1.5 bg-[#FFF3B0] border border-[#F5C400]/30 px-2.5 py-1 rounded-full">
-            <span className="text-xs font-bold text-[#5C3D00]">{cefrLevel}</span>
-            <span className="text-[10px] text-[#9B8A6B]">·</span>
-            <span className="text-xs text-[#6B5E44]">{cefrDesc}</span>
-          </div>
-        ) : (
-          <div className="bg-[#F2EFE9] border border-black/5 px-2.5 py-1 rounded-full">
-            <span className="text-xs text-[#9B8A6B]">{lang === "fr" ? "Niveau non défini" : "Level not set"}</span>
-          </div>
-        )}
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] font-bold text-[#6B5E44]/50 uppercase tracking-widest">{label}</p>
+        <span className="text-2xl font-black text-[#5C3D00]">{pct}%</span>
       </div>
 
-      {/* Track */}
-      <div className="relative" style={{ paddingBottom: "28px" }}>
-
-        {/* Background line — from center of first dot to center of last dot */}
-        <div className="absolute top-[9px] left-[7px] right-[7px] h-[3px] bg-[#F2EFE9] rounded-full">
-          {/* Filled portion */}
+      {/* Bar */}
+      <div className="relative mb-3" style={{ paddingTop: "22px" }}>
+        {/* Bee */}
+        <div
+          className="absolute top-0 -translate-x-1/2 transition-all duration-1000 ease-out select-none text-lg leading-none"
+          style={{ left: `${Math.max(pct, 2)}%` }}
+        >
+          🐝
+        </div>
+        <div className="relative h-3 bg-[#F2EFE9] rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full transition-all duration-1000 ease-out"
+            className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000 ease-out"
             style={{
-              width: cefrIdx >= 0 ? `${progressPct}%` : "0%",
-              background: "linear-gradient(90deg, #F5C400 0%, #C49200 100%)",
+              width: `${pct}%`,
+              background: pct === 0
+                ? "#E8DDD0"
+                : "linear-gradient(90deg, #F5C400 0%, #C49200 100%)",
             }}
           />
         </div>
-
-        {/* Dots + labels */}
-        <div className="flex justify-between">
-          {CEFR_LEVELS.map((lvl, i) => {
-            const isCurrent = lvl === cefrLevel;
-            const isPast    = cefrIdx >= 0 && i < cefrIdx;
-            const isLast    = i === CEFR_LEVELS.length - 1;
-            return (
-              <div key={lvl} className="flex flex-col items-center" style={{ gap: "6px" }}>
-                {/* Icon above */}
-                <div className="h-5 flex items-end justify-center">
-                  {isCurrent && <span className="text-sm leading-none">🎓</span>}
-                  {isLast && !isCurrent && (
-                    <span className={`text-sm leading-none ${isPast || cefrLevel === "C2" ? "opacity-100" : "opacity-25"}`}>🏆</span>
-                  )}
-                </div>
-
-                {/* Dot */}
-                <div className={`rounded-full border-2 flex-shrink-0 transition-all duration-500 ${
-                  isCurrent
-                    ? "w-[18px] h-[18px] bg-[#F5C400] border-white shadow-[0_0_0_3px_rgba(245,196,0,0.35)]"
-                    : isPast
-                    ? "w-[14px] h-[14px] bg-[#F5C400] border-[#E5B000]"
-                    : "w-[14px] h-[14px] bg-white border-[#D9CDBA]"
-                }`} />
-
-                {/* Label */}
-                <span className={`text-[10px] font-bold ${
-                  isCurrent ? "text-[#5C3D00]" : isPast ? "text-[#C49200]" : "text-[#C5B9A8]"
-                }`}>{lvl}</span>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
-      {/* Motivational footer */}
-      <div className="pt-3 border-t border-black/4 text-center">
-        {motivation ? (
-          <p className="text-xs text-[#6B5E44]">{motivation}</p>
-        ) : (
-          <Link href="/placement-test" className="text-xs font-semibold text-[#C49200] hover:text-[#5C3D00] transition">
-            {noLevelCta}
-          </Link>
-        )}
-      </div>
+      {/* Footer */}
+      <p className="text-xs text-[#6B5E44]">{motivation}</p>
     </div>
   );
 }
@@ -214,7 +167,7 @@ export default function DashboardContent(p: Props) {
           <div className="mb-2">
             <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">{greeting}</h2>
           </div>
-          <LearningJourney cefrLevel={p.cefrLevel} lang={lang} cefrDesc={cefrDesc} />
+          <LearningJourney cefrLevel={p.cefrLevel} lang={lang} sessionsCompleted={0} />
 
           {/* Stat cards */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
