@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import { ProgramTier } from "@prisma/client";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +33,7 @@ const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const TARGET_LANGUAGES = ["French", "English"];
 const ALL_LANGUAGES = ["English", "French", "Arabic", "Spanish", "German", "Italian", "Portuguese", "Mandarin", "Japanese", "Korean"];
 const TUTOR_LANGUAGES = ["English", "French", "Arabic", "Spanish", "Italian", "German", "Other"];
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 const inputCls = "w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 transition";
 const btnPrimary = "bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition";
@@ -492,22 +494,144 @@ function StepBudget({ data, onChange, onNext, onBack, saving }: { data: WizardDa
         <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
         <button onClick={onNext} disabled={saving} className={`flex-1 py-2.5 ${btnPrimary}`}>
           {saving ? (
-            <span className="flex items-center justify-center gap-2">
+            <span className="flex items-center justify-center gap-2 pointer-events-none">
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
               </svg>
               {lang === "fr" ? "Enregistrement…" : "Saving…"}
             </span>
-          ) : (lang === "fr" ? "Trouver mon tuteur →" : "Find my tutor →")}
+          ) : (lang === "fr" ? "Continuer" : "Continue")}
         </button>
       </div>
     </div>
   );
 }
 
+// ─── Step 10: Payment setup ───────────────────────────────────────────────────
+
+let _stripePromise: ReturnType<typeof loadStripe> | null = null;
+function getStripePromise(key: string) {
+  if (!_stripePromise && key) _stripePromise = loadStripe(key);
+  return _stripePromise;
+}
+
+function StepPaymentInner({ onComplete, onBack, saving }: {
+  onComplete: () => void;
+  onBack: () => void;
+  saving: boolean;
+}) {
+  const { lang } = useLanguage();
+  const stripe = useStripe();
+  const elements = useElements();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const fr = lang === "fr";
+
+  async function handleSave() {
+    if (!stripe || !elements) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.clientSecret) {
+        setError(fr ? "Erreur Stripe. Réessayez." : "Stripe error. Try again.");
+        return;
+      }
+      const card = elements.getElement(CardElement);
+      if (!card) return;
+      const { error: stripeErr } = await stripe.confirmCardSetup(json.clientSecret, {
+        payment_method: { card },
+      });
+      if (stripeErr) {
+        setError(stripeErr.message ?? (fr ? "Carte refusée." : "Card declined."));
+        return;
+      }
+      onComplete();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">
+        {fr ? "Moyen de paiement" : "Payment method"}
+      </h2>
+      <p className="text-[#6B5E44] text-sm mb-6">
+        {fr
+          ? "Enregistrez votre carte pour vos futures séances. Aucun débit aujourd'hui."
+          : "Save your card for future sessions. No charge today."}
+      </p>
+
+      <div className="border-2 border-[#6B5E44]/20 rounded-xl px-4 py-3 mb-5 focus-within:border-[#F5C400] transition">
+        <CardElement options={{
+          style: {
+            base: { fontSize: "15px", color: "#2D1A00", fontFamily: "inherit", "::placeholder": { color: "#9B8A6B" } },
+            invalid: { color: "#e53e3e" },
+          },
+        }} />
+      </div>
+
+      <div className="bg-[#FFFBEA] border border-[#F5C400]/30 rounded-xl px-4 py-3 mb-5 flex items-center gap-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#C49200" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
+          <rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/>
+        </svg>
+        <p className="text-xs text-[#7A6B55]">
+          {fr
+            ? "Paiement sécurisé par Stripe. Vos données ne sont jamais stockées sur nos serveurs."
+            : "Secured by Stripe. Your card data is never stored on our servers."}
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{error}</p>
+      )}
+
+      <div className="flex gap-3">
+        <button onClick={onBack} disabled={loading || saving} className={`flex-1 py-2.5 ${btnSecondary}`}>
+          {fr ? "Retour" : "Back"}
+        </button>
+        <button onClick={handleSave} disabled={loading || saving || !stripe} className={`flex-1 py-2.5 ${btnPrimary}`}>
+          {loading || saving
+            ? <span className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                {fr ? "Enregistrement…" : "Saving…"}
+              </span>
+            : (fr ? "Enregistrer la carte →" : "Save card →")}
+        </button>
+      </div>
+
+      <button
+        onClick={onComplete}
+        disabled={loading || saving}
+        className="w-full mt-3 text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition underline"
+      >
+        {fr ? "Ignorer pour l'instant" : "Skip for now"}
+      </button>
+    </div>
+  );
+}
+
+function StepPayment({ stripeKey, onComplete, onBack, saving }: {
+  stripeKey: string;
+  onComplete: () => void;
+  onBack: () => void;
+  saving: boolean;
+}) {
+  return (
+    <Elements stripe={getStripePromise(stripeKey)}>
+      <StepPaymentInner onComplete={onComplete} onBack={onBack} saving={saving} />
+    </Elements>
+  );
+}
+
 // ─── Main Wizard ──────────────────────────────────────────────────────────────
-export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey: string }) {
+export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -584,7 +708,8 @@ export default function OnboardingWizard({ stripeKey: _stripeKey }: { stripeKey:
         {step === 6 && <StepProgram data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 7 && <StepCountry data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 9 && <StepBudget data={data} onChange={update} onNext={handleFinish} onBack={prevStep} saving={saving} />}
+        {step === 9 && <StepBudget data={data} onChange={update} onNext={nextStep} onBack={prevStep} saving={false} />}
+        {step === 10 && <StepPayment stripeKey={stripeKey} onComplete={handleFinish} onBack={prevStep} saving={saving} />}
       </div>
     </div>
   );

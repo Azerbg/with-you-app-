@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
@@ -58,17 +58,71 @@ function ProgressBar({ step }: { step: number }) {
 
 // ─── Step 1: Personal Info ────────────────────────────────────────────────────
 
-function StepPersonal({ data, onChange, onNext }: {
+function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string) => void;
   onNext: () => void;
+  phoneVerified: boolean;
+  onPhoneVerified: () => void;
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
   const [showPass, setShowPass] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [devOtp, setDevOtp] = useState("");
+  const prevPhone = useRef("");
 
   const cities = ["Tunis", "Sfax", "Sousse", "Bizerte", "Gabès", fr ? "Autre" : "Other"];
-  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.city;
+  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.city && phoneVerified;
+
+  async function sendOtp() {
+    if (!data.phone) return;
+    setOtpLoading(true);
+    setOtpError("");
+    setDevOtp("");
+    try {
+      const res = await fetch("/api/tutors/phone-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: data.phone }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setOtpError(fr ? "Échec de l'envoi du SMS." : "Failed to send SMS."); return; }
+      setOtpSent(true);
+      prevPhone.current = data.phone;
+      if (json.devMode && json.otp) setDevOtp(json.otp);
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  async function verifyOtp() {
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const res = await fetch("/api/tutors/phone-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: prevPhone.current || data.phone, otp: otpValue }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const msgs: Record<string, string> = {
+          invalid_otp: fr ? "Code incorrect." : "Incorrect code.",
+          expired: fr ? "Code expiré. Renvoyez un SMS." : "Code expired. Resend SMS.",
+        };
+        setOtpError(msgs[json.error] ?? (fr ? "Erreur de vérification." : "Verification error."));
+        return;
+      }
+      onPhoneVerified();
+      setOtpError("");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
 
   return (
     <div>
@@ -119,7 +173,7 @@ function StepPersonal({ data, onChange, onNext }: {
             <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
               {fr ? "Téléphone" : "Phone"}
             </label>
-            <input value={data.phone} onChange={e => onChange("phone", e.target.value)}
+            <input value={data.phone} onChange={e => { onChange("phone", e.target.value); if (e.target.value !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); } }}
               placeholder="+216 XX XXX XXX" className={inputCls} />
           </div>
           <div>
@@ -129,6 +183,60 @@ function StepPersonal({ data, onChange, onNext }: {
               {cities.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+        </div>
+
+        {/* Phone OTP verification */}
+        <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#F5C400]/40 bg-[#FFFBEA]"}`}>
+          {phoneVerified ? (
+            <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path d="M20 6L9 17l-5-5"/></svg>
+              {fr ? "Numéro vérifié ✓" : "Phone number verified ✓"}
+            </div>
+          ) : (
+            <>
+              <p className="text-xs font-semibold text-[#5C3D00] mb-3">
+                {fr ? "Vérification du numéro de téléphone" : "Phone number verification"}
+              </p>
+              {!otpSent ? (
+                <button
+                  type="button"
+                  onClick={sendOtp}
+                  disabled={!data.phone || otpLoading}
+                  className={`w-full py-2 rounded-xl text-sm font-bold transition ${btnPrimary} disabled:opacity-50`}
+                >
+                  {otpLoading ? "…" : (fr ? "Envoyer le code SMS" : "Send SMS code")}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otpValue}
+                    onChange={e => setOtpValue(e.target.value.replace(/\D/g, ""))}
+                    placeholder={fr ? "Code à 6 chiffres" : "6-digit code"}
+                    className={inputCls + " text-center tracking-widest text-lg font-bold"}
+                  />
+                  {devOtp && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-800">
+                      <span className="font-bold">[DEV]</span> {fr ? "Code de test :" : "Test code:"} <span className="font-mono font-bold">{devOtp}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button type="button" onClick={verifyOtp} disabled={otpValue.length !== 6 || otpLoading}
+                      className={`flex-1 py-2 rounded-xl text-sm font-bold transition ${btnPrimary} disabled:opacity-50`}>
+                      {otpLoading ? "…" : (fr ? "Vérifier" : "Verify")}
+                    </button>
+                    <button type="button" onClick={sendOtp} disabled={otpLoading}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${btnSecondary}`}>
+                      {fr ? "Renvoyer" : "Resend"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {otpError && <p className="text-xs text-red-500 mt-2">{otpError}</p>}
+            </>
+          )}
         </div>
       </div>
 
@@ -513,6 +621,7 @@ export default function TutorApplyWizard() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   const [data, setData] = useState<FormData>({
     fullName: "", email: "", password: "", phone: "", city: "",
@@ -578,7 +687,7 @@ export default function TutorApplyWizard() {
         ) : (
           <>
             <ProgressBar step={step} />
-            {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} />}
+            {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} />}
             {step === 2 && <StepTeaching data={data} onChange={(k, v) => update(k, v as string[] | number)} onNext={next} onBack={back} />}
             {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v as string)} onNext={next} onBack={back} />}
             {step === 4 && <StepAvailability data={data} onChange={(k, v) => update(k, v as string[])} onNext={next} onBack={back} />}

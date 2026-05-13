@@ -41,6 +41,14 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(data.password, 12);
 
+    // Check if phone was verified via OTP
+    const phoneVerified = data.phone
+      ? await db.tempPhoneVerification
+          .findUnique({ where: { phone: data.phone } })
+          .then(r => r?.verified === true)
+          .catch(() => false)
+      : false;
+
     // Create user + application in one transaction
     const user = await db.user.create({
       data: {
@@ -62,10 +70,16 @@ export async function POST(req: NextRequest) {
             availabilityDays:    data.availabilityDays,
             timeWindowPreference: data.timeWindowPreference,
             status:              "NEW",
+            phoneVerified,
           },
         },
       },
     });
+
+    // Clean up temp OTP record
+    if (data.phone) {
+      db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
+    }
 
     // Send confirmation email (non-blocking)
     sendTutorApplicationConfirmation(data.email, data.fullName).catch(() => {});

@@ -72,6 +72,80 @@ export async function sendVerificationEmail(email: string, code: string) {
   `);
 }
 
+export async function sendRejectionEmail(email: string, fullName: string, reason: string, lang = "fr") {
+  const fr = lang === "fr";
+  const subject = fr ? "Décision concernant votre candidature WithYou" : "Update on your WithYou application";
+  await send(email, subject, `
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#FFFDF5;border-radius:16px;overflow:hidden;border:1px solid #E8E0D4;">
+      <div style="background:#5C3D00;padding:28px 32px;">
+        <h1 style="color:#F5C400;margin:0;font-size:22px;font-weight:800;">WithYou</h1>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#5C3D00;margin:0 0 12px;">${fr ? `Bonjour ${fullName},` : `Hello ${fullName},`}</h2>
+        <p style="color:#5C4A35;line-height:1.7;margin:0 0 16px;">
+          ${fr
+            ? "Après examen attentif de votre dossier, nous ne sommes pas en mesure de donner suite à votre candidature pour le moment."
+            : "After careful review of your application, we are unable to move forward at this time."}
+        </p>
+        ${reason ? `<div style="background:#FAF8F0;border-left:3px solid #F5C400;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:16px;">
+          <p style="color:#5C3D00;margin:0;font-size:14px;">${reason}</p>
+        </div>` : ""}
+        <p style="color:#5C4A35;line-height:1.7;margin:0 0 16px;">
+          ${fr
+            ? "Vous pourrez soumettre une nouvelle candidature dans 90 jours. Nous vous encourageons à continuer à développer votre profil."
+            : "You may reapply in 90 days. We encourage you to continue developing your profile."}
+        </p>
+        <p style="color:#9B8A6B;font-size:12px;margin:24px 0 0;">WithYou · ${fr ? "Plateforme d'apprentissage des langues" : "Language Learning Platform"}</p>
+      </div>
+    </div>
+  `);
+}
+
+export async function sendInterviewEmail(
+  email: string,
+  fullName: string,
+  scheduledAt: Date,
+  meetingUrl: string,
+  lang = "fr"
+) {
+  const fr = lang === "fr";
+  const dateStr = scheduledAt.toLocaleString(fr ? "fr-FR" : "en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis",
+  });
+  const subject = fr ? "Votre entretien WithYou est planifié !" : "Your WithYou interview is scheduled!";
+  await send(email, subject, `
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#FFFDF5;border-radius:16px;overflow:hidden;border:1px solid #E8E0D4;">
+      <div style="background:#5C3D00;padding:28px 32px;">
+        <h1 style="color:#F5C400;margin:0;font-size:22px;font-weight:800;">WithYou</h1>
+      </div>
+      <div style="padding:32px;">
+        <h2 style="color:#5C3D00;margin:0 0 12px;">${fr ? `Félicitations, ${fullName} !` : `Congratulations, ${fullName}!`}</h2>
+        <p style="color:#5C4A35;line-height:1.7;margin:0 0 20px;">
+          ${fr
+            ? "Votre candidature a été sélectionnée. Votre entretien avec l'équipe RH WithYou est planifié."
+            : "Your application has been selected. Your interview with the WithYou HR team is scheduled."}
+        </p>
+        <div style="background:#FFF3B0;border:1px solid #F5C400;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <p style="margin:0 0 8px;color:#5C3D00;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">
+            ${fr ? "Date & Heure (heure de Tunis)" : "Date & Time (Tunisia time)"}
+          </p>
+          <p style="margin:0 0 16px;color:#2D1A00;font-size:16px;font-weight:700;">${dateStr}</p>
+          <a href="${meetingUrl}" style="display:inline-block;background:#F5C400;color:#5C3D00;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">
+            ${fr ? "Rejoindre l'entretien" : "Join the interview"}
+          </a>
+        </div>
+        <p style="color:#6B5E44;font-size:13px;line-height:1.6;margin:0;">
+          ${fr
+            ? "Rejoignez la salle quelques minutes avant l'heure prévue. Assurez-vous que votre caméra et votre microphone fonctionnent."
+            : "Join the room a few minutes before the scheduled time. Make sure your camera and microphone are working."}
+        </p>
+        <p style="color:#9B8A6B;font-size:12px;margin:24px 0 0;">WithYou · ${fr ? "Plateforme d'apprentissage des langues" : "Language Learning Platform"}</p>
+      </div>
+    </div>
+  `);
+}
+
 export async function sendTutorApplicationConfirmation(email: string, fullName: string) {
   await send(email, "Votre candidature WithYou a bien été reçue", `
     <div style="font-family:sans-serif;max-width:480px;margin:auto">

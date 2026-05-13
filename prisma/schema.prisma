@@ -509,6 +509,7 @@ model HrApplication {
 
   // Interview
   interviewScheduledAt  DateTime?
+  interviewMeetingUrl   String?   // Auto-generated Jitsi link
   interviewCompletedAt  DateTime?
   interviewNotes        String?
   interviewLanguage     String?   // "French" | "English"
@@ -836,4 +837,20 @@ model PromoCode {
   updatedAt  DateTime @updatedAt
 
   @@map("promo_codes")
+}
+
+// ─── TEMP PHONE VERIFICATION ──────────────────────────────────────────────────
+// Short-lived OTP records for phone verification during tutor application.
+// Keyed by phone number; replaced on each new OTP request.
+
+model TempPhoneVerification {
+  id       String   @id @default(cuid())
+  phone    String   @unique
+  otp      String
+  expires  DateTime
+  verified Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("temp_phone_verifications")
 }

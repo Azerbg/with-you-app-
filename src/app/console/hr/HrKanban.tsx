@@ -17,6 +17,7 @@ interface Application {
   fullName: string;
   city: string | null;
   phone: string | null;
+  phoneVerified: boolean;
   languagesTaught: string[];
   specializations: string[];
   certifications: string[];
@@ -27,6 +28,8 @@ interface Application {
   timeWindowPreference: string[];
   status: string;
   createdAt: string;
+  interviewScheduledAt: string | null;
+  interviewMeetingUrl: string | null;
   user: { email: string };
   notes: HrNote[];
 }
@@ -87,6 +90,140 @@ function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
   );
 }
 
+// ─── Interview Scheduling Modal ───────────────────────────────────────────────
+
+function InterviewModal({ app, onClose, onConfirm, loading }: {
+  app: Application;
+  onClose: () => void;
+  onConfirm: (scheduledAt: string, meetingUrl: string) => void;
+  loading: boolean;
+}) {
+  const defaultUrl = `https://meet.jit.si/WithYou-${app.id.slice(0, 10)}`;
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [meetingUrl, setMeetingUrl] = useState(defaultUrl);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 className="font-bold text-[#5C3D00] text-lg mb-1">Planifier l&apos;entretien</h3>
+        <p className="text-sm text-[#6B5E44] mb-5">
+          Un email sera envoyé au candidat avec la date et le lien de réunion.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#6B5E44] uppercase tracking-wide mb-1.5">
+              Date &amp; Heure (heure de Tunis)
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={e => setScheduledAt(e.target.value)}
+              className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] focus:outline-none focus:border-[#F5C400]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#6B5E44] uppercase tracking-wide mb-1.5">
+              Lien de réunion
+            </label>
+            <input
+              type="text"
+              value={meetingUrl}
+              onChange={e => setMeetingUrl(e.target.value)}
+              className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] focus:outline-none focus:border-[#F5C400]"
+            />
+            <p className="text-xs text-[#9B8A6B] mt-1">Lien Jitsi généré automatiquement. Vous pouvez le modifier.</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border-2 border-[#6B5E44]/20 text-sm font-bold text-[#5C3D00] hover:bg-[#FFF3B0] transition">
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(scheduledAt, meetingUrl)}
+            disabled={!scheduledAt || !meetingUrl || loading}
+            className="flex-1 py-2.5 rounded-xl bg-[#F5C400] text-sm font-bold text-[#5C3D00] hover:bg-[#FFDE59] disabled:opacity-50 transition"
+          >
+            {loading ? "…" : "Confirmer & Envoyer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Rejection Reason Modal ────────────────────────────────────────────────────
+
+function RejectionModal({ onClose, onConfirm, loading }: {
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+  loading: boolean;
+}) {
+  const REASONS = [
+    "Qualité vidéo ou audio insuffisante",
+    "Niveau linguistique insuffisant",
+    "Profil ou biographie incomplet(e)",
+    "Disponibilités incompatibles",
+    "Manque d'expérience pédagogique",
+    "Autre",
+  ];
+  const [selected, setSelected] = useState("");
+  const [custom, setCustom] = useState("");
+
+  const reason = selected === "Autre" ? custom : selected;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 className="font-bold text-[#5C3D00] text-lg mb-1">Motif de rejet</h3>
+        <p className="text-sm text-[#6B5E44] mb-4">Un email sera envoyé au candidat avec ce motif.</p>
+
+        <div className="space-y-2 mb-4">
+          {REASONS.map(r => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setSelected(r)}
+              className={`w-full text-left px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition ${
+                selected === r ? "border-red-400 bg-red-50 text-red-700" : "border-[#6B5E44]/15 text-[#5C3D00] hover:border-red-200"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+
+        {selected === "Autre" && (
+          <textarea
+            rows={3}
+            value={custom}
+            onChange={e => setCustom(e.target.value)}
+            placeholder="Précisez le motif…"
+            className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] focus:outline-none focus:border-red-400 resize-none mb-4"
+          />
+        )}
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border-2 border-[#6B5E44]/20 text-sm font-bold text-[#5C3D00] hover:bg-[#FFF3B0] transition">
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={!reason || loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-500 text-sm font-bold text-white hover:bg-red-600 disabled:opacity-50 transition"
+          >
+            {loading ? "…" : "Rejeter le candidat"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Application Detail Panel ─────────────────────────────────────────────────
 
 function DetailPanel({
@@ -104,18 +241,28 @@ function DetailPanel({
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [movingTo, setMovingTo] = useState("");
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
 
   const nextStatuses = STATUS_TRANSITIONS[app.status] ?? [];
 
-  async function handleMove(status: string) {
+  async function handleMove(status: string, extra: Record<string, string> = {}) {
     setMovingTo(status);
     const res = await fetch(`/api/console/hr/applications/${app.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, ...extra }),
     });
     if (res.ok) onStatusChange(app.id, status);
     setMovingTo("");
+    setShowInterviewModal(false);
+    setShowRejectionModal(false);
+  }
+
+  function handleMoveClick(status: string) {
+    if (status === "INTERVIEW_SCHEDULED") { setShowInterviewModal(true); return; }
+    if (status === "REJECTED") { setShowRejectionModal(true); return; }
+    handleMove(status);
   }
 
   async function handleAddNote() {
@@ -137,6 +284,24 @@ function DetailPanel({
   const colInfo = COLUMNS.find(c => c.key === app.status);
 
   return (
+    <>
+    {showInterviewModal && (
+      <InterviewModal
+        app={app}
+        loading={!!movingTo}
+        onClose={() => setShowInterviewModal(false)}
+        onConfirm={(scheduledAt, meetingUrl) =>
+          handleMove("INTERVIEW_SCHEDULED", { interviewScheduledAt: scheduledAt, interviewMeetingUrl: meetingUrl })
+        }
+      />
+    )}
+    {showRejectionModal && (
+      <RejectionModal
+        loading={!!movingTo}
+        onClose={() => setShowRejectionModal(false)}
+        onConfirm={(reason) => handleMove("REJECTED", { rejectionReason: reason })}
+      />
+    )}
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
       <div className="flex-1 bg-black/30 backdrop-blur-sm" onClick={onClose} />
@@ -155,13 +320,6 @@ function DetailPanel({
         </div>
 
         <div className="p-6 flex-1 space-y-6">
-          {/* Contact */}
-          <Section title="Contact">
-            <Row label="E-mail"    value={app.user.email} />
-            <Row label="Téléphone" value={app.phone} />
-            <Row label="Ville"     value={app.city} />
-          </Section>
-
           {/* Teaching */}
           <Section title="Profil d'enseignant">
             <Row label="Langues"        value={app.languagesTaught.join(", ")} />
@@ -183,13 +341,70 @@ function DetailPanel({
             </Section>
           )}
 
+          {/* Phone verification badge */}
+          <Section title="Contact">
+            <Row label="E-mail"    value={app.user.email} />
+            <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm">
+              <span className="text-[#6B5E44]">Téléphone</span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-[#5C3D00] font-semibold">{app.phone || "—"}</span>
+                {app.phone && (
+                  app.phoneVerified
+                    ? <span className="text-[10px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded-full">✓ Vérifié</span>
+                    : <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">Non vérifié</span>
+                )}
+              </span>
+            </div>
+            <Row label="Ville" value={app.city} />
+          </Section>
+
+          {/* Interview details (if scheduled) */}
+          {app.interviewScheduledAt && (
+            <Section title="Entretien planifié">
+              <Row label="Date" value={new Date(app.interviewScheduledAt).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} />
+              {app.interviewMeetingUrl && (
+                <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm">
+                  <span className="text-[#6B5E44]">Lien</span>
+                  <a href={app.interviewMeetingUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs truncate max-w-[60%]">
+                    {app.interviewMeetingUrl}
+                  </a>
+                </div>
+              )}
+            </Section>
+          )}
+
           {/* Video */}
           {app.videoUrl && (
             <Section title="Vidéo d'introduction">
-              <a href={app.videoUrl} target="_blank" rel="noreferrer"
-                className="text-sm text-blue-600 hover:underline break-all">
-                {app.videoUrl}
-              </a>
+              {(() => {
+                const ytMatch = app.videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
+                const loomMatch = app.videoUrl.match(/loom\.com\/share\/([^?&\s]+)/);
+                if (ytMatch) return (
+                  <div className="rounded-xl overflow-hidden aspect-video">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+                if (loomMatch) return (
+                  <div className="rounded-xl overflow-hidden aspect-video">
+                    <iframe
+                      src={`https://www.loom.com/embed/${loomMatch[1]}`}
+                      className="w-full h-full"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+                return (
+                  <a href={app.videoUrl!} target="_blank" rel="noreferrer"
+                    className="text-sm text-blue-600 hover:underline break-all">
+                    {app.videoUrl}
+                  </a>
+                );
+              })()}
             </Section>
           )}
 
@@ -202,7 +417,7 @@ function DetailPanel({
                   const isRejected = s === "REJECTED";
                   return (
                     <button key={s}
-                      onClick={() => handleMove(s)}
+                      onClick={() => handleMoveClick(s)}
                       disabled={!!movingTo}
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition disabled:opacity-50 ${
                         isRejected
@@ -249,6 +464,7 @@ function DetailPanel({
         </div>
       </div>
     </div>
+    </>
   );
 }
 
