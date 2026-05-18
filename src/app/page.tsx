@@ -430,25 +430,24 @@ export default function HomePage() {
                 className="relative bg-white border border-[#E8DFC8] rounded-3xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 z-10"
                 style={{ animation: `fadeUp 0.6s ease ${0.15 + i * 0.15}s both` }}
               >
-                {/* Image — only for card 1 */}
-                {i === 0 && (
+                {/* Image — cards 1 and 2 */}
+                {(i === 0 || i === 1) && (
                   <div className="relative h-48 w-full overflow-hidden">
                     <img
-                      src="/step-1.jpg"
-                      alt="Étape 1"
+                      src={i === 0 ? "/step-1.jpg" : "/step-2.png"}
+                      alt={`Étape ${i + 1}`}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white/60 to-transparent" />
-                    {/* Step badge over image */}
                     <div className="absolute top-4 left-4 bg-[#F5C400] text-[#5C3D00] text-xs font-black px-3 py-1 rounded-full shadow">
-                      01
+                      0{i + 1}
                     </div>
                   </div>
                 )}
 
                 <div className="p-8">
-                  {/* Step number row — for cards 2 & 3 */}
-                  {i > 0 && (
+                  {/* Step number row — for card 3 only */}
+                  {i > 1 && (
                     <div className="flex items-center justify-between mb-6">
                       <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)]">
                         <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
@@ -459,9 +458,9 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {i === 0 && (
+                  {(i === 0 || i === 1) && (
                     <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-4">
-                      <span className="text-xl">🎯</span>
+                      <span className="text-xl">{["🎯","🤝"][i]}</span>
                     </div>
                   )}
 
