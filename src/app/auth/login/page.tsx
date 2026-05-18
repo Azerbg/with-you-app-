@@ -28,7 +28,13 @@ function LoginForm() {
     setError("");
 
     try {
-      await signIn("credentials", { email, password, redirect: false });
+      const result = await signIn("credentials", { email, password, redirect: false });
+      // NextAuth v5 returns null on success, throws or returns {error} on failure
+      if (result && (result as { error?: string }).error) {
+        setError(t.error);
+        setLoading(false);
+        return;
+      }
       window.location.href = callbackUrl;
     } catch {
       setError(t.error);

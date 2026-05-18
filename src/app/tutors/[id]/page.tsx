@@ -78,6 +78,7 @@ export default async function TutorProfilePage({ params }: Props) {
   }
 
   const isStudent = session?.user?.role === "STUDENT";
+  const isLoggedIn = !!session?.user;
 
   // Group slots by date for the 7-day preview
   const slotsByDate: Record<string, number> = {};
@@ -101,12 +102,17 @@ export default async function TutorProfilePage({ params }: Props) {
           <Link href="/find-tutors" className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition">
             ← Tous les tuteurs
           </Link>
-          {isStudent && (
+          {isStudent ? (
             <Link href={`/booking/${id}`}
               className="px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] transition">
               Réserver
             </Link>
-          )}
+          ) : !isLoggedIn ? (
+            <Link href={`/auth/login?callbackUrl=/booking/${id}`}
+              className="px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] transition">
+              Réserver
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -158,8 +164,9 @@ export default async function TutorProfilePage({ params }: Props) {
               <p className="text-xs text-[#9B8A6B]">Nouveau tuteur</p>
             )}
           </div>
-          {isStudent && (
-            <Link href={`/booking/${id}`}
+          {(isStudent || !isLoggedIn) && (
+            <Link
+              href={isStudent ? `/booking/${id}` : `/auth/login?callbackUrl=/booking/${id}`}
               className="shrink-0 px-5 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-xl text-sm hover:bg-[#FFDE59] transition hidden sm:block">
               Réserver une séance de découverte
             </Link>
@@ -249,8 +256,8 @@ export default async function TutorProfilePage({ params }: Props) {
                   className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
                   Réserver maintenant →
                 </Link>
-              ) : (
-                <Link href="/auth/login"
+              ) : isLoggedIn ? null : (
+                <Link href={`/auth/login?callbackUrl=/booking/${id}`}
                   className="block w-full text-center bg-white/10 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-white/20 transition">
                   Connectez-vous pour réserver
                 </Link>
@@ -286,9 +293,10 @@ export default async function TutorProfilePage({ params }: Props) {
         </div>
 
         {/* Mobile CTA */}
-        {isStudent && (
+        {(isStudent || !isLoggedIn) && (
           <div className="mt-6 sm:hidden">
-            <Link href={`/booking/${id}`}
+            <Link
+              href={isStudent ? `/booking/${id}` : `/auth/login?callbackUrl=/booking/${id}`}
               className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-2xl font-bold text-sm hover:bg-[#FFDE59] transition">
               Réserver une séance de découverte — 15 USD
             </Link>

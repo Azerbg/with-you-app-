@@ -60,6 +60,43 @@ export default async function TutorDashboardPage() {
   if (!user) redirect("/auth/login");
 
   const app = user.hrApplication;
+
+  // User registered as TUTOR but never submitted an application
+  if (!app) {
+    const initials = (user.firstName && user.lastName
+      ? user.firstName[0] + user.lastName[0]
+      : user.email.slice(0, 2)
+    ).toUpperCase();
+
+    return (
+      <div className="min-h-screen bg-[#FAF8F0]">
+        <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
+            <span className="text-[#6B5E44] text-sm font-semibold">Espace Tuteur</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>
+            <Link href="/api/auth/signout" className="text-xs text-[#6B5E44] hover:text-[#5C3D00] transition">Déconnexion</Link>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-6 py-20 text-center">
+          <div className="text-5xl mb-4">🧑‍🏫</div>
+          <h1 className="text-2xl font-bold text-[#2D1A00] mb-2">Devenez tuteur WithYou</h1>
+          <p className="text-[#6B5E44] mb-8 leading-relaxed">
+            Vous n&apos;avez pas encore soumis de candidature. Rejoignez notre équipe de tuteurs et commencez à enseigner.
+          </p>
+          <Link
+            href="/tutors/apply"
+            className="inline-block bg-[#F5C400] text-[#5C3D00] font-bold px-8 py-3 rounded-xl hover:bg-[#FFDE59] transition"
+          >
+            Soumettre ma candidature →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const profile = user.tutorProfile;
   const status = app?.status ?? "NEW";
   const stageInfo = STAGE_INFO[status] ?? STAGE_INFO.NEW;
