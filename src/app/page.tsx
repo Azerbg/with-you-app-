@@ -399,12 +399,23 @@ export default function HomePage() {
 
           {/* Header */}
           <div className="text-center mb-16">
-            <p className="text-xs font-bold text-[#C49200] uppercase tracking-[0.2em] mb-3">{t.how.label}</p>
-            <h2 className="text-4xl font-bold text-[#2D1A00] mb-4">{t.how.title}</h2>
-            <p className="text-gray-500 text-base max-w-xl mx-auto leading-relaxed">
+            {/* Pill badge */}
+            <div className="inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
+              <span className="text-xs font-bold text-[#C49200] uppercase tracking-[0.15em]">{t.how.label}</span>
+            </div>
+            {/* Title — split on natural break */}
+            <h2 className="text-4xl lg:text-5xl font-bold text-[#2D1A00] leading-tight mb-5">
+              {lang === "fr" ? (
+                <>De votre niveau actuel<br />à la <span className="text-[#C49200]">fluidité</span> en 3 étapes</>
+              ) : (
+                <>From your current level<br />to <span className="text-[#C49200]">fluency</span> in 3 steps</>
+              )}
+            </h2>
+            <p className="text-gray-400 text-base max-w-md mx-auto leading-relaxed">
               {lang === "fr"
-                ? "De l'inscription à votre première séance en quelques minutes seulement."
-                : "From sign-up to your first session in just a few minutes."}
+                ? "De l'inscription à votre première séance en quelques minutes."
+                : "From sign-up to your first session in minutes."}
             </p>
           </div>
 
