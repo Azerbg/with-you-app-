@@ -279,66 +279,100 @@ export default function HomePage() {
       })()}
 
       {/* ── Hero — shown only when NOT logged in ── */}
-      {!session?.user && <section className="max-w-7xl mx-auto w-full px-8 pt-16 pb-12 grid md:grid-cols-2 gap-12 items-center">
-        {/* Left */}
-        <div>
-          <h1 className="a2 text-5xl md:text-7xl font-bold text-[#5C3D00] leading-[1.05] mb-5">
-            {t.hero.heading1}<br />
-            {t.hero.heading2}{" "}
-            <span className="shimmer">{t.hero.shimmer}</span>
-          </h1>
+      {!session?.user && (
+        <section className="relative w-full grid md:grid-cols-2 overflow-hidden" style={{ minHeight: "calc(100vh - 62px)" }}>
 
-          <p className="a3 text-xl text-gray-500 mb-8 leading-relaxed max-w-md">
-            {t.hero.sub}<br />
-            <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
-          </p>
+          {/* Left — content */}
+          <div className="flex flex-col justify-center px-10 lg:px-20 py-20 relative z-10">
 
-          {/* Language chips */}
-          <div className="a4 flex flex-wrap gap-2 mb-8">
-            {languages.map((l) => (
-              <span key={l} className="lang-chip cursor-pointer px-4 py-1.5 rounded-full border border-gray-200 text-sm font-medium text-gray-600">
-                {l}
-              </span>
-            ))}
-          </div>
+            {/* Badge */}
+            <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
+              {lang === "fr" ? "Plateforme #1 en Tunisie" : "#1 Tutoring Platform in Tunisia"}
+            </div>
 
-          {/* CTAs */}
-          <div className="a5 flex flex-col sm:flex-row gap-3 mb-8">
-            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-3.5 rounded-full font-bold text-base text-center">
-              {t.hero.cta1}
-            </Link>
-            <Link href="/tutors/apply" className="border-2 border-gray-200 text-gray-700 px-8 py-3.5 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:text-[#5C3D00] transition">
-              {t.hero.cta2}
-            </Link>
-          </div>
+            <h1 className="a2 text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
+              {t.hero.heading1}<br />
+              {t.hero.heading2}{" "}
+              <span className="shimmer">{t.hero.shimmer}</span>
+            </h1>
 
-          {/* Trust row */}
-          <div className="a6 flex items-center gap-5">
-            <div className="flex -space-x-2">
-              {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].map((c, i) => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-white" style={{ background: c }} />
+            <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
+              {t.hero.sub}{" "}
+              <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
+            </p>
+
+            {/* Language chips */}
+            <div className="a4 flex flex-wrap gap-2 mb-8">
+              {languages.map((l) => (
+                <span key={l} className="lang-chip cursor-pointer px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm">
+                  {l}
+                </span>
               ))}
             </div>
-            <div>
-              <div className="flex items-center gap-1">
-                {[1,2,3,4,5].map((s) => <span key={s} className="text-[#F5C400] text-sm">★</span>)}
-                <span className="text-sm font-bold text-[#5C3D00] ml-1">4.9</span>
+
+            {/* CTAs */}
+            <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
+              <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
+                {t.hero.cta1}
+              </Link>
+              <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
+                {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
+              </Link>
+            </div>
+
+            {/* Trust row */}
+            <div className="a6 flex items-center gap-5">
+              <div className="flex -space-x-2">
+                {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].map((c, i) => (
+                  <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
+                ))}
               </div>
-              <p className="text-xs text-gray-400">{t.hero.trust}</p>
+              <div>
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map((s) => <span key={s} className="text-[#F5C400]">★</span>)}
+                  <span className="text-sm font-bold text-[#5C3D00] ml-1">4.9</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{t.hero.trust}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right — Hero image */}
-        <div className="hidden md:flex items-center justify-center">
-          <img
-            src="/hero-tutor.jpg"
-            alt="Tuteur WithYou"
-            className="w-full max-w-lg rounded-3xl object-cover shadow-[0_24px_64px_rgba(92,61,0,0.18)]"
-            style={{ maxHeight: "520px" }}
-          />
-        </div>
-      </section>}
+          {/* Right — full-bleed image */}
+          <div className="hidden md:block relative">
+            <img
+              src="/hero-tutor.jpg"
+              alt="Tuteur WithYou"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+            {/* Fade blend on left edge */}
+            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#fdfaf4] to-transparent z-10" />
+            {/* Bottom gradient */}
+            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#fdfaf4]/60 to-transparent z-10" />
+
+            {/* Floating stat card */}
+            <div className="absolute bottom-12 right-8 z-20 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl px-5 py-4 border border-[#F5C400]/20">
+              <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">
+                {lang === "fr" ? "Tuteurs vérifiés" : "Verified Tutors"}
+              </p>
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-black text-[#5C3D00]">50+</span>
+                <span className="text-xs text-green-600 font-bold mb-1">✓ actifs</span>
+              </div>
+            </div>
+
+            {/* Floating rating card */}
+            <div className="absolute top-12 right-12 z-20 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl px-5 py-4 border border-[#F5C400]/20">
+              <div className="flex items-center gap-2 mb-1">
+                {[1,2,3,4,5].map((s) => <span key={s} className="text-[#F5C400] text-sm">★</span>)}
+              </div>
+              <p className="text-2xl font-black text-[#5C3D00]">4.9<span className="text-sm font-normal text-gray-400">/5</span></p>
+              <p className="text-[10px] text-gray-400 mt-0.5">{lang === "fr" ? "Note moyenne" : "Average rating"}</p>
+            </div>
+          </div>
+
+        </section>
+      )}
 
       {/* ── Stats bar — shown only when NOT logged in ── */}
       {!session?.user &&
