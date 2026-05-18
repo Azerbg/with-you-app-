@@ -489,31 +489,55 @@ export default function HomePage() {
       </section>
 
       {/* ── Testimonials ── */}
-      <section className="bg-white/40 backdrop-blur-sm border-y border-[#F5C400]/10 py-16 px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-xs font-bold text-[#C49200] uppercase tracking-widest mb-2">{t.testimonials.label}</p>
-            <h2 className="text-3xl font-bold text-[#5C3D00]">{t.testimonials.title}</h2>
+      <section className="py-24 px-8 bg-white">
+        <div className="max-w-5xl mx-auto">
+
+          {/* Header */}
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
+              <span className="text-xs font-bold text-[#C49200] uppercase tracking-[0.15em]">{t.testimonials.label}</span>
+            </div>
+            <h2 className="text-4xl lg:text-5xl font-bold text-[#2D1A00] mb-4">{t.testimonials.title}</h2>
+            <p className="text-[#6B5E44] text-base max-w-md mx-auto">
+              {lang === "fr"
+                ? "Des centaines d'apprenants font déjà confiance à WithYou."
+                : "Hundreds of learners already trust WithYou."}
+            </p>
           </div>
+
+          {/* Cards */}
           <div className="grid sm:grid-cols-3 gap-6">
             {t.testimonials.items.map((item) => (
-              <div key={item.name} className="tutor-card bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <div className="flex gap-0.5 mb-4">
-                  {[1,2,3,4,5].map((i) => <span key={i} className="text-[#F5C400]">★</span>)}
+              <div key={item.name} className="tutor-card bg-[#FAF8F0] border border-[#E8DFC8] rounded-3xl p-7 flex flex-col gap-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+
+                {/* Stars */}
+                <div className="flex gap-0.5">
+                  {[1,2,3,4,5].map((i) => <span key={i} className="text-[#F5C400] text-base">★</span>)}
                 </div>
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">&ldquo;{item.text}&rdquo;</p>
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                  <div className="w-8 h-8 rounded-full bg-[#FFF3B0] flex items-center justify-center text-[#C49200] font-bold text-xs">
+
+                {/* Quote */}
+                <p className="text-[#3D2A00] text-sm leading-relaxed flex-1">
+                  <span className="text-3xl text-[#F5C400] font-serif leading-none mr-1">&ldquo;</span>
+                  {item.text}
+                  <span className="text-3xl text-[#F5C400] font-serif leading-none ml-1">&rdquo;</span>
+                </p>
+
+                {/* Author */}
+                <div className="flex items-center gap-3 pt-4 border-t border-[#E8DFC8]">
+                  <div className="w-10 h-10 rounded-full bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-sm flex-shrink-0">
                     {item.name[0]}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-[#5C3D00]">{item.name}</p>
-                    <p className="text-xs text-gray-400">{item.lang}</p>
+                    <p className="text-sm font-bold text-[#2D1A00]">{item.name}</p>
+                    <p className="text-xs text-[#9B8A6B] mt-0.5">{item.lang}</p>
                   </div>
                 </div>
+
               </div>
             ))}
           </div>
+
         </div>
       </section>
 
