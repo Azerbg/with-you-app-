@@ -10,12 +10,6 @@ export default function HomePage() {
   const t = T[lang];
   const { data: session } = useSession();
 
-  const tutors = [
-    { name: "Amira B.", lang: "French", level: "Native", rating: "4.9", reviews: 312, price: 35, tag: "Top rated", avatar: "AB", color: "#F5C400" },
-    { name: "Sami T.",  lang: "English", level: "C2",    rating: "4.8", reviews: 198, price: 28, tag: "Popular",   avatar: "ST", color: "#5C3D00" },
-    { name: "Leila M.", lang: "French",  level: "Native", rating: "5.0", reviews: 87,  price: 42, tag: "New",       avatar: "LM", color: "#C49200" },
-  ];
-
   const languages = t.languages as string[];
 
   return (
@@ -335,36 +329,14 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Right — Tutor cards */}
-        <div id="tutors" className="hidden md:flex flex-col gap-4 relative">
-          {tutors.map((tutor, i) => (
-            <div
-              key={tutor.name}
-              className={`tutor-card bg-white border border-gray-100 rounded-2xl p-5 shadow-[0_4px_24px_rgba(0,0,0,0.07)] flex items-center gap-4 ${i === 0 ? "card-float" : i === 1 ? "card-float-2 ml-8" : "card-float-3 ml-4"}`}
-            >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style={{ background: tutor.color }}>
-                {tutor.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="font-bold text-[#5C3D00] text-sm">{tutor.name}</p>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: tutor.color + "30", color: tutor.color }}>{tutor.tag}</span>
-                </div>
-                <p className="text-xs text-gray-400">{tutor.lang}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <span className="text-[#F5C400] text-xs">★</span>
-                  <span className="text-xs font-semibold text-[#5C3D00]">{tutor.rating}</span>
-                  <span className="text-xs text-gray-400">({tutor.reviews} {t.tutorCard.reviews})</span>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <Link href="/auth/register" className="mt-2 text-[10px] font-bold bg-[#F5C400] text-[#5C3D00] px-3 py-1 rounded-full hover:bg-[#FFDE59] transition inline-block">
-                  {t.tutorCard.book}
-                </Link>
-              </div>
-            </div>
-          ))}
-
+        {/* Right — Hero image */}
+        <div className="hidden md:flex items-center justify-center">
+          <img
+            src="/hero-tutor.jpg"
+            alt="Tuteur WithYou"
+            className="w-full max-w-lg rounded-3xl object-cover shadow-[0_24px_64px_rgba(92,61,0,0.18)]"
+            style={{ maxHeight: "520px" }}
+          />
         </div>
       </section>}
 
