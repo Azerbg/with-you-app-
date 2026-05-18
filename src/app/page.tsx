@@ -412,7 +412,7 @@ export default function HomePage() {
                 <>From your current level<br />to <span className="text-[#C49200]">fluency</span> in 3 steps</>
               )}
             </h2>
-            <p className="text-gray-400 text-base max-w-md mx-auto leading-relaxed">
+            <p className="text-[#6B5E44] text-base max-w-md mx-auto leading-relaxed">
               {lang === "fr"
                 ? "De l'inscription à votre première séance en quelques minutes."
                 : "From sign-up to your first session in minutes."}
