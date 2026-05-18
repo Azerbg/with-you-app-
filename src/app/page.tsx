@@ -376,15 +376,17 @@ export default function HomePage() {
 
       {/* ── Stats bar — shown only when NOT logged in ── */}
       {!session?.user &&
-      <section className="border-y border-[#F5C400]/10 bg-white/50 backdrop-blur-sm py-8">
-        <div className="max-w-4xl mx-auto px-8 grid grid-cols-2 sm:grid-cols-2 gap-8 text-center">
+      <section className="border-y border-[#E8DFC8] bg-white py-10">
+        <div className="max-w-5xl mx-auto px-8 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
           {[
-            { val: "500+", label: t.stats.students },
-            { val: "50+",  label: t.stats.tutors },
+            { val: "500+", label: lang === "fr" ? "Étudiants actifs" : "Active students" },
+            { val: "50+",  label: lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors" },
+            { val: "4.9",  label: lang === "fr" ? "Note moyenne" : "Average rating" },
+            { val: "98%",  label: lang === "fr" ? "Satisfaction" : "Satisfaction rate" },
           ].map((s) => (
             <div key={s.label}>
-              <p className="text-3xl font-bold text-[#5C3D00]">{s.val}</p>
-              <p className="text-sm text-gray-400 mt-1">{s.label}</p>
+              <p className="text-4xl font-black text-[#5C3D00]">{s.val}</p>
+              <p className="text-sm text-gray-400 mt-1 font-medium">{s.label}</p>
             </div>
           ))}
         </div>
@@ -392,22 +394,63 @@ export default function HomePage() {
 
       {!session?.user && <>
       {/* ── How it works ── */}
-      <section id="how-it-works" className="max-w-4xl mx-auto px-8 py-20 relative">
-        <div className="text-center mb-12">
-          <p className="text-xs font-bold text-[#C49200] uppercase tracking-widest mb-2">{t.how.label}</p>
-          <h2 className="text-3xl font-bold text-[#5C3D00]">{t.how.title}</h2>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-8">
-          {t.how.steps.map((s, i) => (
-            <div key={i} className="relative" style={{ animation: `fadeUp 0.6s ease ${0.2 + i * 0.15}s both` }}>
-              <div className="bg-[#FFF3B0] w-10 h-10 rounded-xl flex items-center justify-center text-xl mb-4">
-                {["🎯","🤝","🚀"][i]}
+      <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
+        <div className="max-w-5xl mx-auto">
+
+          {/* Header */}
+          <div className="text-center mb-16">
+            <p className="text-xs font-bold text-[#C49200] uppercase tracking-[0.2em] mb-3">{t.how.label}</p>
+            <h2 className="text-4xl font-bold text-[#2D1A00] mb-4">{t.how.title}</h2>
+            <p className="text-gray-500 text-base max-w-xl mx-auto leading-relaxed">
+              {lang === "fr"
+                ? "De l'inscription à votre première séance en quelques minutes seulement."
+                : "From sign-up to your first session in just a few minutes."}
+            </p>
+          </div>
+
+          {/* Steps */}
+          <div className="grid sm:grid-cols-3 gap-6 relative">
+            {/* Connector line (desktop) */}
+            <div className="hidden sm:block absolute top-10 left-[calc(16.66%+16px)] right-[calc(16.66%+16px)] h-px bg-gradient-to-r from-[#F5C400]/30 via-[#F5C400] to-[#F5C400]/30 z-0" />
+
+            {t.how.steps.map((s, i) => (
+              <div
+                key={i}
+                className="relative bg-white border border-[#E8DFC8] rounded-3xl p-8 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 z-10"
+                style={{ animation: `fadeUp 0.6s ease ${0.15 + i * 0.15}s both` }}
+              >
+                {/* Step number */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)]">
+                    <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
+                  </div>
+                  <span className="text-5xl font-black text-[#F5C400]/20 leading-none select-none">
+                    0{i + 1}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+
+                {/* Arrow indicator */}
+                {i < 2 && (
+                  <div className="sm:hidden absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-[#F5C400] rounded-full flex items-center justify-center shadow-md z-20">
+                    <svg className="w-4 h-4 text-[#5C3D00]" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                )}
               </div>
-              <span className="text-xs font-bold text-[#F5C400] mb-2 block">0{i + 1}</span>
-              <h3 className="font-bold text-[#5C3D00] mb-2">{s.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div className="text-center mt-12">
+            <Link href="/auth/register" className="btn-glow inline-block bg-[#5C3D00] text-[#F5C400] px-10 py-4 rounded-full font-bold text-base hover:bg-[#3d2900] transition">
+              {lang === "fr" ? "Commencer gratuitement →" : "Get started free →"}
+            </Link>
+          </div>
+
         </div>
       </section>
 
