@@ -430,11 +430,11 @@ export default function HomePage() {
                 className="relative bg-white border border-[#E8DFC8] rounded-3xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 z-10"
                 style={{ animation: `fadeUp 0.6s ease ${0.15 + i * 0.15}s both` }}
               >
-                {/* Image — cards 1 and 2 */}
-                {(i === 0 || i === 1) && (
+                {/* Image — all 3 cards */}
+                {true && (
                   <div className="relative h-48 w-full overflow-hidden">
                     <img
-                      src={i === 0 ? "/step-1.jpg" : "/step-2.png"}
+                      src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.png"}
                       alt={`Étape ${i + 1}`}
                       className="w-full h-full object-cover"
                     />
@@ -446,8 +446,8 @@ export default function HomePage() {
                 )}
 
                 <div className="p-8">
-                  {/* Step number row — for card 3 only */}
-                  {i > 1 && (
+                  {/* Step number row — none (all cards have images now) */}
+                  {false && (
                     <div className="flex items-center justify-between mb-6">
                       <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)]">
                         <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
@@ -458,11 +458,9 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {(i === 0 || i === 1) && (
-                    <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-4">
-                      <span className="text-xl">{["🎯","🤝"][i]}</span>
-                    </div>
-                  )}
+                  <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-4">
+                    <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
+                  </div>
 
                   <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title}</h3>
                   <p className="text-sm text-[#6B5E44] leading-relaxed">{s.desc}</p>
