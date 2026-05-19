@@ -55,6 +55,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         if (session?.totpEnabled !== undefined) {
           token.totpEnabled = session.totpEnabled;
         }
+        // Strip large fields on every update too
+        delete token.picture;
+        delete token.name;
         return token;
       }
 
@@ -82,6 +85,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         }
       }
 
+      // Always strip large/unused fields to keep cookie small
+      delete token.picture;
+      delete token.name;
+
       return token;
     },
 
@@ -91,6 +98,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         session.user.role = token.role as Role;
         session.user.totpVerified = token.totpVerified as boolean;
         session.user.totpEnabled = token.totpEnabled as boolean;
+        // Don't store image/name in session cookie — fetch from DB when needed
+        session.user.image = null;
+        session.user.name = null;
       }
       return session;
     },
