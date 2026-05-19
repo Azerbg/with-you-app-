@@ -15,12 +15,15 @@ interface HrNote {
 interface Application {
   id: string;
   fullName: string;
+  birthday: string | null;
+  country: string | null;
   city: string | null;
   phone: string | null;
   phoneVerified: boolean;
   languagesTaught: string[];
   specializations: string[];
   certifications: string[];
+  certificateUrls: string[];
   yearsExperience: number | null;
   bio: string | null;
   videoUrl: string | null;
@@ -536,10 +539,20 @@ function DetailPanel({
 
             {/* Teaching profile */}
             <Section title="Profil d'enseignant">
-              <Row label="Langues"         value={app.languagesTaught.join(", ")} />
+              <Row label="Langues"          value={app.languagesTaught.join(", ")} />
               <Row label="Spécialisations"  value={app.specializations.join(", ")} />
               <Row label="Expérience"       value={app.yearsExperience != null ? `${app.yearsExperience} ans` : null} />
               <Row label="Certifications"   value={app.certifications.join(", ") || "Aucune"} />
+              {app.certificateUrls?.length > 0 && (
+                <div className="py-1.5 border-b border-[#6B5E44]/10 text-sm">
+                  <span className="text-[#6B5E44] block mb-1">Fichiers certifications</span>
+                  <div className="space-y-1">
+                    {app.certificateUrls.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noreferrer" className="block text-blue-600 hover:underline text-xs truncate">{url}</a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Section>
 
             {/* Availability */}
@@ -555,8 +568,9 @@ function DetailPanel({
               </Section>
             )}
 
-            {/* Contact */}
-            <Section title="Contact">
+            {/* Personal Info */}
+            <Section title="Informations personnelles">
+              <Row label="Nom complet" value={app.fullName} />
               <Row label="E-mail" value={app.user.email} />
               <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm">
                 <span className="text-[#6B5E44]">Téléphone</span>
@@ -569,7 +583,12 @@ function DetailPanel({
                   )}
                 </span>
               </div>
+              {app.birthday && (
+                <Row label="Date de naissance" value={new Date(app.birthday).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} />
+              )}
+              <Row label="Pays" value={app.country} />
               <Row label="Ville" value={app.city} />
+              <Row label="Candidature reçue" value={new Date(app.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} />
             </Section>
 
             {/* Rubric scoring — visible during STAGE1_REVIEW */}

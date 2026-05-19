@@ -1,12 +1,14 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
 import { Role } from "@prisma/client";
 
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
+  adapter: PrismaAdapter(db),
   providers: [
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
       ? [Google({
@@ -48,70 +50,37 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ],
 
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
-      // On session update (used after TOTP verification)
-      if (trigger === "update" && session?.totpVerified !== undefined) {
-        token.totpVerified = session.totpVerified;
-        if (session?.totpEnabled !== undefined) {
-          token.totpEnabled = session.totpEnabled;
-        }
-        // Strip large fields on every update too
-        delete token.picture;
-        delete token.name;
-        return token;
-      }
-
-      // On initial sign-in, attach role and totp state to token
+    async session({ session, user }) {
+      // With database strategy, `user` is the DB user record
       if (user) {
-        token.id = user.id!;
-        token.role = (user as { role: Role; totpEnabled: boolean }).role;
-        const totpEnabled = (user as { role: Role; totpEnabled: boolean }).totpEnabled;
-        token.totpEnabled = totpEnabled;
-        // HR/ADMIN with TOTP enabled must verify on each login
-        const needsTotp = (token.role === "HR" || token.role === "ADMIN") && totpEnabled;
-        token.totpVerified = !needsTotp;
-      }
-
-      // If Google sign-in, fetch or create user to get role
-      if (account?.provider === "google" && token.email) {
         const dbUser = await db.user.findUnique({
-          where: { email: token.email },
+          where: { id: user.id },
+          select: { id: true, role: true, totpEnabled: true, email: true },
         });
         if (dbUser) {
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.totpEnabled = dbUser.totpEnabled;
-          token.totpVerified = true; // Google users skip TOTP
+          session.user.id = dbUser.id;
+          session.user.role = dbUser.role;
+          session.user.totpEnabled = dbUser.totpEnabled;
+          // totpVerified is stored on the Session record itself
+          const sessionRecord = await db.session.findFirst({
+            where: { userId: dbUser.id, expires: { gt: new Date() } },
+            orderBy: { expires: "desc" },
+            select: { totpVerified: true },
+          });
+          const needsTotp = dbUser.role === "HR" || dbUser.role === "ADMIN";
+          session.user.totpVerified = needsTotp
+            ? (sessionRecord?.totpVerified ?? false)
+            : true;
+          session.user.image = null;
+          session.user.name = null;
         }
-      }
-
-      // Always strip large/unused fields to keep cookie small
-      delete token.picture;
-      delete token.name;
-
-      return token;
-    },
-
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as Role;
-        session.user.totpVerified = token.totpVerified as boolean;
-        session.user.totpEnabled = token.totpEnabled as boolean;
-        // Don't store image/name in session cookie — fetch from DB when needed
-        session.user.image = null;
-        session.user.name = null;
       }
       return session;
     },
 
     async signIn({ user, account }) {
-      // Handle Google OAuth: create user if first time
       if (account?.provider === "google" && user.email) {
-        const existing = await db.user.findUnique({
-          where: { email: user.email },
-        });
-
+        const existing = await db.user.findUnique({ where: { email: user.email } });
         if (!existing) {
           await db.user.create({
             data: {
@@ -124,8 +93,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         }
         return true;
       }
-
-      // Credentials: already validated in authorize()
       return true;
     },
   },
@@ -135,5 +102,5 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     error: "/auth/error",
   },
 
-  session: { strategy: "jwt" },
+  session: { strategy: "database" },
 });

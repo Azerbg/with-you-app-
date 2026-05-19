@@ -31,7 +31,7 @@ export default function TotpPage() {
       return;
     }
 
-    await update({ totpVerified: true });
+    await update();
     window.location.href = "/console/hr";
   }
 
