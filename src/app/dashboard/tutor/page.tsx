@@ -69,7 +69,13 @@ export default async function TutorDashboardPage() {
     ).toUpperCase();
 
     return (
-      <div className="min-h-screen bg-[#FAF8F0]">
+      <div className="min-h-screen bg-[#FAF8F0] relative">
+        {/* Background image with overlay */}
+        <div className="absolute inset-0 z-0">
+          <img src="/tutor-apply-bg.jpg" alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(250,248,240,0.96) 0%, rgba(250,248,240,0.88) 60%, rgba(250,248,240,0.75) 100%)" }} />
+        </div>
+        <div className="relative z-10">
         {/* Top bar */}
         <div className="bg-white border-b border-[#EDE8DF] px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -136,7 +142,7 @@ export default async function TutorDashboardPage() {
             {/* Perks */}
             <div className="space-y-4">
               {[
-                { icon: "💰", title: "Revenus attractifs", desc: "Jusqu'à 45 TND/h ou 18 CAD/h selon votre profil et vos disponibilités." },
+                { icon: "💰", title: "Revenus attractifs", desc: "Gagnez selon votre profil, vos disponibilités et votre engagement." },
                 { icon: "🕐", title: "Horaires flexibles", desc: "Choisissez vos créneaux et gérez votre agenda librement." },
                 { icon: "🌍", title: "100% en ligne", desc: "Enseignez depuis chez vous, sans déplacements ni contraintes." },
                 { icon: "📈", title: "Croissance garantie", desc: "Plus vous enseignez, plus votre réputation et vos revenus augmentent." },
@@ -167,6 +173,7 @@ export default async function TutorDashboardPage() {
             </Link>
             <p className="text-xs text-[#9B8A6B] mt-3">Prend environ 10 minutes · Gratuit</p>
           </div>
+        </div>
         </div>
       </div>
     );
