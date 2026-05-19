@@ -12,6 +12,15 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Don't overwrite an already-enabled TOTP secret
+  const existing = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { totpEnabled: true, totpSecret: true },
+  });
+  if (existing?.totpEnabled) {
+    return NextResponse.json({ error: "2FA already enabled" }, { status: 400 });
+  }
+
   const secret = generateSecret();
 
   await db.user.update({

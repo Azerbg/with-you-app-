@@ -19,7 +19,11 @@ export default function Setup2FAPage() {
   useEffect(() => {
     async function initSetup() {
       const res = await fetch("/api/auth/totp/setup", { method: "POST" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // Already enabled — go straight to verify page
+        window.location.href = "/auth/totp";
+        return;
+      }
       const data = await res.json();
       setSecret(data.secret);
       const dataUrl = await QRCode.toDataURL(data.otpauth, { width: 200, margin: 2 });
@@ -49,7 +53,7 @@ export default function Setup2FAPage() {
     }
 
     setStep("done");
-    await update({ totpVerified: true });
+    await update({ totpVerified: true, totpEnabled: true });
     setTimeout(() => { window.location.href = "/console/hr"; }, 1500);
   }
 

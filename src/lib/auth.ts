@@ -52,6 +52,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       // On session update (used after TOTP verification)
       if (trigger === "update" && session?.totpVerified !== undefined) {
         token.totpVerified = session.totpVerified;
+        if (session?.totpEnabled !== undefined) {
+          token.totpEnabled = session.totpEnabled;
+        }
         return token;
       }
 
