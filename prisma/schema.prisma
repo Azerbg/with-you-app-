@@ -493,6 +493,7 @@ model HrApplication {
   // Application materials
   bio          String?  // 500–1000 words
   videoUrl     String?  // 60–90 sec intro video (DigitalOcean Spaces)
+  cvUrl        String?  // CV / resume link (Google Drive, Dropbox, etc.)
 
   // Automated pre-screening results
   emailVerified   Boolean @default(false)

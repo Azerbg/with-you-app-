@@ -24,6 +24,7 @@ interface Application {
   yearsExperience: number | null;
   bio: string | null;
   videoUrl: string | null;
+  cvUrl: string | null;
   availabilityDays: string[];
   timeWindowPreference: string[];
   status: string;
@@ -628,6 +629,20 @@ function DetailPanel({
                     </a>
                   </div>
                 )}
+              </Section>
+            )}
+
+            {/* CV */}
+            {app.cvUrl && (
+              <Section title="CV / Curriculum Vitae">
+                <a href={app.cvUrl} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline font-medium">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                  </svg>
+                  {app.cvUrl.length > 60 ? app.cvUrl.slice(0, 60) + "…" : app.cvUrl}
+                </a>
               </Section>
             )}
 

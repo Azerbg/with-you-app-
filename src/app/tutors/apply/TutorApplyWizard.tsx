@@ -25,6 +25,7 @@ interface FormData {
   // Step 3
   bio:      string;
   videoUrl: string;
+  cvUrl:    string;
   // Step 4
   availabilityDays:     string[];
   timeWindowPreference: string[];
@@ -416,7 +417,7 @@ function StepAbout({ data, onChange, onNext, onBack }: {
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
-  const isValid = data.bio.length >= 100;
+  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0;
 
   return (
     <div>
@@ -445,6 +446,24 @@ function StepAbout({ data, onChange, onNext, onBack }: {
         />
         <p className={`text-xs mt-1 ${data.bio.length < 100 ? "text-red-400" : "text-green-600"}`}>
           {data.bio.length} / 100 {fr ? "caractères minimum" : "characters minimum"}
+        </p>
+      </div>
+
+      <div className="mb-5">
+        <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+          {fr ? "CV / Curriculum Vitae" : "CV / Resume"}{" "}
+          <span className="font-normal text-red-500">*</span>
+        </label>
+        <input
+          value={data.cvUrl}
+          onChange={e => onChange("cvUrl", e.target.value)}
+          placeholder={fr ? "Lien Google Drive, Dropbox, OneDrive…" : "Google Drive, Dropbox, OneDrive link…"}
+          className={inputCls}
+        />
+        <p className="text-xs text-[#6B5E44] mt-1">
+          {fr
+            ? "Partagez un lien public vers votre CV (Google Drive, Dropbox, etc.)"
+            : "Share a public link to your CV (Google Drive, Dropbox, etc.)"}
         </p>
       </div>
 
@@ -602,6 +621,7 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
         <Row label={fr ? "Spécialisations" : "Specializations"} value={data.specializations.join(", ")} />
         <Row label={fr ? "Expérience" : "Experience"} value={`${data.yearsExperience} ${fr ? "ans" : "yrs"}`} />
         <Row label={fr ? "Certifications" : "Certifications"} value={data.certifications.join(", ")} />
+        <Row label="CV" value={data.cvUrl} />
         <Row label={fr ? "Jours dispo." : "Avail. days"} value={data.availabilityDays.join(", ")} />
         <Row label={fr ? "Créneaux" : "Windows"} value={data.timeWindowPreference.join(", ")} />
       </div>
@@ -635,17 +655,24 @@ function SuccessScreen() {
 
   return (
     <div className="text-center py-4">
-      <div className="text-5xl mb-4">🎉</div>
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-8 h-8 text-green-600">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </div>
       <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">
         {fr ? "Candidature envoyée !" : "Application submitted!"}
       </h2>
-      <p className="text-[#6B5E44] text-sm mb-6">
+      <p className="text-[#6B5E44] text-sm mb-2 leading-relaxed">
         {fr
           ? "Notre équipe RH examinera votre dossier et vous contactera dans 3 à 5 jours ouvrables."
           : "Our HR team will review your application and contact you within 3–5 business days."}
       </p>
-      <button onClick={() => router.push("/")} className={`px-8 py-2.5 ${btnPrimary}`}>
-        {fr ? "Retour à l'accueil" : "Back to home"}
+      <p className="text-xs text-[#9B8A6B] mb-6">
+        {fr ? "Vous pouvez suivre l'avancement de votre candidature depuis votre espace tuteur." : "You can track your application status from your tutor dashboard."}
+      </p>
+      <button onClick={() => router.push("/dashboard/tutor")} className={`px-8 py-2.5 ${btnPrimary}`}>
+        {fr ? "Voir mon espace tuteur →" : "Go to my dashboard →"}
       </button>
     </div>
   );
@@ -668,7 +695,7 @@ export default function TutorApplyWizard() {
   const [data, setData] = useState<FormData>({
     fullName: "", email: "", password: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
-    bio: "", videoUrl: "",
+    bio: "", videoUrl: "", cvUrl: "",
     availabilityDays: [], timeWindowPreference: [],
   });
 

@@ -24,6 +24,7 @@ const baseSchema = z.object({
   // Step 3 — About
   bio:      z.string().min(100),
   videoUrl: z.string().url().optional().or(z.literal("")),
+  cvUrl:    z.string().min(1),
 
   // Step 4 — Availability
   availabilityDays:    z.array(z.string()).min(1),
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
             certificateUrls:     data.certificateUrls,
             bio:                 data.bio,
             videoUrl:            data.videoUrl || null,
+            cvUrl:               data.cvUrl,
             availabilityDays:    data.availabilityDays,
             timeWindowPreference: data.timeWindowPreference,
             status:              "NEW",
@@ -134,6 +136,7 @@ export async function POST(req: NextRequest) {
             certificateUrls:     data.certificateUrls,
             bio:                 data.bio,
             videoUrl:            data.videoUrl || null,
+            cvUrl:               data.cvUrl,
             availabilityDays:    data.availabilityDays,
             timeWindowPreference: data.timeWindowPreference,
             status:              "NEW",
