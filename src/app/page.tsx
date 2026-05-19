@@ -552,39 +552,73 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Become a tutor ── */}
-      {(() => { const bt = (t as unknown as {becomeTutor: {label:string;title:string;desc:string;badge:string;cta:string}}).becomeTutor; return (
-      <section className="max-w-4xl mx-auto px-8 py-16">
-        <div className="bg-[#5C3D00] rounded-3xl p-10 flex flex-col sm:flex-row items-center gap-8">
-          <div className="flex-1 text-center sm:text-left">
-            <p className="text-xs font-bold text-[#F5C400] uppercase tracking-widest mb-2">{bt.label}</p>
-            <h2 className="text-3xl font-bold text-white mb-3">{bt.title}</h2>
-            <p className="text-white/70 text-base leading-relaxed mb-4">{bt.desc}</p>
-            <p className="text-[#F5C400] text-sm font-semibold">{bt.badge}</p>
-          </div>
-          <Link href="/tutors/apply" className="whitespace-nowrap bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base hover:bg-[#FFDE59] transition shadow-lg">
-            {bt.cta}
-          </Link>
-        </div>
-      </section>
-      ); })()}
+      {/* ── Final CTA — full bleed image with overlay ── */}
+      <section id="pricing" className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
 
-      {/* ── Bottom CTA ── */}
-      <section id="pricing" className="max-w-4xl mx-auto px-8 py-20 text-center">
-        <p className="text-xs font-bold text-[#C49200] uppercase tracking-widest mb-3">{t.cta.label}</p>
-        <h2 className="text-4xl font-bold text-[#5C3D00] mb-4">{t.cta.title}</h2>
-        <p className="text-gray-500 text-base mb-8 max-w-md mx-auto">
-          {t.cta.sub}
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
-          <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-10 py-4 rounded-full font-bold text-base">
-            {t.cta.btn1}
-          </Link>
-          <Link href="/auth/register" className="border-2 border-gray-200 text-gray-600 px-10 py-4 rounded-full font-semibold text-base hover:border-[#5C3D00] transition">
-            {t.cta.btn2}
-          </Link>
+        {/* Background image */}
+        <img
+          src="/cta-bg.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        />
+
+        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/90 via-[#1A0D00]/75 to-[#1A0D00]/40" />
+
+        {/* Content */}
+        <div className="relative z-10 max-w-5xl mx-auto px-10 lg:px-20 py-28 flex flex-col justify-center h-full">
+
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-[#F5C400]/15 border border-[#F5C400]/30 rounded-full px-4 py-1.5 w-fit mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
+            <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
+              {lang === "fr" ? "Commencez aujourd'hui" : "Start today"}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 max-w-xl">
+            {lang === "fr" ? (
+              <>Prêt à faire de<br />vrais <span className="text-[#F5C400]">progrès</span> ?</>
+            ) : (
+              <>Ready to make<br />real <span className="text-[#F5C400]">progress</span> ?</>
+            )}
+          </h2>
+
+          {/* Subtitle */}
+          <p className="text-white/60 text-lg leading-relaxed max-w-md mb-10">
+            {lang === "fr"
+              ? "Rejoignez des centaines d'apprenants qui progressent chaque semaine avec un tuteur dédié."
+              : "Join hundreds of learners making weekly progress with a dedicated tutor."}
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-10 py-4 rounded-full font-bold text-base text-center hover:bg-[#FFDE59] transition">
+              {lang === "fr" ? "Créer mon compte gratuitement" : "Create my free account"}
+            </Link>
+            <Link href="/find-tutors" className="border-2 border-white/20 text-white px-10 py-4 rounded-full font-semibold text-base text-center hover:border-white/50 hover:bg-white/5 transition">
+              {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
+            </Link>
+          </div>
+
+          {/* Trust indicators */}
+          <div className="flex flex-wrap items-center gap-6">
+            {[
+              { icon: "✓", text: lang === "fr" ? "Sans engagement" : "No commitment" },
+              { icon: "✓", text: lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors" },
+              { icon: "✓", text: lang === "fr" ? "Séance découverte 15 USD" : "Discovery session $15" },
+            ].map((item) => (
+              <div key={item.text} className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-[#F5C400]/20 flex items-center justify-center text-[#F5C400] text-xs font-bold flex-shrink-0">
+                  {item.icon}
+                </span>
+                <span className="text-white/50 text-sm">{item.text}</span>
+              </div>
+            ))}
+          </div>
+
         </div>
-        <p className="text-sm text-gray-400 max-w-md mx-auto">{(t.cta as unknown as {micro: string}).micro}</p>
       </section>
       </>}
 
