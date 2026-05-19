@@ -70,28 +70,103 @@ export default async function TutorDashboardPage() {
 
     return (
       <div className="min-h-screen bg-[#FAF8F0]">
-        <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
-            <span className="text-[#6B5E44] text-sm font-semibold">Espace Tuteur</span>
+        {/* Top bar */}
+        <div className="bg-white border-b border-[#EDE8DF] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 bg-[#F5C400] rounded-xl flex items-center justify-center shadow-sm">
+                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+                  <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className="font-bold text-[#2D1A00] text-[15px] tracking-tight">WithYou</span>
+            </Link>
+            <span className="text-[#C4BAA8] text-sm">/</span>
+            <span className="text-[#6B5E44] text-sm font-medium">Espace Tuteur</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>
-            <Link href="/api/auth/signout" className="text-xs text-[#6B5E44] hover:text-[#5C3D00] transition">Déconnexion</Link>
+            <div className="w-8 h-8 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>
+            <Link href="/api/auth/signout" className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">Déconnexion</Link>
           </div>
         </div>
-        <div className="max-w-lg mx-auto px-6 py-20 text-center">
-          <div className="text-5xl mb-4">🧑‍🏫</div>
-          <h1 className="text-2xl font-bold text-[#2D1A00] mb-2">Devenez tuteur WithYou</h1>
-          <p className="text-[#6B5E44] mb-8 leading-relaxed">
-            Vous n&apos;avez pas encore soumis de candidature. Rejoignez notre équipe de tuteurs et commencez à enseigner.
-          </p>
-          <Link
-            href="/tutors/apply"
-            className="inline-block bg-[#F5C400] text-[#5C3D00] font-bold px-8 py-3 rounded-xl hover:bg-[#FFDE59] transition"
-          >
-            Soumettre ma candidature →
-          </Link>
+
+        {/* Content */}
+        <div className="max-w-4xl mx-auto px-6 py-16">
+          {/* Hero */}
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold text-[#C49200] bg-[#FFF3B0] border border-[#F5C400]/30 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">
+              Candidature requise
+            </span>
+            <h1 className="text-4xl font-bold text-[#2D1A00] mb-4 leading-tight">
+              Rejoignez l&apos;équipe<br /><span className="text-[#C49200]">WithYou</span>
+            </h1>
+            <p className="text-[#6B5E44] text-base max-w-xl mx-auto leading-relaxed">
+              Vous n&apos;avez pas encore soumis de candidature. Complétez votre dossier en quelques minutes et commencez à enseigner.
+            </p>
+          </div>
+
+          {/* Steps + Perks */}
+          <div className="grid md:grid-cols-2 gap-6 mb-10">
+            {/* Process steps */}
+            <div className="bg-white border border-[#E8E0D4] rounded-2xl p-6 shadow-sm">
+              <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-5">Comment ça marche</p>
+              <div className="space-y-5">
+                {[
+                  { n: "1", title: "Soumettez votre dossier", desc: "Remplissez le formulaire en 5 étapes (~10 min)." },
+                  { n: "2", title: "Examen RH", desc: "Notre équipe examine votre profil sous 3–5 jours ouvrables." },
+                  { n: "3", title: "Entretien vidéo", desc: "Un court entretien pour nous présenter et vous évaluer." },
+                  { n: "4", title: "Activation du profil", desc: "Vous apparaissez dans les recherches et recevez vos premiers étudiants." },
+                ].map((s, i, arr) => (
+                  <div key={s.n} className="flex items-start gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-7 h-7 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-xs flex-shrink-0">
+                        {s.n}
+                      </div>
+                      {i < arr.length - 1 && <div className="w-px flex-1 bg-[#EDE8DF] mt-1 h-5" />}
+                    </div>
+                    <div className="pb-1">
+                      <p className="text-sm font-semibold text-[#2D1A00]">{s.title}</p>
+                      <p className="text-xs text-[#9B8A6B] mt-0.5">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Perks */}
+            <div className="space-y-4">
+              {[
+                { icon: "💰", title: "Revenus attractifs", desc: "Jusqu'à 45 TND/h ou 18 CAD/h selon votre profil et vos disponibilités." },
+                { icon: "🕐", title: "Horaires flexibles", desc: "Choisissez vos créneaux et gérez votre agenda librement." },
+                { icon: "🌍", title: "100% en ligne", desc: "Enseignez depuis chez vous, sans déplacements ni contraintes." },
+                { icon: "📈", title: "Croissance garantie", desc: "Plus vous enseignez, plus votre réputation et vos revenus augmentent." },
+              ].map(p => (
+                <div key={p.icon} className="bg-white border border-[#E8E0D4] rounded-2xl p-4 flex items-start gap-4 shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-[#FFF3B0] border border-[#F5C400]/30 flex items-center justify-center text-xl flex-shrink-0">
+                    {p.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#2D1A00]">{p.title}</p>
+                    <p className="text-xs text-[#9B8A6B] mt-0.5 leading-relaxed">{p.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center">
+            <Link
+              href="/tutors/apply"
+              className="inline-flex items-center gap-2 bg-[#F5C400] text-[#5C3D00] font-bold px-10 py-4 rounded-2xl hover:bg-[#FFDE59] transition text-base shadow-[0_4px_16px_rgba(245,196,0,0.35)]"
+            >
+              Soumettre ma candidature
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </Link>
+            <p className="text-xs text-[#9B8A6B] mt-3">Prend environ 10 minutes · Gratuit</p>
+          </div>
         </div>
       </div>
     );
