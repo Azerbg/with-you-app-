@@ -666,37 +666,142 @@ export default function TutorApplyWizard() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(92,61,0,0.12)] p-8 border border-[#F5C400]/30">
+  const fr = lang === "fr";
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-1">
-          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto" /></Link>
-          <button
-            onClick={() => setLang(lang === "fr" ? "en" : "fr")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#6B5E44]/20 text-xs font-bold text-[#5C3D00] hover:bg-[#FFF3B0] hover:border-[#F5C400] transition">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-            </svg>
-            {lang === "fr" ? "EN" : "FR"}
-          </button>
+  const PERKS = fr
+    ? [
+        { icon: "💰", title: "Revenus flexibles", desc: "Fixez vos propres horaires et gagnez jusqu'à 45 TND/h ou 18 CAD/h." },
+        { icon: "🌍", title: "Apprenants motivés", desc: "Des étudiants sérieux qui veulent vraiment progresser." },
+        { icon: "📅", title: "100% à distance", desc: "Enseignez depuis chez vous, à votre rythme, sans contraintes." },
+        { icon: "🎓", title: "Accompagnement RH", desc: "Une équipe dédiée vous accompagne à chaque étape." },
+      ]
+    : [
+        { icon: "💰", title: "Flexible income", desc: "Set your own hours and earn up to 45 TND/h or 18 CAD/h." },
+        { icon: "🌍", title: "Motivated learners", desc: "Serious students who genuinely want to improve." },
+        { icon: "📅", title: "100% remote", desc: "Teach from home, at your own pace, with no constraints." },
+        { icon: "🎓", title: "HR support", desc: "A dedicated team guides you through every step." },
+      ];
+
+  return (
+    <div className="min-h-screen flex">
+
+      {/* Left panel — brand / value prop */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[420px] flex-shrink-0 p-10 relative overflow-hidden"
+        style={{ background: "linear-gradient(160deg, #2D1A00 0%, #1A0E00 100%)" }}
+      >
+        {/* Decorative circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #F5C400, transparent)", transform: "translate(30%, -30%)" }} />
+        <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #F5C400, transparent)", transform: "translate(-30%, 30%)" }} />
+
+        {/* Logo */}
+        <div>
+          <Link href="/" className="flex items-center gap-2.5 mb-12">
+            <div className="w-9 h-9 bg-[#F5C400] rounded-xl flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="font-bold text-white text-base tracking-tight">WithYou</span>
+          </Link>
+
+          <div className="mb-10">
+            <span className="inline-block text-xs font-bold text-[#F5C400] bg-[#F5C400]/10 border border-[#F5C400]/20 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">
+              {fr ? "Devenez tuteur" : "Become a tutor"}
+            </span>
+            <h1 className="text-3xl font-bold text-white leading-tight mb-3">
+              {fr ? (
+                <>Enseignez.<br /><span className="text-[#F5C400]">Impactez.</span><br />Gagnez.</>
+              ) : (
+                <>Teach.<br /><span className="text-[#F5C400]">Impact.</span><br />Earn.</>
+              )}
+            </h1>
+            <p className="text-white/50 text-sm leading-relaxed">
+              {fr
+                ? "Rejoignez WithYou et aidez des apprenants à atteindre leurs objectifs linguistiques."
+                : "Join WithYou and help learners achieve their language goals."}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {PERKS.map(p => (
+              <div key={p.icon} className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-[#F5C400]/10 border border-[#F5C400]/20 rounded-xl flex items-center justify-center text-base flex-shrink-0">
+                  {p.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white/90">{p.title}</p>
+                  <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{p.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="mb-5" />
+        {/* Bottom testimonial */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mt-8">
+          <p className="text-sm text-white/70 italic leading-relaxed mb-3">
+            {fr
+              ? "« Le processus de candidature était simple et l'équipe RH très professionnelle. Je recommande vivement WithYou. »"
+              : "\"The application process was simple and the HR team very professional. I highly recommend WithYou.\""}
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">S</div>
+            <div>
+              <p className="text-xs font-semibold text-white/80">Sana B.</p>
+              <p className="text-[10px] text-white/40">{fr ? "Tutrice · Français" : "Tutor · French"}</p>
+            </div>
+            <div className="ml-auto flex gap-0.5">
+              {[1,2,3,4,5].map(i => <span key={i} className="text-[#F5C400] text-xs">★</span>)}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {submitted ? (
-          <SuccessScreen />
-        ) : (
-          <>
-            <ProgressBar step={step} />
-            {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} />}
-            {step === 2 && <StepTeaching data={data} onChange={(k, v) => update(k, v as string[] | number)} onNext={next} onBack={back} />}
-            {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v as string)} onNext={next} onBack={back} />}
-            {step === 4 && <StepAvailability data={data} onChange={(k, v) => update(k, v as string[])} onNext={next} onBack={back} />}
-            {step === 5 && <StepReview data={data} onSubmit={handleSubmit} onBack={back} submitting={submitting} error={error} />}
-          </>
-        )}
+      {/* Right panel — wizard */}
+      <div className="flex-1 flex flex-col min-h-screen bg-[#FAF8F0]">
+        {/* Top bar */}
+        <div className="h-16 px-8 flex items-center justify-between border-b border-[#E8E0D4] bg-white">
+          {/* Mobile logo */}
+          <Link href="/" className="lg:hidden flex items-center gap-2">
+            <div className="w-7 h-7 bg-[#F5C400] rounded-lg flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+                <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="font-bold text-[#2D1A00] text-sm">WithYou</span>
+          </Link>
+          <p className="hidden lg:block text-sm font-semibold text-[#6B5E44]">
+            {fr ? "Candidature tuteur" : "Tutor application"}
+          </p>
+          <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={() => setLang(lang === "fr" ? "en" : "fr")}
+              className="text-xs font-bold text-[#6B5E44] border border-[#6B5E44]/20 px-2.5 py-1 rounded-full hover:bg-[#FFF3B0] hover:border-[#F5C400] transition">
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
+          </div>
+        </div>
+
+        {/* Form area */}
+        <div className="flex-1 flex items-start justify-center px-6 py-10 overflow-auto">
+          <div className="w-full max-w-lg">
+            {submitted ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-[#E8E0D4] p-8">
+                <SuccessScreen />
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm border border-[#E8E0D4] p-8">
+                <ProgressBar step={step} />
+                {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} />}
+                {step === 2 && <StepTeaching data={data} onChange={(k, v) => update(k, v as string[] | number)} onNext={next} onBack={back} />}
+                {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v as string)} onNext={next} onBack={back} />}
+                {step === 4 && <StepAvailability data={data} onChange={(k, v) => update(k, v as string[])} onNext={next} onBack={back} />}
+                {step === 5 && <StepReview data={data} onSubmit={handleSubmit} onBack={back} submitting={submitting} error={error} />}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

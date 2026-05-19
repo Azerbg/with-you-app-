@@ -51,9 +51,9 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
 
   return (
     <>
-      <aside className="hidden md:flex flex-col w-60 flex-shrink-0 h-screen sticky top-0 overflow-y-auto bg-white border-r border-[#EDE8DF]">
+      <aside className="hidden md:flex flex-col w-60 flex-shrink-0 h-screen sticky top-0 overflow-y-auto bg-[#F5F1EA] border-r border-[#E0D8CC]">
         {/* Logo */}
-        <div className="h-16 px-5 flex items-center flex-shrink-0 border-b border-[#EDE8DF]">
+        <div className="h-16 px-5 flex items-center flex-shrink-0 border-b border-[#E0D8CC]">
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 bg-[#F5C400] rounded-xl flex items-center justify-center shadow-sm group-hover:bg-[#FFDE59] transition">
               <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
@@ -65,10 +65,10 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
         </div>
 
         {/* User profile block */}
-        <div className="px-4 py-4 border-b border-[#EDE8DF]">
+        <div className="px-4 py-4 border-b border-[#E0D8CC]">
           <button
             onClick={() => setPanelOpen(true)}
-            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#FAF8F0] transition group text-left"
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#EDE7DC] transition group text-left"
           >
             {avatarUrl ? (
               <img src={avatarUrl} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0 ring-2 ring-[#EDE8DF] group-hover:ring-[#F5C400] transition" />
@@ -109,7 +109,7 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left ${
                       item.active
                         ? "bg-[#F5C400] text-[#5C3D00]"
-                        : "text-[#6B5E44] hover:bg-[#FAF8F0] hover:text-[#2D1A00]"
+                        : "text-[#6B5E44] hover:bg-[#EDE7DC] hover:text-[#2D1A00]"
                     }`}
                   >
                     <span className={item.active ? "text-[#5C3D00]" : "text-[#9B8A6B]"}>{item.icon}</span>
@@ -129,8 +129,8 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
         </nav>
 
         {/* Bottom */}
-        <div className="px-3 pb-5 pt-2 border-t border-[#EDE8DF] space-y-0.5">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#9B8A6B] hover:bg-[#FAF8F0] hover:text-[#2D1A00] transition">
+        <div className="px-3 pb-5 pt-2 border-t border-[#E0D8CC] space-y-0.5">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#9B8A6B] hover:bg-[#EDE7DC] hover:text-[#2D1A00] transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
