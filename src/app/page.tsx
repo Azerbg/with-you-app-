@@ -489,48 +489,59 @@ export default function HomePage() {
       </section>
 
       {/* ── Testimonials ── */}
-      <section className="py-24 px-8 bg-white">
+      <section className="py-24 px-8 bg-[#2D1A00]">
         <div className="max-w-5xl mx-auto">
 
           {/* Header */}
-          <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-full px-4 py-1.5 mb-6">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-[#F5C400]/10 border border-[#F5C400]/30 rounded-full px-4 py-1.5 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
-              <span className="text-xs font-bold text-[#C49200] uppercase tracking-[0.15em]">{t.testimonials.label}</span>
+              <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
+                {lang === "fr" ? "Témoignages" : "Testimonials"}
+              </span>
             </div>
-            <h2 className="text-4xl lg:text-5xl font-bold text-[#2D1A00] mb-4">{t.testimonials.title}</h2>
-            <p className="text-[#6B5E44] text-base max-w-md mx-auto">
+            <h2 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+              {lang === "fr" ? (
+                <>Ce que disent<br />nos <span className="text-[#F5C400]">apprenants</span></>
+              ) : (
+                <>What our<br /><span className="text-[#F5C400]">learners</span> say</>
+              )}
+            </h2>
+            <p className="text-white/50 text-base max-w-sm mx-auto leading-relaxed">
               {lang === "fr"
-                ? "Des centaines d'apprenants font déjà confiance à WithYou."
-                : "Hundreds of learners already trust WithYou."}
+                ? "Des progrès réels, des apprenants réels."
+                : "Real progress, real learners."}
             </p>
           </div>
 
           {/* Cards */}
           <div className="grid sm:grid-cols-3 gap-6">
             {t.testimonials.items.map((item) => (
-              <div key={item.name} className="tutor-card bg-[#FAF8F0] border border-[#E8DFC8] rounded-3xl p-7 flex flex-col gap-5 hover:shadow-md hover:-translate-y-1 transition-all duration-300">
+              <div key={item.name} className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col gap-5 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm">
 
                 {/* Stars */}
-                <div className="flex gap-0.5">
-                  {[1,2,3,4,5].map((i) => <span key={i} className="text-[#F5C400] text-base">★</span>)}
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map((i) => (
+                    <span key={i} className="text-[#F5C400] text-base">★</span>
+                  ))}
                 </div>
 
-                {/* Quote */}
-                <p className="text-[#3D2A00] text-sm leading-relaxed flex-1">
-                  <span className="text-3xl text-[#F5C400] font-serif leading-none mr-1">&ldquo;</span>
-                  {item.text}
-                  <span className="text-3xl text-[#F5C400] font-serif leading-none ml-1">&rdquo;</span>
-                </p>
+                {/* Quote mark */}
+                <svg className="w-8 h-8 text-[#F5C400]/40" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                </svg>
+
+                {/* Text */}
+                <p className="text-white/80 text-sm leading-relaxed flex-1">{item.text}</p>
 
                 {/* Author */}
-                <div className="flex items-center gap-3 pt-4 border-t border-[#E8DFC8]">
-                  <div className="w-10 h-10 rounded-full bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-sm flex-shrink-0">
+                <div className="flex items-center gap-3 pt-5 border-t border-white/10">
+                  <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
                     {item.name[0]}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-[#2D1A00]">{item.name}</p>
-                    <p className="text-xs text-[#9B8A6B] mt-0.5">{item.lang}</p>
+                    <p className="text-sm font-bold text-white">{item.name}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{item.lang}</p>
                   </div>
                 </div>
 
