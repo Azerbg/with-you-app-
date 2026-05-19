@@ -13,6 +13,8 @@ interface FormData {
   email:     string;
   password:  string;
   phone:     string;
+  birthday:  string;
+  country:   string;
   city:      string;
   // Step 2
   languagesTaught: string[];
@@ -75,8 +77,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
   const [devOtp, setDevOtp] = useState("");
   const prevPhone = useRef("");
 
-  const cities = ["Tunis", "Sfax", "Sousse", "Bizerte", "Gabès", fr ? "Autre" : "Other"];
-  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.city && phoneVerified;
+  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.birthday && data.country && phoneVerified;
 
   async function sendOtp() {
     if (!data.phone) return;
@@ -171,18 +172,28 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Date de naissance" : "Date of birth"}
+            </label>
+            <input type="date" value={data.birthday} onChange={e => onChange("birthday", e.target.value)}
+              max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+              className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
               {fr ? "Téléphone" : "Phone"}
             </label>
             <input value={data.phone} onChange={e => { onChange("phone", e.target.value); if (e.target.value !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); } }}
-              placeholder="+216 XX XXX XXX" className={inputCls} />
+              placeholder="+1 555 000 0000" className={inputCls} />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">Ville</label>
-            <select value={data.city} onChange={e => onChange("city", e.target.value)} className={inputCls}>
-              <option value="">{fr ? "Sélectionner…" : "Select…"}</option>
-              {cities.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+            {fr ? "Pays de résidence" : "Country of residence"}
+          </label>
+          <input value={data.country} onChange={e => onChange("country", e.target.value)}
+            placeholder={fr ? "ex. France, Canada, Tunisie…" : "e.g. France, Canada, Tunisia…"}
+            className={inputCls} />
         </div>
 
         {/* Phone OTP verification */}
@@ -558,8 +569,9 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
       <div className="bg-[#FFFDF4] border border-[#F5C400]/30 rounded-xl p-4 mb-5">
         <Row label={fr ? "Nom" : "Name"} value={data.fullName} />
         <Row label="E-mail" value={data.email} />
+        <Row label={fr ? "Date de naissance" : "Date of birth"} value={data.birthday} />
+        <Row label={fr ? "Pays" : "Country"} value={data.country} />
         <Row label={fr ? "Téléphone" : "Phone"} value={data.phone} />
-        <Row label="Ville" value={data.city} />
         <Row label={fr ? "Langues enseignées" : "Languages"} value={data.languagesTaught.join(", ")} />
         <Row label={fr ? "Spécialisations" : "Specializations"} value={data.specializations.join(", ")} />
         <Row label={fr ? "Expérience" : "Experience"} value={`${data.yearsExperience} ${fr ? "ans" : "yrs"}`} />
@@ -624,7 +636,7 @@ export default function TutorApplyWizard() {
   const [phoneVerified, setPhoneVerified] = useState(false);
 
   const [data, setData] = useState<FormData>({
-    fullName: "", email: "", password: "", phone: "", city: "",
+    fullName: "", email: "", password: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
     bio: "", videoUrl: "",
     availabilityDays: [], timeWindowPreference: [],
@@ -670,15 +682,15 @@ export default function TutorApplyWizard() {
 
   const PERKS = fr
     ? [
-        { icon: "💰", title: "Revenus flexibles", desc: "Fixez vos propres horaires et gagnez jusqu'à 45 TND/h ou 18 CAD/h." },
+        { icon: "💰", title: "Revenus flexibles", desc: "Fixez vos propres horaires et enseignez à votre rythme." },
         { icon: "🌍", title: "Apprenants motivés", desc: "Des étudiants sérieux qui veulent vraiment progresser." },
-        { icon: "📅", title: "100% à distance", desc: "Enseignez depuis chez vous, à votre rythme, sans contraintes." },
+        { icon: "📅", title: "100% à distance", desc: "Enseignez depuis n'importe où dans le monde, sans contraintes." },
         { icon: "🎓", title: "Accompagnement RH", desc: "Une équipe dédiée vous accompagne à chaque étape." },
       ]
     : [
-        { icon: "💰", title: "Flexible income", desc: "Set your own hours and earn up to 45 TND/h or 18 CAD/h." },
+        { icon: "💰", title: "Flexible income", desc: "Set your own hours and teach at your own pace." },
         { icon: "🌍", title: "Motivated learners", desc: "Serious students who genuinely want to improve." },
-        { icon: "📅", title: "100% remote", desc: "Teach from home, at your own pace, with no constraints." },
+        { icon: "📅", title: "100% remote", desc: "Teach from anywhere in the world, no constraints." },
         { icon: "🎓", title: "HR support", desc: "A dedicated team guides you through every step." },
       ];
 
@@ -738,23 +750,13 @@ export default function TutorApplyWizard() {
           </div>
         </div>
 
-        {/* Bottom testimonial */}
+        {/* Bottom note */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mt-8">
-          <p className="text-sm text-white/70 italic leading-relaxed mb-3">
+          <p className="text-xs text-white/50 leading-relaxed">
             {fr
-              ? "« Le processus de candidature était simple et l'équipe RH très professionnelle. Je recommande vivement WithYou. »"
-              : "\"The application process was simple and the HR team very professional. I highly recommend WithYou.\""}
+              ? "WithYou accueille des tuteurs du monde entier. Peu importe votre pays, si vous maîtrisez le français ou l'anglais, nous voulons vous rencontrer."
+              : "WithYou welcomes tutors from around the world. Wherever you are, if you're fluent in French or English, we want to meet you."}
           </p>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">S</div>
-            <div>
-              <p className="text-xs font-semibold text-white/80">Sana B.</p>
-              <p className="text-[10px] text-white/40">{fr ? "Tutrice · Français" : "Tutor · French"}</p>
-            </div>
-            <div className="ml-auto flex gap-0.5">
-              {[1,2,3,4,5].map(i => <span key={i} className="text-[#F5C400] text-xs">★</span>)}
-            </div>
-          </div>
         </div>
       </div>
 

@@ -470,11 +470,13 @@ model HrApplication {
   status      ApplicationStatus @default(NEW)
   assignedHrId String?          // HR manager handling this application
 
-  // Personal information (Tunisia-based applicants)
+  // Personal information
   fullName    String
-  nationalId  String?  // Tunisia national ID or residence permit
-  city        String?  // Tunis | Sfax | Sousse | Other
-  phone       String?  // Tunisia phone number
+  nationalId  String?   // National ID or passport
+  birthday    DateTime? // Date of birth
+  country     String?   // Country of residence (worldwide)
+  city        String?   // City
+  phone       String?
   // email via User.email
 
   // Professional information

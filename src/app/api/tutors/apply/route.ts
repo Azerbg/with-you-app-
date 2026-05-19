@@ -10,7 +10,9 @@ const schema = z.object({
   email:     z.string().email(),
   password:  z.string().min(10),
   phone:     z.string().min(8),
-  city:      z.string().min(1),
+  birthday:  z.string().min(1), // ISO date string
+  country:   z.string().min(1),
+  city:      z.string().optional().default(""),
 
   // Step 2 — Teaching
   languagesTaught: z.array(z.string()).min(1),
@@ -70,7 +72,9 @@ export async function POST(req: NextRequest) {
           create: {
             fullName:            data.fullName,
             phone:               data.phone,
-            city:                data.city,
+            birthday:            new Date(data.birthday),
+            country:             data.country,
+            city:                data.city || null,
             languagesTaught:     data.languagesTaught,
             specializations:     data.specializations,
             yearsExperience:     data.yearsExperience,
