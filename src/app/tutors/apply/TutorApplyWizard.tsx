@@ -77,7 +77,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
   const [devOtp, setDevOtp] = useState("");
   const prevPhone = useRef("");
 
-  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.birthday && data.country && phoneVerified;
+  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.birthday && data.country;
 
   async function sendOtp() {
     if (!data.phone) return;
@@ -196,8 +196,8 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
             className={inputCls} />
         </div>
 
-        {/* Phone OTP verification */}
-        <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#F5C400]/40 bg-[#FFFBEA]"}`}>
+        {/* Phone OTP verification — optional */}
+        <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#6B5E44]/20 bg-[#FAFAF8]"}`}>
           {phoneVerified ? (
             <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path d="M20 6L9 17l-5-5"/></svg>
@@ -205,8 +205,11 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
             </div>
           ) : (
             <>
-              <p className="text-xs font-semibold text-[#5C3D00] mb-3">
-                {fr ? "Vérification du numéro de téléphone" : "Phone number verification"}
+              <p className="text-xs font-semibold text-[#5C3D00] mb-0.5">
+                {fr ? "Vérification du numéro" : "Phone verification"}
+              </p>
+              <p className="text-[11px] text-[#9B8A6B] mb-3">
+                {fr ? "Optionnel — vous pouvez continuer sans vérifier." : "Optional — you can continue without verifying."}
               </p>
               {!otpSent ? (
                 <button
