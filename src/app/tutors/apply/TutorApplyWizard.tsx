@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,12 +61,14 @@ function ProgressBar({ step }: { step: number }) {
 
 // ─── Step 1: Personal Info ────────────────────────────────────────────────────
 
-function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }: {
+function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, isLoggedIn, loggedInEmail }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string) => void;
   onNext: () => void;
   phoneVerified: boolean;
   onPhoneVerified: () => void;
+  isLoggedIn: boolean;
+  loggedInEmail: string;
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
@@ -77,7 +80,8 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
   const [devOtp, setDevOtp] = useState("");
   const prevPhone = useRef("");
 
-  const isValid = data.fullName && data.email && data.password.length >= 10 && data.phone && data.birthday && data.country;
+  const isValid = data.fullName && data.phone && data.birthday && data.country &&
+    (isLoggedIn || (data.email && data.password.length >= 10));
 
   async function sendOtp() {
     if (!data.phone) return;
@@ -135,6 +139,21 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
       </p>
 
       <div className="space-y-4">
+        {/* Show account info banner if already logged in */}
+        {isLoggedIn && (
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-green-600 flex-shrink-0"><path d="M20 6L9 17l-5-5"/></svg>
+            <div>
+              <p className="text-xs font-semibold text-green-800">
+                {fr ? "Connecté en tant que" : "Logged in as"} <span className="font-bold">{loggedInEmail}</span>
+              </p>
+              <p className="text-[11px] text-green-600 mt-0.5">
+                {fr ? "Votre compte existant sera utilisé pour cette candidature." : "Your existing account will be used for this application."}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
             {fr ? "Nom complet" : "Full name"}
@@ -144,30 +163,34 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified }
             className={inputCls} />
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">E-mail</label>
-          <input type="email" value={data.email} onChange={e => onChange("email", e.target.value)}
-            placeholder="vous@exemple.com" className={inputCls} />
-        </div>
+        {!isLoggedIn && (
+          <>
+            <div>
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">E-mail</label>
+              <input type="email" value={data.email} onChange={e => onChange("email", e.target.value)}
+                placeholder="vous@exemple.com" className={inputCls} />
+            </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-            {fr ? "Mot de passe" : "Password"}
-          </label>
-          <div className="relative">
-            <input type={showPass ? "text" : "password"} value={data.password}
-              onChange={e => onChange("password", e.target.value)}
-              placeholder={fr ? "Min. 10 caractères" : "Min. 10 characters"}
-              className={inputCls + " pr-10"} />
-            <button type="button" onClick={() => setShowPass(p => !p)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E44] text-xs font-semibold">
-              {showPass ? (fr ? "Masquer" : "Hide") : (fr ? "Afficher" : "Show")}
-            </button>
-          </div>
-          <p className="text-xs text-[#6B5E44] mt-1">
-            {fr ? "Min. 10 caractères" : "Min. 10 characters"}
-          </p>
-        </div>
+            <div>
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+                {fr ? "Mot de passe" : "Password"}
+              </label>
+              <div className="relative">
+                <input type={showPass ? "text" : "password"} value={data.password}
+                  onChange={e => onChange("password", e.target.value)}
+                  placeholder={fr ? "Min. 10 caractères" : "Min. 10 characters"}
+                  className={inputCls + " pr-10"} />
+                <button type="button" onClick={() => setShowPass(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E44] text-xs font-semibold">
+                  {showPass ? (fr ? "Masquer" : "Hide") : (fr ? "Afficher" : "Show")}
+                </button>
+              </div>
+              <p className="text-xs text-[#6B5E44] mt-1">
+                {fr ? "Min. 10 caractères" : "Min. 10 characters"}
+              </p>
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -632,6 +655,10 @@ function SuccessScreen() {
 
 export default function TutorApplyWizard() {
   const { lang, setLang } = useLanguage();
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === "authenticated" && !!session?.user?.email;
+  const loggedInEmail = session?.user?.email ?? "";
+
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -659,7 +686,7 @@ export default function TutorApplyWizard() {
       const res = await fetch("/api/tutors/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data }),
+        body: JSON.stringify({ ...data, useExistingAccount: isLoggedIn }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -798,7 +825,7 @@ export default function TutorApplyWizard() {
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-[#E8E0D4] p-8">
                 <ProgressBar step={step} />
-                {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} />}
+                {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} isLoggedIn={isLoggedIn} loggedInEmail={loggedInEmail} />}
                 {step === 2 && <StepTeaching data={data} onChange={(k, v) => update(k, v as string[] | number)} onNext={next} onBack={back} />}
                 {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v as string)} onNext={next} onBack={back} />}
                 {step === 4 && <StepAvailability data={data} onChange={(k, v) => update(k, v as string[])} onNext={next} onBack={back} />}

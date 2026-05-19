@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { sendTutorApplicationConfirmation } from "@/lib/email";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
-const schema = z.object({
+const baseSchema = z.object({
   // Step 1 — Personal
   fullName:  z.string().min(2),
-  email:     z.string().email(),
-  password:  z.string().min(10),
   phone:     z.string().min(8),
-  birthday:  z.string().min(1), // ISO date string
+  birthday:  z.string().min(1),
   country:   z.string().min(1),
   city:      z.string().optional().default(""),
+  useExistingAccount: z.boolean().optional().default(false),
 
   // Step 2 — Teaching
   languagesTaught: z.array(z.string()).min(1),
@@ -30,39 +30,91 @@ const schema = z.object({
   timeWindowPreference: z.array(z.string()).min(1),
 });
 
+const guestSchema = baseSchema.extend({
+  email:    z.string().email(),
+  password: z.string().min(10),
+});
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const data = schema.parse(body);
+    const session = await auth();
 
-    // Check if email already in use
+    // ── Logged-in user submitting application ──────────────────────────────
+    if (body.useExistingAccount && session?.user?.id) {
+      const data = baseSchema.parse(body);
+      const userId = session.user.id;
+
+      // Check if already has an application
+      const existing = await db.hrApplication.findUnique({ where: { userId } });
+      if (existing) {
+        if (existing.reapplyAfter && existing.reapplyAfter > new Date()) {
+          return NextResponse.json(
+            { error: "reapply_blocked", reapplyAfter: existing.reapplyAfter },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json({ error: "already_applied" }, { status: 409 });
+      }
+
+      const phoneVerified = data.phone
+        ? await db.tempPhoneVerification
+            .findUnique({ where: { phone: data.phone } })
+            .then(r => r?.verified === true).catch(() => false)
+        : false;
+
+      await db.$transaction([
+        db.hrApplication.create({
+          data: {
+            userId,
+            fullName:            data.fullName,
+            phone:               data.phone,
+            birthday:            new Date(data.birthday),
+            country:             data.country,
+            city:                data.city || null,
+            languagesTaught:     data.languagesTaught,
+            specializations:     data.specializations,
+            yearsExperience:     data.yearsExperience,
+            certifications:      data.certifications,
+            certificateUrls:     data.certificateUrls,
+            bio:                 data.bio,
+            videoUrl:            data.videoUrl || null,
+            availabilityDays:    data.availabilityDays,
+            timeWindowPreference: data.timeWindowPreference,
+            status:              "NEW",
+            phoneVerified,
+          },
+        }),
+        db.user.update({ where: { id: userId }, data: { role: "TUTOR" } }),
+      ]);
+
+      if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
+      sendTutorApplicationConfirmation(session.user.email!, data.fullName).catch(() => {});
+      return NextResponse.json({ success: true, userId }, { status: 201 });
+    }
+
+    // ── Guest (not logged in) — create new account ─────────────────────────
+    const data = guestSchema.parse(body);
+
     const existing = await db.user.findUnique({
       where: { email: data.email },
-      include: { hrApplication: { select: { reapplyAfter: true, status: true } } },
+      include: { hrApplication: { select: { reapplyAfter: true } } },
     });
     if (existing) {
-      // Check 90-day reapplication block
       const app = existing.hrApplication;
       if (app?.reapplyAfter && app.reapplyAfter > new Date()) {
-        return NextResponse.json(
-          { error: "reapply_blocked", reapplyAfter: app.reapplyAfter },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "reapply_blocked", reapplyAfter: app.reapplyAfter }, { status: 409 });
       }
       return NextResponse.json({ error: "email_taken" }, { status: 409 });
     }
 
     const hashed = await bcrypt.hash(data.password, 12);
-
-    // Check if phone was verified via OTP
     const phoneVerified = data.phone
       ? await db.tempPhoneVerification
           .findUnique({ where: { phone: data.phone } })
-          .then(r => r?.verified === true)
-          .catch(() => false)
+          .then(r => r?.verified === true).catch(() => false)
       : false;
 
-    // Create user + application in one transaction
     const user = await db.user.create({
       data: {
         email:    data.email,
@@ -91,15 +143,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Clean up temp OTP record
-    if (data.phone) {
-      db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
-    }
-
-    // Send confirmation email (non-blocking)
+    if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
     sendTutorApplicationConfirmation(data.email, data.fullName).catch(() => {});
-
     return NextResponse.json({ success: true, userId: user.id }, { status: 201 });
+
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "validation", issues: err.issues }, { status: 422 });
