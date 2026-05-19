@@ -51,50 +51,54 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
 
   return (
     <>
-      <aside
-        className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
-        style={{ background: "linear-gradient(160deg, #2D1F0E 0%, #1A1208 100%)" }}
-      >
+      <aside className="hidden md:flex flex-col w-60 flex-shrink-0 h-screen sticky top-0 overflow-y-auto bg-white border-r border-[#EDE8DF]">
         {/* Logo */}
-        <div className="h-14 px-5 flex items-center flex-shrink-0">
-          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
+        <div className="h-16 px-5 flex items-center flex-shrink-0 border-b border-[#EDE8DF]">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 bg-[#F5C400] rounded-xl flex items-center justify-center shadow-sm group-hover:bg-[#FFDE59] transition">
+              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+                <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="font-bold text-[#2D1A00] text-[15px] tracking-tight">WithYou</span>
+          </Link>
         </div>
 
-        {/* User — clickable to open profile edit */}
-        <div className="px-3 pb-4 mb-2">
+        {/* User profile block */}
+        <div className="px-4 py-4 border-b border-[#EDE8DF]">
           <button
             onClick={() => setPanelOpen(true)}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/8 transition group text-left"
+            className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#FAF8F0] transition group text-left"
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 ring-1 ring-white/10 group-hover:ring-[#F5C400]/40 transition" />
+              <img src={avatarUrl} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0 ring-2 ring-[#EDE8DF] group-hover:ring-[#F5C400] transition" />
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">
                 {initials}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white/80 truncate leading-tight group-hover:text-white transition">{displayName}</p>
-              <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
-                {cefrLevel} · {tier}
-              </p>
+              <p className="text-sm font-semibold text-[#2D1A00] truncate leading-tight">{displayName}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {cefrLevel && (
+                  <span className="text-[10px] font-bold bg-[#FFF3B0] text-[#5C3D00] px-1.5 py-0.5 rounded-full leading-none">{cefrLevel}</span>
+                )}
+                <span className="text-[11px] text-[#9B8A6B] truncate">{tier}</span>
+              </div>
             </div>
-            {/* Edit pencil icon */}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5 text-white/15 group-hover:text-[#F5C400]/60 transition flex-shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-[#C4BAA8] group-hover:text-[#F5C400] transition flex-shrink-0">
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
         </div>
 
-        <div className="mx-4 h-px bg-white/6 mb-3" />
-
         {/* Nav */}
-        <nav className="flex-1 px-3 space-y-4 overflow-y-auto pb-3">
+        <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
           {NAV.map((group, gi) => (
             <div key={gi}>
               {group.label && (
-                <p className="text-[10px] font-semibold uppercase tracking-widest px-2.5 mb-1.5" style={{ color: "rgba(245,196,0,0.3)" }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#B0A490] px-2.5 mb-2">
                   {group.label}
                 </p>
               )}
@@ -102,16 +106,17 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
                 {group.items.map((item) => (
                   <button
                     key={item.label}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left relative ${
-                      item.active ? "text-[#5C3D00]" : "text-white/35 hover:text-white/70 hover:bg-white/5"
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all text-left ${
+                      item.active
+                        ? "bg-[#F5C400] text-[#5C3D00]"
+                        : "text-[#6B5E44] hover:bg-[#FAF8F0] hover:text-[#2D1A00]"
                     }`}
-                    style={item.active ? { background: "#F5C400" } : {}}
                   >
-                    <span className={item.active ? "text-[#5C3D00]" : "text-white/25"}>{item.icon}</span>
+                    <span className={item.active ? "text-[#5C3D00]" : "text-[#9B8A6B]"}>{item.icon}</span>
                     <span className="flex-1">{item.label}</span>
-                    {"badge" in item && (
+                    {"badge" in item && Number(item.badge) > 0 && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                        item.active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-white/8 text-white/25"
+                        item.active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-[#F5C400]/30 text-[#5C3D00]"
                       }`}>
                         {item.badge}
                       </span>
@@ -124,9 +129,8 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
         </nav>
 
         {/* Bottom */}
-        <div className="px-3 pb-5 pt-3 space-y-0.5">
-          <div className="mx-1 h-px bg-white/6 mb-3" />
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition">
+        <div className="px-3 pb-5 pt-2 border-t border-[#EDE8DF] space-y-0.5">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#9B8A6B] hover:bg-[#FAF8F0] hover:text-[#2D1A00] transition">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
@@ -136,7 +140,7 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
 
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-red-500/10 hover:text-red-400 transition"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-[#9B8A6B] hover:bg-red-50 hover:text-red-500 transition"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
