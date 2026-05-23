@@ -17,7 +17,7 @@ export default async function StudentDashboardPage() {
 
   const profile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
-    include: { user: { select: { email: true, timezone: true, firstName: true, lastName: true, image: true, nickname: true } } },
+    include: { user: { select: { email: true, timezone: true, firstName: true, lastName: true, image: true, nickname: true, pendingImage: true } } },
   });
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
@@ -75,7 +75,9 @@ export default async function StudentDashboardPage() {
     <DashboardContent
       email={profile.user.email}
       firstName={firstName}
+      lastName={lastName}
       nickname={profile.user.nickname ?? null}
+      hasPendingImage={!!profile.user.pendingImage}
       image={profile.user.image ?? null}
       cefrLevel={profile.cefrLevel}
       tierKey={tier}

@@ -10,14 +10,16 @@ import ProfileEditPanel from "@/components/ProfileEditPanel";
 interface Props {
   email: string;
   firstName: string | null;
+  lastName: string | null;
   nickname: string | null;
   image: string | null;
+  hasPendingImage: boolean;
   cefrLevel: string | null;
   tier: string;
   initials: string;
 }
 
-export default function StudentSidebar({ email, firstName, nickname, image, cefrLevel, tier, initials }: Props) {
+export default function StudentSidebar({ email, firstName, lastName, nickname, image, hasPendingImage, cefrLevel, tier, initials }: Props) {
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
 
@@ -154,13 +156,14 @@ export default function StudentSidebar({ email, firstName, nickname, image, cefr
       {panelOpen && (
         <ProfileEditPanel
           email={email}
-          displayName={displayName}
+          firstName={firstName}
+          lastName={lastName}
           image={avatarUrl}
+          hasPendingImage={hasPendingImage}
           initials={initials}
           onClose={() => setPanelOpen(false)}
-          onSaved={(newName, newImage) => {
-            setDisplayName(newName);
-            setAvatarUrl(newImage);
+          onSaved={(newFirstName, newLastName) => {
+            setDisplayName([newFirstName, newLastName].filter(Boolean).join(" ") || email.split("@")[0]);
           }}
         />
       )}

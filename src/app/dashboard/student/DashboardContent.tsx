@@ -18,7 +18,9 @@ interface UpcomingBooking {
 interface Props {
   email: string;
   firstName: string | null;
+  lastName: string | null;
   nickname: string | null;
+  hasPendingImage: boolean;
   image: string | null;
   cefrLevel: string | null;
   tierKey: string;
@@ -141,8 +143,10 @@ export default function DashboardContent(p: Props) {
       <StudentSidebar
         email={p.email}
         firstName={p.firstName}
+        lastName={p.lastName}
         nickname={p.nickname}
         image={p.image}
+        hasPendingImage={p.hasPendingImage}
         cefrLevel={p.cefrLevel}
         tier={tierLabel}
         initials={p.initials}

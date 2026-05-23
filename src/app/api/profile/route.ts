@@ -4,8 +4,9 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 
 const schema = z.object({
-  nickname: z.string().min(1).max(50).optional(),
-  image: z.string().nullable().optional(),
+  firstName:    z.string().min(1).max(50).optional(),
+  lastName:     z.string().min(0).max(50).optional(),
+  pendingImage: z.string().nullable().optional(), // photo goes to review, not live immediately
 });
 
 export async function PATCH(req: NextRequest) {
@@ -18,8 +19,9 @@ export async function PATCH(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
     const updateData: Record<string, string | null> = {};
-    if (parsed.data.nickname !== undefined) updateData.nickname = parsed.data.nickname;
-    if (parsed.data.image !== undefined) updateData.image = parsed.data.image;
+    if (parsed.data.firstName    !== undefined) updateData.firstName    = parsed.data.firstName;
+    if (parsed.data.lastName     !== undefined) updateData.lastName     = parsed.data.lastName;
+    if (parsed.data.pendingImage !== undefined) updateData.pendingImage = parsed.data.pendingImage;
 
     await db.user.update({
       where: { id: session.user.id },
