@@ -626,10 +626,9 @@ export default function HomePage() {
       <footer className="border-t border-[#3d2900] bg-[#3d2900] px-8 py-10 mt-auto">
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] text-sm font-black flex-shrink-0">W</div>
-              <span className="text-white font-bold text-lg tracking-tight">WithYou</span>
-            </div>
+            <p className="text-white font-bold text-xl tracking-tight mb-4">
+              With<span className="text-[#F5C400]">You</span>
+            </p>
             <p className="text-xs text-white/50 leading-relaxed">{t.footer.tagline}</p>
           </div>
           {t.footer.cols.map((col, colIdx) => (
