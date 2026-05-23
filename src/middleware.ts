@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
 const publicOnlyRoutes = ["/auth/login", "/auth/register", "/auth/forgot-password"];
 
@@ -15,11 +15,14 @@ const roleProtectedRoutes: Record<string, string[]> = {
 
 const authRequiredPrefixes = ["/dashboard", "/console", "/onboarding", "/booking", "/classroom", "/messages"];
 
-export const { handlers } = { handlers: {} };
-
-export default auth((req) => {
-  const session = req.auth;
-  const isLoggedIn = !!session;
+export async function middleware(req: NextRequest) {
+  const isSecure = process.env.NODE_ENV === "production";
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    cookieName: isSecure ? "__Secure-authjs.session-token" : "authjs.session-token",
+  });
+  const isLoggedIn = !!token;
   const pathname = req.nextUrl.pathname;
 
   if (isLoggedIn && !pathname.startsWith("/auth/totp") && publicOnlyRoutes.some((r) => pathname.startsWith(r))) {
@@ -33,10 +36,10 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isLoggedIn && session.user) {
-    const role = session.user.role as string;
-    const totpVerified = session.user.totpVerified as boolean;
-    const totpEnabled = session.user.totpEnabled as boolean;
+  if (isLoggedIn) {
+    const role = token.role as string;
+    const totpVerified = token.totpVerified as boolean;
+    const totpEnabled = token.totpEnabled as boolean;
     const isHrOrAdmin = role === "HR" || role === "ADMIN";
     const isTotpPage = pathname.startsWith("/auth/totp") || pathname.startsWith("/console/hr/setup-2fa");
 
@@ -57,7 +60,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],

@@ -18,11 +18,5 @@ export async function POST(req: Request) {
   const isValid = verifyTOTP(code, user.totpSecret);
   if (!isValid) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
 
-  // Mark all active sessions for this user as TOTP-verified
-  await db.session.updateMany({
-    where: { userId: user.id, expires: { gt: new Date() } },
-    data: { totpVerified: true },
-  });
-
   return NextResponse.json({ ok: true });
 }
