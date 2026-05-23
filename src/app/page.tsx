@@ -632,17 +632,17 @@ export default function HomePage() {
           {t.footer.cols.map((col, colIdx) => (
             <div key={col.title}>
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">{col.title}</p>
-              <ul className="space-y-2 list-none">
+              <div className="flex flex-col gap-2">
                 {col.links.map((l, linkIdx) => (
-                  <li key={l}>
+                  <div key={l}>
                     {colIdx === 1 && linkIdx === 0 ? (
                       <Link href="/tutors/apply" className="text-xs text-white/60 hover:text-[#F5C400] transition">{l}</Link>
                     ) : (
                       <span className="text-xs text-white/60 hover:text-[#F5C400] cursor-pointer transition">{l}</span>
                     )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           ))}
         </div>
