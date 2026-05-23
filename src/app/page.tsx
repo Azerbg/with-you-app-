@@ -161,7 +161,7 @@ export default function HomePage() {
               <>
                 <Link
                   href="/auth/login"
-                  className="h-8 px-4 rounded-lg text-[13px] font-semibold text-gray-600 hover:text-[#5C3D00] hover:bg-gray-50 transition-colors"
+                  className="h-8 px-4 rounded-lg text-[13px] font-bold text-gray-600 hover:text-[#5C3D00] hover:bg-gray-50 transition-colors flex items-center"
                 >
                   {t.nav.login}
                 </Link>
@@ -288,7 +288,7 @@ export default function HomePage() {
             {/* Badge */}
             <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
-              {lang === "fr" ? "Plateforme #1 en Tunisie" : "#1 Tutoring Platform in Tunisia"}
+              {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
             </div>
 
             <h1 className="a2 text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
