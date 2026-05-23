@@ -34,7 +34,8 @@ export async function POST() {
 
     return NextResponse.json({ clientSecret: setupIntent.client_secret });
   } catch (error) {
-    console.error("[STRIPE_SETUP_INTENT]", error);
-    return NextResponse.json({ error: "Stripe error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[STRIPE_SETUP_INTENT]", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
