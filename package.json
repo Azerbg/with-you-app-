@@ -28,6 +28,11 @@
     "stripe": "^20.4.1",
     "zod": "^4.3.6"
   },
+  "overrides": {
+    "@auth/prisma-adapter": {
+      "@auth/core": "0.41.2"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
