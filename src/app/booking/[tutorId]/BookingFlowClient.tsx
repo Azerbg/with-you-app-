@@ -47,9 +47,11 @@ const BRAND_LABELS: Record<string, string> = {
 // ─── New card form (inside <Elements>) ────────────────────────────────────────
 
 function NewCardForm({
+  clientSecret,
   onSuccess,
   onCancel,
 }: {
+  clientSecret: string;
   onSuccess: (paymentIntentId: string) => Promise<void>;
   onCancel?: () => void;
 }) {
@@ -64,8 +66,18 @@ function NewCardForm({
     setLoading(true);
     setError(null);
 
+    // Step 1 — validate form
+    const { error: submitErr } = await elements.submit();
+    if (submitErr) {
+      setError(submitErr.message ?? "Erreur de validation");
+      setLoading(false);
+      return;
+    }
+
+    // Step 2 — confirm payment with clientSecret passed from parent
     const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
       elements,
+      clientSecret,
       redirect: "if_required",
       confirmParams: {
         return_url: `${window.location.origin}/dashboard/student`,
@@ -398,7 +410,9 @@ export default function BookingFlowClient({
                       <Elements
                         stripe={stripePromise}
                         options={{
-                          clientSecret,
+                          mode: "payment",
+                          amount: 1500,
+                          currency: "usd",
                           appearance: {
                             theme: "stripe",
                             variables: {
@@ -410,6 +424,7 @@ export default function BookingFlowClient({
                         }}
                       >
                         <NewCardForm
+                          clientSecret={clientSecret}
                           onSuccess={confirmBooking}
                           onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
                         />

@@ -16,8 +16,6 @@ interface SavedCard {
   expYear: number;
 }
 
-// ─── Card brand logo ──────────────────────────────────────────────────────────
-
 const BRAND_LABELS: Record<string, string> = {
   visa: "Visa",
   mastercard: "Mastercard",
@@ -28,7 +26,7 @@ const BRAND_LABELS: Record<string, string> = {
   card: "Card",
 };
 
-// ─── Inner form (must be inside <Elements>) ───────────────────────────────────
+// ─── Inner form — EWCS approach: clientSecret fetched at submit time ──────────
 
 function SetupForm({ onSuccess, lang }: { onSuccess: () => void; lang: string }) {
   const stripe = useStripe();
@@ -43,25 +41,44 @@ function SetupForm({ onSuccess, lang }: { onSuccess: () => void; lang: string })
     setLoading(true);
     setError(null);
 
+    // Step 1 — validate the form fields
     const { error: submitErr } = await elements.submit();
     if (submitErr) {
-      setError(submitErr.message ?? "Error");
+      setError(submitErr.message ?? "Erreur de validation");
       setLoading(false);
       return;
     }
 
-    const result = await stripe.confirmSetup({
+    // Step 2 — create SetupIntent on the server
+    let clientSecret: string;
+    try {
+      const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.clientSecret) {
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      clientSecret = data.clientSecret;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur serveur";
+      setError(isFr ? `Erreur : ${msg}` : `Error: ${msg}`);
+      setLoading(false);
+      return;
+    }
+
+    // Step 3 — confirm the setup
+    const { error: confirmErr } = await stripe.confirmSetup({
       elements,
+      clientSecret,
       confirmParams: {
         return_url: `${window.location.origin}/settings/payment?setup_complete=true`,
       },
     });
 
-    if (result.error) {
-      setError(result.error.message ?? "Error");
+    if (confirmErr) {
+      setError(confirmErr.message ?? "Paiement refusé");
       setLoading(false);
     }
-    // On success Stripe redirects to return_url — onSuccess called via useEffect in parent
+    // On success Stripe redirects to return_url
   }
 
   return (
@@ -95,16 +112,12 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [loadingIntent, setLoadingIntent] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [banner, setBanner] = useState(setupComplete);
 
   useEffect(() => {
     fetchCards();
     if (setupComplete) {
-      // Clear the query param from URL without reload
       window.history.replaceState({}, "", "/settings/payment");
     }
   }, [setupComplete]);
@@ -117,26 +130,6 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
       setCards(data.paymentMethods ?? []);
     } finally {
       setLoadingCards(false);
-    }
-  }
-
-  async function openForm() {
-    setShowForm(true);
-    setLoadingIntent(true);
-    setFormError(null);
-    try {
-      const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.clientSecret) {
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-      setClientSecret(data.clientSecret);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setFormError(`${isFr ? "Erreur Stripe" : "Stripe error"}: ${msg}`);
-      setShowForm(false);
-    } finally {
-      setLoadingIntent(false);
     }
   }
 
@@ -185,7 +178,9 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
               {isFr ? "Carte enregistrée avec succès !" : "Card saved successfully!"}
             </p>
             <button onClick={() => setBanner(false)} className="ml-auto text-green-500 hover:text-green-700">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </button>
           </div>
         )}
@@ -209,7 +204,7 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
               </p>
               {!showForm && (
                 <button
-                  onClick={openForm}
+                  onClick={() => setShowForm(true)}
                   className="bg-[#F5C400] text-[#5C3D00] font-bold px-6 py-2.5 rounded-full hover:bg-[#FFDE59] transition text-sm"
                 >
                   {isFr ? "+ Ajouter une carte" : "+ Add a card"}
@@ -249,51 +244,39 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
         {/* Add card button (when cards exist) */}
         {cards.length > 0 && !showForm && (
           <button
-            onClick={openForm}
+            onClick={() => setShowForm(true)}
             className="w-full border-2 border-dashed border-[#F5C400]/40 text-[#C49200] font-semibold py-3 rounded-2xl hover:bg-[#FFFBEA] hover:border-[#F5C400] transition text-sm mb-4"
           >
             {isFr ? "+ Ajouter une autre carte" : "+ Add another card"}
           </button>
         )}
 
-        {/* Form error */}
-        {formError && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 mb-4">
-            <p className="text-sm text-red-700">{formError}</p>
-          </div>
-        )}
-
-        {/* Stripe Elements form */}
+        {/* Stripe Elements form — EWCS: mode="setup", no clientSecret here */}
         {showForm && (
           <div className="bg-white border border-black/5 rounded-2xl p-6">
             <h2 className="font-bold text-[#5C3D00] mb-5">
               {isFr ? "Nouvelle carte" : "New card"}
             </h2>
-            {loadingIntent || !clientSecret ? (
-              <div className="text-center py-8 text-sm text-[#9B8A6B]">
-                {isFr ? "Chargement du formulaire…" : "Loading payment form…"}
-              </div>
-            ) : (
-              <Elements
-                stripe={stripePromise}
-                options={{
-                  clientSecret,
-                  appearance: {
-                    theme: "stripe",
-                    variables: {
-                      colorPrimary: "#F5C400",
-                      colorText: "#5C3D00",
-                      borderRadius: "12px",
-                      fontFamily: "inherit",
-                    },
+            <Elements
+              stripe={stripePromise}
+              options={{
+                mode: "setup",
+                currency: "eur",
+                appearance: {
+                  theme: "stripe",
+                  variables: {
+                    colorPrimary: "#F5C400",
+                    colorText: "#5C3D00",
+                    borderRadius: "12px",
+                    fontFamily: "inherit",
                   },
-                }}
-              >
-                <SetupForm onSuccess={fetchCards} lang={lang} />
-              </Elements>
-            )}
+                },
+              }}
+            >
+              <SetupForm onSuccess={fetchCards} lang={lang} />
+            </Elements>
             <button
-              onClick={() => { setShowForm(false); setClientSecret(null); }}
+              onClick={() => setShowForm(false)}
               className="mt-3 w-full text-sm text-[#9B8A6B] hover:text-[#5C3D00] transition"
             >
               {isFr ? "Annuler" : "Cancel"}
