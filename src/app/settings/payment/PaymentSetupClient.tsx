@@ -98,6 +98,7 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [banner, setBanner] = useState(setupComplete);
 
   useEffect(() => {
@@ -122,10 +123,18 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
   async function openForm() {
     setShowForm(true);
     setLoadingIntent(true);
+    setFormError(null);
     try {
       const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
       const data = await res.json();
+      if (!res.ok || !data.clientSecret) {
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
       setClientSecret(data.clientSecret);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setFormError(`${isFr ? "Erreur Stripe" : "Stripe error"}: ${msg}`);
+      setShowForm(false);
     } finally {
       setLoadingIntent(false);
     }
@@ -245,6 +254,13 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
           >
             {isFr ? "+ Ajouter une autre carte" : "+ Add another card"}
           </button>
+        )}
+
+        {/* Form error */}
+        {formError && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 mb-4">
+            <p className="text-sm text-red-700">{formError}</p>
+          </div>
         )}
 
         {/* Stripe Elements form */}

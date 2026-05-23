@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     amount: DISCOVERY_PRICE_USD_CENTS,
     currency: "usd",
     customer: stripeCustomerId,
-    automatic_payment_methods: { enabled: true },
+    payment_method_types: ["card"],
     metadata: {
       studentId: session.user.id,
       tutorId,
