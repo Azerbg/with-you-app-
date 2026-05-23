@@ -607,7 +607,7 @@ export default function HomePage() {
             {[
               { icon: "✓", text: lang === "fr" ? "Sans engagement" : "No commitment" },
               { icon: "✓", text: lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors" },
-              { icon: "✓", text: lang === "fr" ? "Séance découverte 15 USD" : "Discovery session $15" },
+              { icon: "✓", text: lang === "fr" ? "Séance découverte 30 min" : "30-min discovery session" },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-[#F5C400]/20 flex items-center justify-center text-[#F5C400] text-xs font-bold flex-shrink-0">
@@ -632,7 +632,7 @@ export default function HomePage() {
           {t.footer.cols.map((col, colIdx) => (
             <div key={col.title}>
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">{col.title}</p>
-              <ul className="space-y-2">
+              <ul className="space-y-2 list-none">
                 {col.links.map((l, linkIdx) => (
                   <li key={l}>
                     {colIdx === 1 && linkIdx === 0 ? (

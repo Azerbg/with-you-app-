@@ -69,7 +69,7 @@ export const T = {
     footer: {
       tagline: "Live 1-on-1 language learning with verified expert tutors.",
       cols: [
-        { title: "Learn",   links: ["Find a tutor", "How it works", "Pricing", "CEFR levels"] },
+        { title: "Learn",   links: ["Find a tutor", "How it works", "Pricing", "Placement test"] },
         { title: "Teach",   links: ["Become a tutor", "Tutor application", "Requirements"] },
         { title: "Company", links: ["About", "Contact", "Privacy", "Terms"] },
       ],
@@ -399,7 +399,7 @@ export const T = {
     footer: {
       tagline: "Des sessions individuelles avec des tuteurs certifiés, à votre rythme.",
       cols: [
-        { title: "Apprendre", links: ["Trouver un tuteur", "Comment ça marche", "Tarifs", "Niveaux CECRL"] },
+        { title: "Apprendre", links: ["Trouver un tuteur", "Comment ça marche", "Tarifs", "Test de placement"] },
         { title: "Enseigner", links: ["Devenir tuteur", "Candidature tuteur", "Conditions requises"] },
         { title: "Société",   links: ["À propos", "Contact", "Confidentialité", "Conditions"] },
       ],
