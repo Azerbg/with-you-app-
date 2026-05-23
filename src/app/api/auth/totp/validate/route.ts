@@ -19,4 +19,5 @@ export async function POST(req: Request) {
   if (!isValid) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
 
   return NextResponse.json({ ok: true });
+
 }

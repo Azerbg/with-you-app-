@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface Props {
@@ -37,6 +38,7 @@ function resizeImage(file: File, maxPx = 256): Promise<string> {
 
 export default function ProfileEditPanel({ email, displayName, image, initials, onClose, onSaved }: Props) {
   const { lang } = useLanguage();
+  const { update } = useSession();
   const [nickname, setNickname] = useState(displayName);
   const [avatar, setAvatar] = useState<string | null>(image);
   const [saving, setSaving] = useState(false);
@@ -77,6 +79,8 @@ export default function ProfileEditPanel({ email, displayName, image, initials, 
         body: JSON.stringify({ nickname: nickname.trim(), image: avatar }),
       });
       if (!res.ok) throw new Error("Failed");
+      // Refresh JWT so session.user.name updates everywhere (homepage avatar, etc.)
+      await update({ name: nickname.trim() });
       onSaved(nickname.trim(), avatar);
       onClose();
     } catch {

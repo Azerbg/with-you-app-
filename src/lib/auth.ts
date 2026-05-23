@@ -53,27 +53,35 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         token.id = user.id as string;
         token.role = (user as { role?: Role }).role ?? Role.STUDENT;
         token.totpEnabled = (user as { totpEnabled?: boolean }).totpEnabled ?? false;
-        token.totpVerified = false; // must verify TOTP on each new session
+        token.totpVerified = false;
+        // Fetch display name from DB (nickname takes priority over firstName+lastName)
+        const dbProfile = await db.user.findUnique({
+          where: { id: user.id as string },
+          select: { firstName: true, lastName: true, nickname: true },
+        });
+        token.name = dbProfile?.nickname || [dbProfile?.firstName, dbProfile?.lastName].filter(Boolean).join(" ") || null;
       }
 
-      // On Google sign-in: fetch role/totp from DB
-      if (account?.provider === "google" && token.sub) {
+      // On Google sign-in: fetch role/totp/name from DB
+      if (account?.provider === "google" && token.email) {
         const dbUser = await db.user.findUnique({
-          where: { email: token.email! },
-          select: { id: true, role: true, totpEnabled: true },
+          where: { email: token.email },
+          select: { id: true, role: true, totpEnabled: true, firstName: true, lastName: true },
         });
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
           token.totpEnabled = dbUser.totpEnabled;
           token.totpVerified = false;
+          token.name = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || null;
         }
       }
 
-      // On session update (e.g. after TOTP verification)
+      // On session update (e.g. after TOTP verification or profile name change)
       if (trigger === "update" && session) {
         if (session.totpVerified !== undefined) token.totpVerified = session.totpVerified;
         if (session.totpEnabled !== undefined) token.totpEnabled = session.totpEnabled;
+        if (session.name !== undefined) token.name = session.name;
       }
 
       // Strip everything heavy — keep cookie tiny
@@ -89,7 +97,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       session.user.totpEnabled = token.totpEnabled as boolean;
       session.user.totpVerified = token.totpVerified as boolean;
       session.user.image = null;
-      session.user.name = null;
+      session.user.name = (token.name as string | null) ?? null;
       return session;
     },
 

@@ -192,13 +192,16 @@ export default function HomePage() {
       {session?.user && (() => {
         const role = (session.user as { role?: string }).role;
         const email = session.user.email ?? "";
-        const initials = email.slice(0, 2).toUpperCase();
-        const firstName = email.split("@")[0];
+        const fullName = session.user.name ?? "";
+        const displayName = fullName || email.split("@")[0];
+        const initials = fullName
+          ? fullName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+          : email.slice(0, 2).toUpperCase();
 
         const roleCards: Record<string, { icon: string; label: string; desc: string; href: string; primary?: boolean }[]> = {
           STUDENT: [
             { icon: "📚", label: lang === "fr" ? "Mon tableau de bord" : "My dashboard",   desc: lang === "fr" ? "Reprendre là où vous vous étiez arrêté" : "Pick up where you left off", href: "/dashboard/student", primary: true },
-            { icon: "🎯", label: lang === "fr" ? "Test de niveau CECR" : "CEFR quiz",        desc: lang === "fr" ? "Évaluer votre niveau actuel" : "Assess your current level",           href: "/onboarding" },
+            { icon: "🎯", label: lang === "fr" ? "Test de niveau gratuit" : "Free level test", desc: lang === "fr" ? "Évaluer votre niveau actuel" : "Assess your current level",          href: "/onboarding" },
             { icon: "🧑‍🏫", label: lang === "fr" ? "Trouver un tuteur" : "Find a tutor",   desc: lang === "fr" ? "Parcourir les tuteurs vérifiés" : "Browse verified tutors",            href: "#tutors" },
           ],
           TUTOR: [
@@ -228,7 +231,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 font-medium">{greeting}</p>
-                  <p className="text-2xl font-bold text-[#5C3D00]">{firstName}</p>
+                  <p className="text-2xl font-bold text-[#5C3D00]">{displayName}</p>
                 </div>
                 <span className="ml-auto text-xs font-bold px-3 py-1 rounded-full bg-[#FFF3B0] text-[#C49200] border border-[#F5C400]/40">
                   {role}
@@ -262,8 +265,8 @@ export default function HomePage() {
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {lang === "fr"
-                      ? "Notre équipe est disponible du lundi au vendredi, 9h–18h."
-                      : "Our team is available Monday to Friday, 9am–6pm."}
+                      ? "Notre équipe est disponible 24h/24 et 7j/7."
+                      : "Our team is available 24/7."}
                   </p>
                 </div>
                 <a
