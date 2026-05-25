@@ -107,7 +107,7 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
         {NAV.map((group, gi) => (
           <div key={gi}>
             {group.label && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest px-2.5 mb-1.5" style={{ color: "rgba(245,196,0,0.3)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-widest px-2.5 mb-1.5" style={{ color: "rgba(245,196,0,0.55)" }}>
                 {group.label}
               </p>
             )}
@@ -119,15 +119,15 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
                     key={item.label}
                     href={item.href}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative ${
-                      active ? "text-[#5C3D00]" : "text-white/35 hover:text-white/70 hover:bg-white/5"
+                      active ? "text-[#5C3D00]" : "text-white/75 hover:text-white hover:bg-white/10"
                     }`}
                     style={active ? { background: "#F5C400" } : {}}
                   >
-                    <span className={active ? "text-[#5C3D00]" : "text-white/25"}>{item.icon}</span>
+                    <span className={active ? "text-[#5C3D00]" : "text-white/60"}>{item.icon}</span>
                     <span className="flex-1">{item.label}</span>
                     {"badge" in item && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                        active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-white/8 text-white/25"
+                        active ? "bg-[#5C3D00]/15 text-[#5C3D00]" : "bg-white/15 text-white/70"
                       }`}>
                         {item.badge}
                       </span>
@@ -143,7 +143,7 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
       {/* Bottom */}
       <div className="px-3 pb-5 pt-3 space-y-0.5">
         <div className="mx-1 h-px bg-white/6 mb-3" />
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/30 hover:bg-white/5 hover:text-white/60 transition">
+        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/60 hover:bg-white/10 hover:text-white transition">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
             <circle cx="12" cy="12" r="10" />
             <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
