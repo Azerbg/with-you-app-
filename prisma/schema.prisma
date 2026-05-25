@@ -522,6 +522,10 @@ model HrApplication {
   interviewLanguage     String?   // "French" | "English"
 
   // Offer / Agreement
+  offerHourlyRateTnd  Float?    // Compensation in TND
+  offerHourlyRateCad  Float?    // Compensation in CAD
+  offerCurrency       String?   // "TND" | "CAD"
+  offerMaxWeeklyHours Int?      // Max weekly hours agreed
   offerSentAt     DateTime?
   offerSignedAt   DateTime?
   agreementUrl    String?   // DocuSign link or stored PDF
