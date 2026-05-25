@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "firstName" TEXT;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastName" TEXT;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "nickname" TEXT;
