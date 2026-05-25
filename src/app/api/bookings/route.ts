@@ -81,30 +81,27 @@ export async function POST(req: NextRequest) {
   const [student, tutorUser] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true, firstName: true, lastName: true },
+      select: { email: true },
     }),
     db.user.findUnique({
       where: { id: tutorId },
       select: {
         email: true,
-        firstName: true,
-        lastName: true,
         hrApplication: { select: { fullName: true } },
       },
     }),
   ]);
 
   if (student?.email && tutorUser) {
-    const tutorName =
-      tutorUser.firstName && tutorUser.lastName
-        ? `${tutorUser.firstName} ${tutorUser.lastName}`
-        : tutorUser.hrApplication?.fullName ?? "Votre tuteur";
+    const tutorName = tutorUser.hrApplication?.fullName ?? "Votre tuteur";
 
-    sendBookingConfirmationEmail(student.email, {
-      studentName: student.firstName ?? "Étudiant",
-      tutorName,
+    sendBookingConfirmationEmail({
+      studentEmail: student.email,
+      tutorEmail: tutorUser.email,
       scheduledAt: slotDate,
+      durationMins: booking.durationMins,
       bookingId: booking.id,
+      meetingUrl: null,
     }).catch(console.error);
   }
 
