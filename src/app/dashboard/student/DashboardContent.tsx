@@ -84,6 +84,52 @@ export default function DashboardContent(p: Props) {
             <p className="text-sm text-[#6B5E44] mt-1">{t.greetingSub}</p>
           </div>
 
+          {/* CEFR Bee Progress Bar */}
+          {(() => {
+            const LEVELS = ["A1","A2","B1","B2","C1","C2"];
+            const idx = p.cefrLevel ? LEVELS.indexOf(p.cefrLevel) : -1;
+            const pct = idx >= 0 ? (idx / (LEVELS.length - 1)) * 100 : 0;
+            return (
+              <div className="bg-white rounded-2xl border border-black/5 px-6 py-5 mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-widest">Niveau CECR</p>
+                  <span className="text-xs font-bold text-[#C49200] bg-[#FFF3B0] px-2.5 py-1 rounded-full">
+                    {p.cefrLevel ?? "—"}
+                  </span>
+                </div>
+                <div className="relative h-3 bg-[#F2EFE9] rounded-full overflow-visible">
+                  {/* filled track */}
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-full transition-all duration-700"
+                    style={{ width: `${pct}%`, background: "linear-gradient(90deg, #F5C400, #C49200)" }}
+                  />
+                  {/* bee */}
+                  {idx >= 0 && (
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-xl leading-none select-none"
+                      style={{ left: `${pct}%`, filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.15))" }}
+                    >
+                      🐝
+                    </div>
+                  )}
+                </div>
+                {/* level labels */}
+                <div className="flex justify-between mt-3">
+                  {LEVELS.map((l, i) => (
+                    <span
+                      key={l}
+                      className={`text-[10px] font-bold transition-colors ${
+                        i === idx ? "text-[#C49200]" : i < idx ? "text-[#5C3D00]/50" : "text-[#6B5E44]/30"
+                      }`}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Stat cards */}
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
             {[

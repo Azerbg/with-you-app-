@@ -75,7 +75,7 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
   return (
     <aside
       className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
-      style={{ background: "linear-gradient(160deg, #895129 0%, #6B3D1E 100%)" }}
+      style={{ background: "linear-gradient(160deg, #5C3D00 0%, #3D2800 100%)" }}
     >
       {/* Logo */}
       <div className="h-14 px-5 flex items-center flex-shrink-0">
