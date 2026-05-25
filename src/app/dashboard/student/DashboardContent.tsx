@@ -5,22 +5,37 @@ import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import StudentSidebar from "@/components/StudentSidebar";
 
+interface UpcomingBooking {
+  id: string;
+  scheduledAt: string;
+  durationMins: number;
+}
+
 interface Props {
   email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  nickname?: string | null;
+  hasPendingImage?: boolean;
+  image?: string | null;
   cefrLevel: string | null;
-  tierLabel: string;
-  tierSessions: string;
-  tierDesc: string;
+  tierKey?: string;
+  tierLabel?: string;
+  tierSessions?: string;
+  tierDesc?: string;
   tierCls: string;
   initials: string;
   nativeLanguage: string | null;
   targetLanguage: string | null;
+  targetLanguageCode?: string | null;
   learningObjective: string | null;
   sessionFrequency: string | null;
   programDuration: string | null;
   timezone: string;
   timeWindowPreference: string[];
   availabilityDays: string[];
+  country?: string | null;
+  upcomingBookings?: UpcomingBooking[];
 }
 
 const DAYS_ORDER = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
@@ -39,7 +54,7 @@ export default function DashboardContent(p: Props) {
       <StudentSidebar
         email={p.email}
         cefrLevel={p.cefrLevel}
-        tier={p.tierLabel}
+        tier={p.tierLabel ?? ""}
         initials={p.initials}
         activePage="overview"
       />

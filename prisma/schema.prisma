@@ -40,12 +40,15 @@ enum LearningObjective {
   PROFESSIONAL   // +10% pricing premium
   ACADEMIC
   EXAM_PREP      // +15% pricing premium (DELF, IELTS, TEF, TOEFL)
+  TRAVEL
+  CULTURAL
 }
 
 enum SessionFrequency {
   ONCE        // 1x/week  — 1.0x multiplier
   TWICE       // 2x/week  — 1.9x multiplier (5% bundle discount)
   THREE_TIMES // 3+/week  — 2.7x multiplier (10% bundle discount)
+  INTENSIVE   // 4+/week  — 3.5x multiplier
 }
 
 enum ProgramDuration {
@@ -217,6 +220,12 @@ model StudentProfile {
   cefrLevel         String?   // A1–C2 — set by placement quiz
   selfReportedLevel String?   // Student's own estimate (A1–C2) before quiz
   programTier       ProgramTier @default(CORE)
+
+  // Location & preferences
+  country             String?           // Country of residence
+  tutorLanguages      String[]          // Preferred tutor teaching languages
+  budgetPerSession    Float?            // Student's budget per session (USD)
+  examTarget          String?           // Specific exam target when EXAM_PREP
 
   // Schedule preferences
   availabilityDays    String[]          // MON, TUE, WED, THU, FRI, SAT, SUN
@@ -466,6 +475,7 @@ model HrApplication {
   fullName    String
   firstName   String?
   lastName    String?
+  birthday    DateTime? // Date of birth
   gender      String?  // M | F | PREFER_NOT_TO_SAY
   nationalId  String?  // Tunisia national ID or residence permit
   country     String?  // Country of residence
@@ -848,6 +858,18 @@ model PromoCode {
   updatedAt  DateTime @updatedAt
 
   @@map("promo_codes")
+}
+
+// ─── TEMP PHONE VERIFICATION (pre-signup OTP) ─────────────────────────────────
+model TempPhoneVerification {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  otp       String
+  verified  Boolean  @default(false)
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@map("temp_phone_verifications")
 }
 
 // ─── EMAIL OTP (no user relation — used before account creation) ──────────────
