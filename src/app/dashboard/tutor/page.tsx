@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
+import TutorDashboardContent from "./TutorDashboardContent";
 
 const STAGE_INFO: Record<string, { label: string; desc: string; color: string; step: number }> = {
   NEW:                 { label: "Candidature reçue",      desc: "Notre équipe RH va examiner votre dossier sous 3–5 jours ouvrables.",          color: "bg-blue-50 border-blue-200 text-blue-700",    step: 1 },
@@ -60,6 +61,67 @@ export default async function TutorDashboardPage() {
   if (!user) redirect("/auth/login");
 
   const app = user.hrApplication;
+
+  // ── ACTIVE tutor: full dashboard with sidebar ──────────────────────────────
+  if (app?.status === "ACTIVE") {
+    const profile = user.tutorProfile;
+    const profileComplete = !!(profile?.bio && profile?.cefrTeachingMin && profile?.cefrTeachingMax);
+    const fullName = app.fullName ?? user.email;
+    const initials = fullName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+
+    // Fetch bookings as tutor
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [upcoming, completed, monthBookings] = await Promise.all([
+      db.booking.findMany({
+        where: { tutorId: session.user.id, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: now } },
+        orderBy: { scheduledAt: "asc" },
+        take: 4,
+        include: { student: { select: { firstName: true, lastName: true, email: true } } },
+      }),
+      db.booking.count({
+        where: { tutorId: session.user.id, status: "CONFIRMED", scheduledAt: { lt: now } },
+      }),
+      db.booking.findMany({
+        where: { tutorId: session.user.id, status: "CONFIRMED", scheduledAt: { gte: startOfMonth, lt: now } },
+        select: { studentPriceUsd: true },
+      }),
+    ]);
+
+    const uniqueStudents = new Set(upcoming.map((b) => b.studentId)).size;
+    const earningsThisMonth = monthBookings.reduce((sum, b) => sum + (b.studentPriceUsd ?? 0), 0);
+
+    const offerHourlyRate = app.offerCurrency === "TND"
+      ? app.offerHourlyRateTnd
+      : app.offerHourlyRateCad;
+
+    return (
+      <TutorDashboardContent
+        fullName={fullName}
+        initials={initials}
+        photo={profile?.profilePhotoUrl ?? null}
+        profileComplete={profileComplete}
+        stats={{
+          sessionsCompleted: completed,
+          upcomingSessions: upcoming.length,
+          studentsCount: uniqueStudents,
+          earningsThisMonth,
+        }}
+        upcomingSessions={upcoming.map((b) => ({
+          id: b.id,
+          studentName: b.student.firstName && b.student.lastName
+            ? `${b.student.firstName} ${b.student.lastName}`
+            : b.student.email,
+          scheduledAt: b.scheduledAt.toISOString(),
+          durationMins: b.durationMins,
+          status: b.status,
+        }))}
+        offerHourlyRate={offerHourlyRate ?? null}
+        offerCurrency={app.offerCurrency ?? null}
+      />
+    );
+  }
 
   // User registered as TUTOR but never submitted an application
   if (!app) {
@@ -176,7 +238,6 @@ export default async function TutorDashboardPage() {
   const profile = user.tutorProfile;
   const status = app?.status ?? "NEW";
   const stageInfo = STAGE_INFO[status] ?? STAGE_INFO.NEW;
-  const isActive = status === "ACTIVE";
   const isRejected = status === "REJECTED";
 
   const profileComplete = !!(profile?.bio && profile?.cefrTeachingMin && profile?.cefrTeachingMax);
@@ -210,7 +271,7 @@ export default async function TutorDashboardPage() {
             Bonjour{app?.fullName ? `, ${app.fullName.split(" ")[0]}` : ""} 👋
           </h1>
           <p className="text-sm text-[#6B5E44] mt-1">
-            {isActive ? "Votre profil est actif sur WithYou." : "Suivez l'avancement de votre candidature ci-dessous."}
+            {"Suivez l'avancement de votre candidature ci-dessous."}
           </p>
         </div>
 
@@ -223,7 +284,7 @@ export default async function TutorDashboardPage() {
               <p className="text-sm mt-1 opacity-80">{stageInfo.desc}</p>
             </div>
             <div className="text-3xl shrink-0">
-              {isActive ? "✅" : isRejected ? "❌" : "⏳"}
+              {isRejected ? "❌" : "⏳"}
             </div>
           </div>
 
@@ -303,63 +364,6 @@ export default async function TutorDashboardPage() {
           </div>
         )}
 
-        {/* Action cards — only shown when ACTIVE */}
-        {isActive && (
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Profile completion */}
-            <div className={`rounded-2xl border-2 p-5 ${profileComplete ? "border-green-300 bg-green-50" : "border-[#F5C400] bg-[#FFF3B0]"}`}>
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-sm font-bold text-[#5C3D00]">
-                  {profileComplete ? "Profil complété ✓" : "Compléter votre profil"}
-                </p>
-                <span className="text-xl">{profileComplete ? "✅" : "📝"}</span>
-              </div>
-              <p className="text-xs text-[#6B5E44] mb-4">
-                {profileComplete
-                  ? "Votre profil est visible dans les recherches."
-                  : "Ajoutez votre bio, photo et niveaux CEFR pour apparaître dans les recherches."}
-              </p>
-              {!profileComplete && (
-                <Link href="/dashboard/tutor/complete-profile"
-                  className="block w-full text-center bg-[#5C3D00] text-[#F5C400] py-2 rounded-xl text-sm font-bold hover:bg-[#3d2900] transition">
-                  Compléter le profil →
-                </Link>
-              )}
-            </div>
-
-            {/* Availability */}
-            <div className="rounded-2xl border-2 border-[#6B5E44]/20 bg-white p-5">
-              <div className="flex items-start justify-between mb-3">
-                <p className="text-sm font-bold text-[#5C3D00]">Mes disponibilités</p>
-                <span className="text-xl">📅</span>
-              </div>
-              <p className="text-xs text-[#6B5E44] mb-4">
-                Définissez vos créneaux disponibles pour que les étudiants puissent vous réserver.
-              </p>
-              <Link href="/dashboard/tutor/availability"
-                className="block w-full text-center border-2 border-[#F5C400] text-[#5C3D00] py-2 rounded-xl text-sm font-bold hover:bg-[#FFF3B0] transition">
-                Gérer mes disponibilités →
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Stats placeholder (future M6) */}
-        {isActive && (
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { label: "Séances complétées", value: "0", icon: "📅" },
-              { label: "Étudiants actifs",    value: "0", icon: "👨‍🎓" },
-              { label: "Revenus ce mois",     value: "—",  icon: "💰" },
-            ].map(s => (
-              <div key={s.label} className="bg-white border border-[#C4BAA8] rounded-2xl p-4 text-center">
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <p className="text-2xl font-bold text-[#2D1A00]">{s.value}</p>
-                <p className="text-xs text-[#7A6B55] mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        )}
 
       </div>
     </div>
