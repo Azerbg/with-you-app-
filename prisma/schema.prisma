@@ -37,18 +37,15 @@ enum TutorVerificationTier {
 
 enum LearningObjective {
   CONVERSATIONAL
-  PROFESSIONAL
-  TRAVEL
+  PROFESSIONAL   // +10% pricing premium
   ACADEMIC
-  EXAM_PREP
-  CULTURAL
+  EXAM_PREP      // +15% pricing premium (DELF, IELTS, TEF, TOEFL)
 }
 
 enum SessionFrequency {
-  ONCE        // 1x/week
-  TWICE       // 2x/week
-  THREE_TIMES // 3x/week
-  INTENSIVE   // 3+/week
+  ONCE        // 1x/week  — 1.0x multiplier
+  TWICE       // 2x/week  — 1.9x multiplier (5% bundle discount)
+  THREE_TIMES // 3+/week  — 2.7x multiplier (10% bundle discount)
 }
 
 enum ProgramDuration {
@@ -112,18 +109,12 @@ enum DisputeStatus {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
-  firstName     String?
-  lastName      String?
   password      String?
   role          Role      @default(STUDENT)
   locale        String    @default("en")
   timezone      String    @default("UTC")
   emailVerified DateTime?
   image         String?
-  nickname      String?   // Custom display name set by student
-
-  // Profile photo
-  pendingImage String? // Photo awaiting HR/Admin validation before becoming live
 
   // 2FA (HR role only — TOTP via Google Authenticator / Authy)
   totpSecret  String?           // Base32 secret, encrypted at rest
@@ -190,7 +181,6 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  totpVerified Boolean  @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -218,7 +208,6 @@ model StudentProfile {
   nativeLanguage String?
   targetLanguage String?     // "French" | "English"
   learningObjective LearningObjective?
-  examTarget        String?   // Specific exam when learningObjective = EXAM_PREP
 
   // CEFR
   cefrLevel         String?   // A1–C2 — set by placement quiz
@@ -231,11 +220,6 @@ model StudentProfile {
   sessionFrequency    SessionFrequency?
   programDuration     ProgramDuration?
   preferredCurrency   Currency          @default(USD) // Auto-detected by IP, student can override
-
-  // Extended preferences (added M2 revision)
-  country              String?   // Country of the student
-  tutorLanguages       String[]  // Languages the student wants the tutor to speak
-  budgetPerSession     Int?      // Budget in USD per session
 
   // Onboarding state
   onboardingCompleted   Boolean   @default(false)
@@ -476,28 +460,37 @@ model HrApplication {
 
   // Personal information
   fullName    String
-  nationalId  String?   // National ID or passport
-  birthday    DateTime? // Date of birth
-  country     String?   // Country of residence (worldwide)
-  city        String?   // City
-  phone       String?
+  firstName   String?
+  lastName    String?
+  gender      String?  // M | F | PREFER_NOT_TO_SAY
+  nationalId  String?  // Tunisia national ID or residence permit
+  country     String?  // Country of residence
+  city        String?  // City of residence
+  phone       String?  // Phone number with country code
   // email via User.email
 
   // Professional information
-  languagesTaught  String[]  // French | English | Arabic
+  languagesTaught  String[]  // French | English
   specializations  String[]  // CONVERSATIONAL | PROFESSIONAL | ACADEMIC | EXAM_PREP
-  certifications   String[]  // CELTA | DALF | TESOL | UNIVERSITY_DEGREE | OTHER
+  certifications   String[]  // All certifications (backward compat)
+  linguisticCerts  String[]  // DELF_A1, DELF_A2, DALF_C1, TOEFL, IELTS, etc.
+  teachingCerts    String[]  // CELTA, TESOL, TEFL, DELTA
+  academicDegrees  String[]  // LICENCE, MASTER, DOCTORAT, etc.
   yearsExperience  Int?
-  certificateUrls  String[]  // Uploaded certificate files
+  englishLevel     String?   // BEGINNER | INTERMEDIATE | ADVANCED | VERY_ADVANCED | PROFESSIONAL
+  certificateUrls  String[]  // Uploaded certificate files (diplomas PDFs)
+  cvUrl            String?   // Uploaded CV (Word/PDF)
+  motivationLetterUrl String? // Uploaded motivation letter (Word/PDF)
+  attestationUrls  String[]  // Optional work attestations (PDFs)
 
   // Availability preferences
   availabilityDays     String[]  // MON, TUE, WED, THU, FRI, SAT, SUN
   timeWindowPreference String[]  // MORNING | AFTERNOON | EVENING
+  timezone             String?   // IANA timezone string
 
   // Application materials
-  bio          String?  // 500–1000 words
-  videoUrl     String?  // 60–90 sec intro video (DigitalOcean Spaces)
-  cvUrl        String?  // CV / resume link (Google Drive, Dropbox, etc.)
+  bio          String?  // Short bio for HR team
+  videoUrl     String?  // Legacy field (kept for migration)
 
   // Automated pre-screening results
   emailVerified   Boolean @default(false)
@@ -514,9 +507,12 @@ model HrApplication {
   scoreCulturalFit            Int? // Alignment with With You values
   // Total 20-25: advance | 15-19: borderline | <15: reject
 
-  // Interview
+  // Interview scheduling
+  interviewSlots        String[]  // UTC ISO strings proposed by HR (max 3)
+  interviewToken        String?   @unique  // Token for candidate selection page
+  interviewSelectedAt   DateTime? // UTC time candidate selected
+  interviewMeetingUrl   String?   // Zoom / Daily.co link
   interviewScheduledAt  DateTime?
-  interviewMeetingUrl   String?   // Auto-generated Jitsi link
   interviewCompletedAt  DateTime?
   interviewNotes        String?
   interviewLanguage     String?   // "French" | "English"
@@ -526,12 +522,6 @@ model HrApplication {
   offerSignedAt   DateTime?
   agreementUrl    String?   // DocuSign link or stored PDF
   agreementLanguage String? // "French" | "Arabic"
-
-  // Offer rate (set by HR when moving to OFFER_PENDING)
-  offerHourlyRateTnd  Float?   // Rate in Tunisian Dinar
-  offerHourlyRateCad  Float?   // Rate in CAD
-  offerCurrency       String?  // "TND" | "CAD"
-  offerMaxWeeklyHours Int?     // Agreed weekly hours cap
 
   // Rejection
   rejectedAt     DateTime?
@@ -852,18 +842,14 @@ model PromoCode {
   @@map("promo_codes")
 }
 
-// ─── TEMP PHONE VERIFICATION ──────────────────────────────────────────────────
-// Short-lived OTP records for phone verification during tutor application.
-// Keyed by phone number; replaced on each new OTP request.
-
-model TempPhoneVerification {
-  id       String   @id @default(cuid())
-  phone    String   @unique
-  otp      String
-  expires  DateTime
-  verified Boolean  @default(false)
-
+// ─── EMAIL OTP (no user relation — used before account creation) ──────────────
+model EmailOtp {
+  id      String   @id @default(cuid())
+  email   String
+  code    String
+  expires DateTime
   createdAt DateTime @default(now())
 
-  @@map("temp_phone_verifications")
+  @@unique([email, code])
+  @@map("email_otps")
 }
