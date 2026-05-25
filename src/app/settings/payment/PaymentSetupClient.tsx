@@ -70,7 +70,7 @@ function SetupForm({ onSuccess, lang }: { onSuccess: () => void; lang: string })
       elements,
       clientSecret,
       confirmParams: {
-        return_url: `${window.location.origin}/settings/payment?setup_complete=true`,
+        return_url: `${window.location.origin}/dashboard/student/billing?setup_complete=true`,
       },
     });
 
@@ -118,7 +118,7 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
   useEffect(() => {
     fetchCards();
     if (setupComplete) {
-      window.history.replaceState({}, "", "/settings/payment");
+      window.history.replaceState({}, "", "/dashboard/student/billing");
     }
   }, [setupComplete]);
 

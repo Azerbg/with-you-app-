@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import StudentSidebar from "@/components/StudentSidebar";
+import ProfileEditPanel from "@/components/ProfileEditPanel";
 
 interface UpcomingBooking {
   id: string;
@@ -43,6 +45,10 @@ const DAYS_ORDER = ["MON","TUE","WED","THU","FRI","SAT","SUN"];
 export default function DashboardContent(p: Props) {
   const { lang } = useLanguage();
   const t = T[lang].dashboard;
+  const [editOpen, setEditOpen] = useState(false);
+  const [firstName, setFirstName] = useState(p.firstName ?? null);
+  const [lastName,  setLastName]  = useState(p.lastName  ?? null);
+  const displayName = firstName && lastName ? `${firstName} ${lastName}` : firstName ?? p.email;
 
   const objLabel = p.learningObjective ? (t.objectives as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
   const freqLabel = p.sessionFrequency ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
@@ -69,9 +75,17 @@ export default function DashboardContent(p: Props) {
                 <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
               </svg>
             </button>
-            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
-              {p.initials}
-            </div>
+            <button
+              onClick={() => setEditOpen(true)}
+              className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs hover:bg-[#FFDE59] transition overflow-hidden"
+              title="Modifier le profil"
+            >
+              {p.image ? (
+                <img src={p.image} alt="" className="w-full h-full object-cover" />
+              ) : (
+                p.initials
+              )}
+            </button>
           </div>
         </div>
 
@@ -305,6 +319,20 @@ export default function DashboardContent(p: Props) {
           </div>
         </div>
       </div>
+
+      {/* Profile edit panel */}
+      {editOpen && (
+        <ProfileEditPanel
+          email={p.email}
+          firstName={firstName}
+          lastName={lastName}
+          image={p.image ?? null}
+          hasPendingImage={p.hasPendingImage ?? false}
+          initials={p.initials}
+          onClose={() => setEditOpen(false)}
+          onSaved={(f, l) => { setFirstName(f); setLastName(l); setEditOpen(false); }}
+        />
+      )}
     </div>
   );
 }
