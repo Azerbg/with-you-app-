@@ -118,6 +118,85 @@ export async function sendBookingConfirmationEmail(params: {
   });
 }
 
+export async function sendRejectionEmail(
+  email: string,
+  fullName: string,
+  reason: string,
+  lang: string,
+) {
+  const isFr = lang !== "ar";
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: isFr ? "Votre candidature WithYou" : "طلبك على WithYou",
+    html: isFr
+      ? `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#5C3D00">Bonjour ${fullName},</h2>
+        <p>Nous avons soigneusement examiné votre candidature pour devenir tuteur sur WithYou.</p>
+        <p>Après étude de votre dossier, nous ne sommes malheureusement pas en mesure de donner suite à votre candidature pour le moment.</p>
+        ${reason ? `<p style="background:#FFF3B0;padding:12px;border-radius:8px"><strong>Motif :</strong> ${reason}</p>` : ""}
+        <p>Nous vous encourageons à postuler à nouveau dans le futur.</p>
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
+      </div>`
+      : `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;direction:rtl">
+        <h2 style="color:#5C3D00">مرحباً ${fullName}،</h2>
+        <p>لقد راجعنا طلبك للانضمام كمدرس على منصة WithYou.</p>
+        <p>بعد دراسة ملفك، نأسف لإبلاغك بأننا لن نتمكن من المضي قدماً في طلبك في الوقت الحالي.</p>
+        ${reason ? `<p style="background:#FFF3B0;padding:12px;border-radius:8px"><strong>السبب:</strong> ${reason}</p>` : ""}
+        <p>نشجعك على التقديم مجدداً في المستقبل.</p>
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · منصة تعلم اللغات</p>
+      </div>`,
+  });
+}
+
+export async function sendInterviewEmail(
+  email: string,
+  fullName: string,
+  scheduledAt: Date,
+  meetingUrl: string | null,
+  lang: string,
+) {
+  const isFr = lang !== "ar";
+  const tunisTime = new Intl.DateTimeFormat(isFr ? "fr-FR" : "ar-TN", {
+    timeZone: "Africa/Tunis",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(scheduledAt);
+
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: isFr ? "WithYou — Entretien planifié" : "WithYou — موعد المقابلة",
+    html: isFr
+      ? `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <h2 style="color:#5C3D00">Bonjour ${fullName},</h2>
+        <p>Votre entretien pour rejoindre WithYou en tant que tuteur a été planifié.</p>
+        <div style="background:#FFF3B0;border-radius:12px;padding:16px;margin:16px 0">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#5C3D00">📅 ${tunisTime}</p>
+        </div>
+        ${meetingUrl ? `<p>Lien de l'entretien : <a href="${meetingUrl}">${meetingUrl}</a></p>` : "<p>Le lien vous sera communiqué prochainement.</p>"}
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
+      </div>`
+      : `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;direction:rtl">
+        <h2 style="color:#5C3D00">مرحباً ${fullName}،</h2>
+        <p>تم تحديد موعد مقابلتك للانضمام إلى WithYou كمدرس.</p>
+        <div style="background:#FFF3B0;border-radius:12px;padding:16px;margin:16px 0">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#5C3D00">📅 ${tunisTime}</p>
+        </div>
+        ${meetingUrl ? `<p>رابط المقابلة: <a href="${meetingUrl}">${meetingUrl}</a></p>` : "<p>سيتم إرسال الرابط قريباً.</p>"}
+        <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · منصة تعلم اللغات</p>
+      </div>`,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
   const url = `${BASE_URL}/auth/reset-password?token=${token}`;
 
