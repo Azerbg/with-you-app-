@@ -10,9 +10,12 @@ import { useLanguage } from "@/context/LanguageContext";
 
 interface FormData {
   // Step 1
-  fullName:  string;
+  firstName: string;
+  lastName:  string;
+  fullName:  string; // computed: firstName + lastName
   email:     string;
   password:  string;
+  confirmPassword: string;
   phone:     string;
   birthday:  string;
   country:   string;
@@ -74,6 +77,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const { lang } = useLanguage();
   const fr = lang === "fr";
   const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpValue, setOtpValue] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -81,8 +85,19 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const [devOtp, setDevOtp] = useState("");
   const prevPhone = useRef("");
 
-  const isValid = data.fullName && data.phone && data.birthday && data.country &&
-    (isLoggedIn || (data.email && data.password.length >= 10));
+  // Password strength checks
+  const pw = data.password;
+  const checks = {
+    length:  pw.length >= 8,
+    upper:   /[A-Z]/.test(pw),
+    number:  /[0-9]/.test(pw),
+    special: /[^A-Za-z0-9]/.test(pw),
+  };
+  const pwStrong = Object.values(checks).every(Boolean);
+  const pwMatch  = data.password === data.confirmPassword && data.confirmPassword !== "";
+
+  const isValid = data.firstName && data.lastName && data.phone && data.birthday && data.country &&
+    (isLoggedIn || (data.email && pwStrong && pwMatch));
 
   async function sendOtp() {
     if (!data.phone) return;
@@ -155,40 +170,92 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-            {fr ? "Nom complet" : "Full name"}
-          </label>
-          <input value={data.fullName} onChange={e => onChange("fullName", e.target.value)}
-            placeholder={fr ? "Prénom Nom" : "First Last"}
-            className={inputCls} />
+        {/* Prénom + Nom */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Prénom" : "First name"} <span className="text-red-400">*</span>
+            </label>
+            <input value={data.firstName} onChange={e => { onChange("firstName", e.target.value); onChange("fullName", `${e.target.value} ${data.lastName}`.trim()); }}
+              placeholder={fr ? "Votre prénom" : "Your first name"}
+              className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Nom de famille" : "Last name"} <span className="text-red-400">*</span>
+            </label>
+            <input value={data.lastName} onChange={e => { onChange("lastName", e.target.value); onChange("fullName", `${data.firstName} ${e.target.value}`.trim()); }}
+              placeholder={fr ? "Votre nom" : "Your last name"}
+              className={inputCls} />
+          </div>
         </div>
 
         {!isLoggedIn && (
           <>
+            {/* Email */}
             <div>
-              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">E-mail</label>
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+                {fr ? "Adresse e-mail" : "Email address"} <span className="text-red-400">*</span>
+              </label>
               <input type="email" value={data.email} onChange={e => onChange("email", e.target.value)}
                 placeholder="vous@exemple.com" className={inputCls} />
             </div>
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-                {fr ? "Mot de passe" : "Password"}
+                {fr ? "Mot de passe" : "Password"} <span className="text-red-400">*</span>
               </label>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} value={data.password}
                   onChange={e => onChange("password", e.target.value)}
-                  placeholder={fr ? "Min. 10 caractères" : "Min. 10 characters"}
-                  className={inputCls + " pr-10"} />
+                  placeholder={fr ? "Créez un mot de passe fort" : "Create a strong password"}
+                  className={inputCls + " pr-20"} />
                 <button type="button" onClick={() => setShowPass(p => !p)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E44] text-xs font-semibold">
                   {showPass ? (fr ? "Masquer" : "Hide") : (fr ? "Afficher" : "Show")}
                 </button>
               </div>
-              <p className="text-xs text-[#6B5E44] mt-1">
-                {fr ? "Min. 10 caractères" : "Min. 10 characters"}
-              </p>
+              {/* Strength indicators */}
+              {data.password && (
+                <div className="mt-2 grid grid-cols-2 gap-1">
+                  {[
+                    { ok: checks.length,  label: fr ? "8 caractères min." : "8+ characters" },
+                    { ok: checks.upper,   label: fr ? "1 majuscule"        : "1 uppercase letter" },
+                    { ok: checks.number,  label: fr ? "1 chiffre"          : "1 number" },
+                    { ok: checks.special, label: fr ? "1 caractère spécial": "1 special character" },
+                  ].map(({ ok, label }) => (
+                    <div key={label} className={`flex items-center gap-1.5 text-[11px] font-medium ${ok ? "text-green-600" : "text-[#9B8A6B]"}`}>
+                      <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${ok ? "bg-green-100 text-green-600" : "bg-[#F2EFE9] text-[#9B8A6B]"}`}>
+                        {ok ? "✓" : "·"}
+                      </span>
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Confirm password */}
+            <div>
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+                {fr ? "Confirmer le mot de passe" : "Confirm password"} <span className="text-red-400">*</span>
+              </label>
+              <div className="relative">
+                <input type={showConfirm ? "text" : "password"} value={data.confirmPassword}
+                  onChange={e => onChange("confirmPassword", e.target.value)}
+                  placeholder={fr ? "Répétez le mot de passe" : "Repeat your password"}
+                  className={inputCls + " pr-20 " + (data.confirmPassword ? (pwMatch ? "border-green-400" : "border-red-400") : "")} />
+                <button type="button" onClick={() => setShowConfirm(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B5E44] text-xs font-semibold">
+                  {showConfirm ? (fr ? "Masquer" : "Hide") : (fr ? "Afficher" : "Show")}
+                </button>
+              </div>
+              {data.confirmPassword && !pwMatch && (
+                <p className="text-xs text-red-500 mt-1">
+                  {fr ? "Les mots de passe ne correspondent pas." : "Passwords do not match."}
+                </p>
+              )}
             </div>
           </>
         )}
@@ -612,7 +679,8 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
       </p>
 
       <div className="bg-[#FFFDF4] border border-[#F5C400]/30 rounded-xl p-4 mb-5">
-        <Row label={fr ? "Nom" : "Name"} value={data.fullName} />
+        <Row label={fr ? "Prénom" : "First name"} value={data.firstName} />
+        <Row label={fr ? "Nom de famille" : "Last name"} value={data.lastName} />
         <Row label="E-mail" value={data.email} />
         <Row label={fr ? "Date de naissance" : "Date of birth"} value={data.birthday} />
         <Row label={fr ? "Pays" : "Country"} value={data.country} />
@@ -693,7 +761,7 @@ export default function TutorApplyWizard() {
   const [phoneVerified, setPhoneVerified] = useState(false);
 
   const [data, setData] = useState<FormData>({
-    fullName: "", email: "", password: "", phone: "", birthday: "", country: "", city: "",
+    firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
     bio: "", videoUrl: "", cvUrl: "",
     availabilityDays: [], timeWindowPreference: [],
