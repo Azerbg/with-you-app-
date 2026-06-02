@@ -22,9 +22,9 @@ const baseSchema = z.object({
   certificateUrls: z.array(z.string()).default([]),
 
   // Step 3 — About
-  bio:      z.string().min(100),
-  videoUrl: z.string().url().optional().or(z.literal("")),
-  cvUrl:    z.string().min(1),
+  bio:                 z.string().min(100),
+  cvUrl:               z.string().min(1),
+  motivationLetterUrl: z.string().min(1),
 
   // Step 4 — Availability
   availabilityDays:    z.array(z.string()).min(1),
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
             certifications:      data.certifications,
             certificateUrls:     data.certificateUrls,
             bio:                 data.bio,
-            videoUrl:            data.videoUrl || null,
+            motivationLetterUrl: data.motivationLetterUrl || null,
             cvUrl:               data.cvUrl,
             availabilityDays:    data.availabilityDays,
             timeWindowPreference: data.timeWindowPreference,
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
             certifications:      data.certifications,
             certificateUrls:     data.certificateUrls,
             bio:                 data.bio,
-            videoUrl:            data.videoUrl || null,
+            motivationLetterUrl: data.motivationLetterUrl || null,
             cvUrl:               data.cvUrl,
             availabilityDays:    data.availabilityDays,
             timeWindowPreference: data.timeWindowPreference,

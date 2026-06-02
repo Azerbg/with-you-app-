@@ -26,9 +26,9 @@ interface FormData {
   yearsExperience: number;
   certifications:  string[];
   // Step 3
-  bio:      string;
-  videoUrl: string;
-  cvUrl:    string;
+  bio:                  string;
+  cvUrl:                string;
+  motivationLetterUrl:  string;
   // Step 4
   availabilityDays:     string[];
   timeWindowPreference: string[];
@@ -546,7 +546,7 @@ function StepAbout({ data, onChange, onNext, onBack }: {
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
-  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0;
+  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0 && data.motivationLetterUrl.trim().length > 0;
 
   return (
     <div>
@@ -588,7 +588,20 @@ function StepAbout({ data, onChange, onNext, onBack }: {
           hint={fr ? "PDF ou Word · max 10 Mo" : "PDF or Word · max 10 MB"}
           accept=".pdf,.doc,.docx"
           value={data.cvUrl}
-          onChange={(name, dataUrl) => onChange("cvUrl", dataUrl)}
+          onChange={(_name, dataUrl) => onChange("cvUrl", dataUrl)}
+          fr={fr}
+        />
+      </div>
+
+      {/* Lettre de motivation Upload */}
+      <div className="mb-6">
+        <FileUploadZone
+          label={fr ? "Lettre de motivation" : "Cover letter"}
+          required
+          hint={fr ? "PDF ou Word · max 10 Mo" : "PDF or Word · max 10 MB"}
+          accept=".pdf,.doc,.docx"
+          value={data.motivationLetterUrl}
+          onChange={(_name, dataUrl) => onChange("motivationLetterUrl", dataUrl)}
           fr={fr}
         />
       </div>
@@ -805,7 +818,7 @@ export default function TutorApplyWizard() {
   const [data, setData] = useState<FormData>({
     firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
-    bio: "", videoUrl: "", cvUrl: "",
+    bio: "", cvUrl: "", motivationLetterUrl: "",
     availabilityDays: [], timeWindowPreference: [],
   });
 
