@@ -476,6 +476,68 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
 
 // ─── Step 3: About You ────────────────────────────────────────────────────────
 
+function FileUploadZone({ label, required, hint, accept, value, onChange, fr }: {
+  label: string; required?: boolean; hint: string; accept: string;
+  value: string; onChange: (name: string, dataUrl: string) => void; fr: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
+
+  function handleFile(file: File) {
+    const allowed = accept.split(",").map(a => a.trim());
+    const ok = allowed.some(a => file.name.toLowerCase().endsWith(a.replace(".", "").replace("*", "")));
+    if (file.size > 10 * 1024 * 1024) { setError(fr ? "Fichier trop lourd (max 10 Mo)" : "File too large (max 10 MB)"); return; }
+    if (!file.name.match(/\.(pdf|doc|docx)$/i)) { setError(fr ? "Format non accepté. PDF ou Word uniquement." : "Invalid format. PDF or Word only."); return; }
+    setError("");
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => onChange(file.name, reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+        {label} {required && <span className="text-red-400">*</span>}
+      </label>
+      <div
+        onClick={() => ref.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        className={`border-2 border-dashed rounded-2xl px-5 py-6 text-center cursor-pointer transition ${
+          dragging ? "border-[#F5C400] bg-[#FFF3B0]" :
+          value ? "border-green-400 bg-green-50" : "border-[#6B5E44]/25 hover:border-[#F5C400]/60 hover:bg-[#FFFBEA]"
+        }`}
+      >
+        {value ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" className="w-5 h-5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/></svg>
+            </div>
+            <p className="text-sm font-semibold text-green-700">{fileName}</p>
+            <p className="text-xs text-green-600">{fr ? "Fichier ajouté ✓ — cliquez pour changer" : "File added ✓ — click to change"}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-[#F2EFE9] flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#6B5E44" strokeWidth="2" className="w-5 h-5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <p className="text-sm font-semibold text-[#5C3D00]">
+              {fr ? "Glisser-déposer ou cliquer pour choisir" : "Drag & drop or click to choose"}
+            </p>
+            <p className="text-xs text-[#9B8A6B]">{hint}</p>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      <input ref={ref} type="file" accept={accept} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
 function StepAbout({ data, onChange, onNext, onBack }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string) => void;
@@ -493,62 +555,42 @@ function StepAbout({ data, onChange, onNext, onBack }: {
       </h2>
       <p className="text-[#6B5E44] text-sm mb-6">
         {fr
-          ? "Votre biographie et votre vidéo d'introduction aident les apprenants à vous choisir."
-          : "Your bio and intro video help learners choose you."}
+          ? "Présentez-vous à notre équipe RH — en tant que personne et en tant qu'enseignant."
+          : "Introduce yourself to our HR team — as a person and as a teacher."}
       </p>
 
+      {/* Bio */}
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
           {fr ? "Biographie" : "Bio"}{" "}
           <span className="font-normal text-[#6B5E44]">({fr ? "min. 100 caractères" : "min. 100 chars"})</span>
+          <span className="text-red-400"> *</span>
         </label>
         <textarea
           value={data.bio}
           onChange={e => onChange("bio", e.target.value)}
-          rows={6}
+          rows={5}
           placeholder={fr
-            ? "Décrivez votre parcours, votre méthode d'enseignement et ce qui vous rend unique…"
-            : "Describe your background, teaching style, and what makes you unique…"}
+            ? "Parlez-nous de vous en tant que personne et en tant qu'enseignant. Décrivez votre parcours, votre méthode d'enseignement et ce qui vous rend unique…"
+            : "Tell us about yourself as a person and as a teacher. Describe your background, teaching style, and what makes you unique…"}
           className={inputCls + " resize-none"}
         />
-        <p className={`text-xs mt-1 ${data.bio.length < 100 ? "text-red-400" : "text-green-600"}`}>
+        <p className={`text-xs mt-1 ${data.bio.length < 100 ? "text-[#9B8A6B]" : "text-green-600"}`}>
           {data.bio.length} / 100 {fr ? "caractères minimum" : "characters minimum"}
         </p>
       </div>
 
+      {/* CV Upload */}
       <div className="mb-5">
-        <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-          {fr ? "CV / Curriculum Vitae" : "CV / Resume"}{" "}
-          <span className="font-normal text-red-500">*</span>
-        </label>
-        <input
+        <FileUploadZone
+          label={fr ? "CV / Curriculum Vitae" : "CV / Resume"}
+          required
+          hint={fr ? "PDF ou Word · max 10 Mo" : "PDF or Word · max 10 MB"}
+          accept=".pdf,.doc,.docx"
           value={data.cvUrl}
-          onChange={e => onChange("cvUrl", e.target.value)}
-          placeholder={fr ? "Lien Google Drive, Dropbox, OneDrive…" : "Google Drive, Dropbox, OneDrive link…"}
-          className={inputCls}
+          onChange={(name, dataUrl) => onChange("cvUrl", dataUrl)}
+          fr={fr}
         />
-        <p className="text-xs text-[#6B5E44] mt-1">
-          {fr
-            ? "Partagez un lien public vers votre CV (Google Drive, Dropbox, etc.)"
-            : "Share a public link to your CV (Google Drive, Dropbox, etc.)"}
-        </p>
-      </div>
-
-      <div className="mb-6">
-        <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-          {fr ? "Lien vidéo d'introduction (optionnel)" : "Intro video link (optional)"}
-        </label>
-        <input
-          value={data.videoUrl}
-          onChange={e => onChange("videoUrl", e.target.value)}
-          placeholder="https://youtube.com/... ou https://loom.com/..."
-          className={inputCls}
-        />
-        <p className="text-xs text-[#6B5E44] mt-1">
-          {fr
-            ? "YouTube ou Loom · 60–90 secondes · Présentez-vous en tant qu'enseignant"
-            : "YouTube or Loom · 60–90 seconds · Introduce yourself as a teacher"}
-        </p>
       </div>
 
       <div className="flex gap-3">
