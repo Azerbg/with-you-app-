@@ -910,7 +910,7 @@ export default function TutorApplyWizard() {
             </h1>
             <p className="text-white/50 text-sm leading-relaxed">
               {fr
-                ? "Rejoignez WithYou et aidez des apprenants à atteindre leurs objectifs linguistiques."
+                ? "Rejoignez WithYou et aidez les apprenants à atteindre leurs objectifs d'apprentissage."
                 : "Join WithYou and help learners achieve their language goals."}
             </p>
           </div>
