@@ -353,47 +353,11 @@ export default function HomePage() {
             {/* Bottom gradient */}
             <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#fdfaf4]/60 to-transparent z-10" />
 
-            {/* Floating stat card */}
-            <div className="absolute bottom-12 right-8 z-20 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl px-5 py-4 border border-[#F5C400]/20">
-              <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">
-                {lang === "fr" ? "Tuteurs vérifiés" : "Verified Tutors"}
-              </p>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-black text-[#5C3D00]">50+</span>
-                <span className="text-xs text-green-600 font-bold mb-1">✓ actifs</span>
-              </div>
-            </div>
-
-            {/* Floating rating card */}
-            <div className="absolute top-12 right-12 z-20 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl px-5 py-4 border border-[#F5C400]/20">
-              <div className="flex items-center gap-2 mb-1">
-                {[1,2,3,4,5].map((s) => <span key={s} className="text-[#F5C400] text-sm">★</span>)}
-              </div>
-              <p className="text-2xl font-black text-[#5C3D00]">4.9<span className="text-sm font-normal text-gray-400">/5</span></p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{lang === "fr" ? "Note moyenne" : "Average rating"}</p>
-            </div>
           </div>
 
         </section>
       )}
 
-      {/* ── Stats bar — shown only when NOT logged in ── */}
-      {!session?.user &&
-      <section className="border-y border-[#E8DFC8] bg-white py-10">
-        <div className="max-w-5xl mx-auto px-8 grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
-          {[
-            { val: "500+", label: lang === "fr" ? "Étudiants actifs" : "Active students" },
-            { val: "50+",  label: lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors" },
-            { val: "4.9",  label: lang === "fr" ? "Note moyenne" : "Average rating" },
-            { val: "98%",  label: lang === "fr" ? "Satisfaction" : "Satisfaction rate" },
-          ].map((s) => (
-            <div key={s.label}>
-              <p className="text-4xl font-black text-[#5C3D00]">{s.val}</p>
-              <p className="text-sm text-gray-400 mt-1 font-medium">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>}
 
       {!session?.user && <>
       {/* ── How it works ── */}
