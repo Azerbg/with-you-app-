@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import CountryCitySelect from "@/components/CountryCitySelect";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
@@ -406,24 +407,13 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-              {fr ? "Pays de résidence" : "Country of residence"} <span className="text-red-400">*</span>
-            </label>
-            <input value={data.country} onChange={e => onChange("country", e.target.value)}
-              placeholder={fr ? "ex. France, Canada, Tunisie…" : "e.g. France, Canada, Tunisia…"}
-              className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-              {fr ? "Ville" : "City"}
-            </label>
-            <input value={data.city} onChange={e => onChange("city", e.target.value)}
-              placeholder={fr ? "ex. Montréal, Tunis, Paris…" : "e.g. Montreal, Tunis, Paris…"}
-              className={inputCls} />
-          </div>
-        </div>
+        <CountryCitySelect
+          country={data.country}
+          city={data.city}
+          onCountryChange={(name) => onChange("country", name)}
+          onCityChange={(name) => onChange("city", name)}
+          fr={fr}
+        />
 
         {/* Phone OTP verification — optional */}
         <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#6B5E44]/20 bg-[#FAFAF8]"}`}>
