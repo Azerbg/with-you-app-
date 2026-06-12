@@ -406,13 +406,23 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-            {fr ? "Pays de résidence" : "Country of residence"}
-          </label>
-          <input value={data.country} onChange={e => onChange("country", e.target.value)}
-            placeholder={fr ? "ex. France, Canada, Tunisie…" : "e.g. France, Canada, Tunisia…"}
-            className={inputCls} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Pays de résidence" : "Country of residence"} <span className="text-red-400">*</span>
+            </label>
+            <input value={data.country} onChange={e => onChange("country", e.target.value)}
+              placeholder={fr ? "ex. France, Canada, Tunisie…" : "e.g. France, Canada, Tunisia…"}
+              className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Ville" : "City"}
+            </label>
+            <input value={data.city} onChange={e => onChange("city", e.target.value)}
+              placeholder={fr ? "ex. Montréal, Tunis, Paris…" : "e.g. Montreal, Tunis, Paris…"}
+              className={inputCls} />
+          </div>
         </div>
 
         {/* Phone OTP verification — optional */}
@@ -1051,6 +1061,7 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
         <Row label="E-mail" value={data.email} />
         <Row label={fr ? "Date de naissance" : "Date of birth"} value={data.birthday} />
         <Row label={fr ? "Pays" : "Country"} value={data.country} />
+        <Row label={fr ? "Ville" : "City"} value={data.city} />
         <Row label={fr ? "Téléphone" : "Phone"} value={data.phone} />
         <Row label={fr ? "Langues enseignées" : "Languages"} value={data.languagesTaught.join(", ")} />
         <Row label={fr ? "Spécialisations" : "Specializations"} value={data.specializations.join(", ")} />
