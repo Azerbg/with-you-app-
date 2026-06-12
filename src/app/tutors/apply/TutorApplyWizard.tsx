@@ -26,9 +26,11 @@ interface FormData {
   yearsExperience: number;
   certifications:  string[];
   // Step 3
-  bio:                  string;
-  cvUrl:                string;
-  motivationLetterUrl:  string;
+  bio:                       string;
+  cvUrl:                     string;
+  cvFileName:                string;
+  motivationLetterUrl:       string;
+  motivationLetterFileName:  string;
   // Step 4
   availabilityDays:     string[];
   timeWindowPreference: string[];
@@ -728,13 +730,13 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
 
 // ─── Step 3: About You ────────────────────────────────────────────────────────
 
-function FileUploadZone({ label, required, hint, accept, value, onChange, fr }: {
+function FileUploadZone({ label, required, hint, accept, value, savedFileName, onChange, fr }: {
   label: string; required?: boolean; hint: string; accept: string;
-  value: string; onChange: (name: string, dataUrl: string) => void; fr: boolean;
+  value: string; savedFileName?: string; onChange: (name: string, dataUrl: string) => void; fr: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [fileName, setFileName] = useState(savedFileName ?? "");
   const [error, setError] = useState("");
 
   function handleFile(file: File) {
@@ -769,7 +771,7 @@ function FileUploadZone({ label, required, hint, accept, value, onChange, fr }: 
             <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" className="w-5 h-5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/></svg>
             </div>
-            <p className="text-sm font-semibold text-green-700">{fileName}</p>
+            <p className="text-sm font-semibold text-green-700">{fileName || savedFileName || (fr ? "Fichier chargé" : "File loaded")}</p>
             <p className="text-xs text-green-600">{fr ? "Fichier ajouté ✓ — cliquez pour changer" : "File added ✓ — click to change"}</p>
           </div>
         ) : (
@@ -840,7 +842,8 @@ function StepAbout({ data, onChange, onNext, onBack }: {
           hint={fr ? "PDF ou Word · max 10 Mo" : "PDF or Word · max 10 MB"}
           accept=".pdf,.doc,.docx"
           value={data.cvUrl}
-          onChange={(_name, dataUrl) => onChange("cvUrl", dataUrl)}
+          savedFileName={data.cvFileName}
+          onChange={(name, dataUrl) => { onChange("cvUrl", dataUrl); onChange("cvFileName", name); }}
           fr={fr}
         />
       </div>
@@ -853,7 +856,8 @@ function StepAbout({ data, onChange, onNext, onBack }: {
           hint={fr ? "PDF ou Word · max 10 Mo" : "PDF or Word · max 10 MB"}
           accept=".pdf,.doc,.docx"
           value={data.motivationLetterUrl}
-          onChange={(_name, dataUrl) => onChange("motivationLetterUrl", dataUrl)}
+          savedFileName={data.motivationLetterFileName}
+          onChange={(name, dataUrl) => { onChange("motivationLetterUrl", dataUrl); onChange("motivationLetterFileName", name); }}
           fr={fr}
         />
       </div>
@@ -996,7 +1000,8 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
         <Row label={fr ? "Spécialisations" : "Specializations"} value={data.specializations.join(", ")} />
         <Row label={fr ? "Expérience" : "Experience"} value={`${data.yearsExperience} ${fr ? "ans" : "yrs"}`} />
         <Row label={fr ? "Certifications" : "Certifications"} value={data.certifications.join(", ")} />
-        <Row label="CV" value={data.cvUrl} />
+        <Row label="CV" value={data.cvFileName ? `📎 ${data.cvFileName}` : (data.cvUrl ? (fr ? "✓ Fichier chargé" : "✓ File loaded") : "—")} />
+        <Row label={fr ? "Lettre de motivation" : "Cover letter"} value={data.motivationLetterFileName ? `📎 ${data.motivationLetterFileName}` : (data.motivationLetterUrl ? (fr ? "✓ Fichier chargé" : "✓ File loaded") : "—")} />
         <Row label={fr ? "Jours dispo." : "Avail. days"} value={data.availabilityDays.join(", ")} />
         <Row label={fr ? "Créneaux" : "Windows"} value={data.timeWindowPreference.join(", ")} />
       </div>
@@ -1071,7 +1076,7 @@ export default function TutorApplyWizard() {
   const [data, setData] = useState<FormData>({
     firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
-    bio: "", cvUrl: "", motivationLetterUrl: "",
+    bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "",
     availabilityDays: [], timeWindowPreference: [],
   });
 
