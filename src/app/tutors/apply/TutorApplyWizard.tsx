@@ -383,7 +383,7 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
     { val: "OTHER",             label: fr ? "Autre" : "Other" },
   ];
 
-  const isValid = data.languagesTaught.length > 0 && data.specializations.length > 0;
+  const isValid = data.languagesTaught.length > 0 && data.specializations.length > 0 && data.certifications.length > 0;
 
   return (
     <div>
@@ -448,7 +448,7 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
       {/* Certifications */}
       <div className="mb-6">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
-          {fr ? "Certifications (optionnel)" : "Certifications (optional)"}
+          {fr ? "Certifications" : "Certifications"}
         </label>
         <div className="flex flex-wrap gap-2">
           {certs.map(c => (
