@@ -13,6 +13,7 @@ export default async function TutorSessionsPage() {
     include: {
       hrApplication: {
         select: {
+          status: true,
           fullName: true,
           offerCurrency: true,
           offerHourlyRateTnd: true,

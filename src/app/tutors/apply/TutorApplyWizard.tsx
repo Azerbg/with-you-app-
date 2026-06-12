@@ -363,6 +363,9 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
   const { lang } = useLanguage();
   const fr = lang === "fr";
 
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openLang, setOpenLang] = useState<string | null>(null);
+
   function toggle(field: "languagesTaught" | "specializations" | "certifications", val: string) {
     const cur = data[field] as string[];
     onChange(field, cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]);
@@ -375,12 +378,60 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
     { val: "ACADEMIC",       label: fr ? "Académique"       : "Academic" },
     { val: "EXAM_PREP",      label: fr ? "Prépa examens"    : "Exam Prep" },
   ];
-  const certs = [
-    { val: "CELTA",             label: "CELTA" },
-    { val: "DALF",              label: "DALF / DELF" },
-    { val: "TESOL",             label: "TESOL / TEFL" },
-    { val: "UNIVERSITY_DEGREE", label: fr ? "Diplôme universitaire" : "University Degree" },
-    { val: "OTHER",             label: fr ? "Autre" : "Other" },
+
+  const certStructure = [
+    {
+      key: "linguistic",
+      label: fr ? "Certifications linguistiques" : "Language certifications",
+      children: [
+        {
+          key: "fr",
+          label: "Français",
+          items: [
+            { val: "DELF_A1", label: "DELF A1" },
+            { val: "DELF_A2", label: "DELF A2" },
+            { val: "DELF_B1", label: "DELF B1" },
+            { val: "DELF_B2", label: "DELF B2" },
+            { val: "DALF_C1", label: "DALF C1" },
+            { val: "DALF_C2", label: "DALF C2" },
+            { val: "TCF",     label: "TCF" },
+            { val: "TEF",     label: "TEF" },
+          ],
+        },
+        {
+          key: "en",
+          label: "Anglais",
+          items: [
+            { val: "TOEFL",          label: "TOEFL" },
+            { val: "IELTS",          label: "IELTS" },
+            { val: "CAMBRIDGE_FCE",  label: "Cambridge FCE" },
+            { val: "CAMBRIDGE_CAE",  label: "Cambridge CAE" },
+            { val: "CAMBRIDGE_CPE",  label: "Cambridge CPE" },
+          ],
+        },
+      ],
+    },
+    {
+      key: "teaching",
+      label: fr ? "Certifications en enseignement" : "Teaching certifications",
+      items: [
+        { val: "CELTA", label: "CELTA" },
+        { val: "TESOL", label: "TESOL" },
+        { val: "TEFL",  label: "TEFL" },
+        { val: "DELTA", label: "DELTA" },
+      ],
+    },
+    {
+      key: "academic",
+      label: fr ? "Diplômes académiques" : "Academic degrees",
+      items: [
+        { val: "DIPLOME_UNIV", label: fr ? "Diplôme universitaire"        : "University diploma" },
+        { val: "LICENCE",      label: fr ? "Premier cycle universitaire"  : "Bachelor's degree" },
+        { val: "MASTER",       label: fr ? "Deuxième cycle universitaire" : "Master's degree" },
+        { val: "DOCTORAT",     label: fr ? "Doctorat (PhD)"               : "Doctorate (PhD)" },
+        { val: "AUTRES",       label: fr ? "Autres diplômes équivalents"  : "Other equivalent degrees" },
+      ],
+    },
   ];
 
   const isValid = data.languagesTaught.length > 0 && data.specializations.length > 0 && data.certifications.length > 0;
@@ -449,17 +500,92 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
       <div className="mb-6">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
           {fr ? "Certifications" : "Certifications"}
+          {data.certifications.length > 0 && (
+            <span className="ml-2 text-xs bg-[#F5C400] text-[#5C3D00] px-2 py-0.5 rounded-full font-bold">
+              {data.certifications.length}
+            </span>
+          )}
         </label>
-        <div className="flex flex-wrap gap-2">
-          {certs.map(c => (
-            <button key={c.val} type="button" onClick={() => toggle("certifications", c.val)}
-              className={`px-3 py-1.5 rounded-full border-2 text-sm font-bold transition ${
-                data.certifications.includes(c.val) ? activeCard : `${inactiveCard} text-[#5C3D00]`
-              }`}>
-              {c.label}
-            </button>
+
+        <div className="border-2 border-[#E8DFC8] rounded-2xl overflow-hidden divide-y divide-[#E8DFC8]">
+          {certStructure.map((section) => (
+            <div key={section.key}>
+              {/* Section header */}
+              <button
+                type="button"
+                onClick={() => setOpenSection(openSection === section.key ? null : section.key)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FFFBEA] transition"
+              >
+                <span className="text-sm font-bold text-[#5C3D00]">{section.label}</span>
+                <svg
+                  viewBox="0 0 20 20" fill="currentColor"
+                  className={`w-4 h-4 text-[#9B8A6B] transition-transform ${openSection === section.key ? "rotate-180" : ""}`}
+                >
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Section body */}
+              {openSection === section.key && (
+                <div className="px-4 pb-4 pt-2 bg-[#FFFDF5]">
+
+                  {/* Linguistic: sub-languages */}
+                  {"children" in section ? (
+                    <div className="space-y-3">
+                      {section.children!.map((lang) => (
+                        <div key={lang.key}>
+                          <button
+                            type="button"
+                            onClick={() => setOpenLang(openLang === lang.key ? null : lang.key)}
+                            className="flex items-center gap-2 text-xs font-bold text-[#6B5E44] uppercase tracking-widest mb-2 hover:text-[#5C3D00] transition"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor"
+                              className={`w-3 h-3 transition-transform ${openLang === lang.key ? "rotate-90" : ""}`}>
+                              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                            {lang.label}
+                          </button>
+                          {openLang === lang.key && (
+                            <div className="flex flex-wrap gap-2 pl-4">
+                              {lang.items.map((item) => (
+                                <button key={item.val} type="button"
+                                  onClick={() => toggle("certifications", item.val)}
+                                  className={`px-3 py-1.5 rounded-full border-2 text-xs font-bold transition ${
+                                    data.certifications.includes(item.val) ? activeCard : `${inactiveCard} text-[#5C3D00]`
+                                  }`}>
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {section.items!.map((item) => (
+                        <button key={item.val} type="button"
+                          onClick={() => toggle("certifications", item.val)}
+                          className={`px-3 py-1.5 rounded-full border-2 text-xs font-bold transition ${
+                            data.certifications.includes(item.val) ? activeCard : `${inactiveCard} text-[#5C3D00]`
+                          }`}>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                </div>
+              )}
+            </div>
           ))}
         </div>
+
+        {data.certifications.length === 0 && (
+          <p className="text-xs text-[#9B8A6B] mt-2">
+            {fr ? "Sélectionnez au moins une certification pour continuer." : "Select at least one certification to continue."}
+          </p>
+        )}
       </div>
 
       <div className="flex gap-3">
