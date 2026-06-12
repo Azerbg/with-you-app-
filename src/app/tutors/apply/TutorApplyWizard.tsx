@@ -32,6 +32,7 @@ interface FormData {
   cvFileName:                string;
   motivationLetterUrl:       string;
   motivationLetterFileName:  string;
+  certificateFiles:          { type: string; name: string; dataUrl: string }[];
   // Step 4
   availabilityDays:     string[];
   timeWindowPreference: string[];
@@ -817,9 +818,10 @@ function FileUploadZone({ label, required, hint, accept, value, savedFileName, o
   );
 }
 
-function StepAbout({ data, onChange, onNext, onBack }: {
+function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string) => void;
+  onCertFilesChange: (files: CertFile[]) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
@@ -874,7 +876,7 @@ function StepAbout({ data, onChange, onNext, onBack }: {
       </div>
 
       {/* Lettre de motivation Upload */}
-      <div className="mb-6">
+      <div className="mb-5">
         <FileUploadZone
           label={fr ? "Lettre de motivation" : "Cover letter"}
           required
@@ -887,6 +889,15 @@ function StepAbout({ data, onChange, onNext, onBack }: {
         />
       </div>
 
+      {/* Documents justificatifs — multiple PDFs */}
+      <div className="mb-6">
+        <CertificateUploadList
+          files={data.certificateFiles}
+          onChange={onCertFilesChange}
+          fr={fr}
+        />
+      </div>
+
       <div className="flex gap-3">
         <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>
           {fr ? "Retour" : "Back"}
@@ -894,6 +905,171 @@ function StepAbout({ data, onChange, onNext, onBack }: {
         <button onClick={onNext} disabled={!isValid} className={`flex-1 py-2.5 ${btnPrimary}`}>
           {fr ? "Continuer" : "Continue"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Multi-document upload ────────────────────────────────────────────────────
+
+interface CertFile { type: string; name: string; dataUrl: string; }
+
+function CertificateUploadList({ files, onChange, fr }: {
+  files: CertFile[];
+  onChange: (files: CertFile[]) => void;
+  fr: boolean;
+}) {
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [errors, setErrors] = useState<Record<number, string>>({});
+
+  const DOC_TYPES = fr
+    ? ["Diplôme", "Attestation", "Certification", "Relevé de notes", "Autre"]
+    : ["Diploma", "Certificate", "Attestation", "Transcript", "Other"];
+
+  function addEntry() {
+    onChange([...files, { type: DOC_TYPES[0], name: "", dataUrl: "" }]);
+  }
+
+  function removeEntry(i: number) {
+    onChange(files.filter((_, idx) => idx !== i));
+    setErrors(prev => { const e = { ...prev }; delete e[i]; return e; });
+  }
+
+  function setType(i: number, type: string) {
+    const updated = [...files];
+    updated[i] = { ...updated[i], type };
+    onChange(updated);
+  }
+
+  function handleFile(i: number, file: File) {
+    if (!file.name.match(/\.pdf$/i)) {
+      setErrors(prev => ({ ...prev, [i]: fr ? "PDF uniquement." : "PDF only." }));
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, [i]: fr ? "Fichier trop lourd (max 10 Mo)." : "File too large (max 10 MB)." }));
+      return;
+    }
+    setErrors(prev => { const e = { ...prev }; delete e[i]; return e; });
+    const reader = new FileReader();
+    reader.onload = () => {
+      const updated = [...files];
+      updated[i] = { ...updated[i], name: file.name, dataUrl: reader.result as string };
+      onChange(updated);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-sm font-semibold text-[#5C3D00]">
+          {fr ? "Documents justificatifs" : "Supporting documents"}
+          <span className="ml-1.5 text-xs text-[#9B8A6B] font-normal">
+            ({fr ? "PDF uniquement · optionnel" : "PDF only · optional"})
+          </span>
+        </label>
+        {files.length < 8 && (
+          <button
+            type="button"
+            onClick={addEntry}
+            className="flex items-center gap-1.5 text-xs font-bold text-[#5C3D00] bg-[#FFF3B0] border border-[#F5C400]/50 px-3 py-1.5 rounded-full hover:bg-[#FFDE59]/40 transition"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd"/>
+            </svg>
+            {fr ? "Ajouter un document" : "Add document"}
+          </button>
+        )}
+      </div>
+
+      {files.length === 0 && (
+        <button
+          type="button"
+          onClick={addEntry}
+          className="w-full border-2 border-dashed border-[#6B5E44]/20 rounded-2xl py-6 flex flex-col items-center gap-2 hover:border-[#F5C400]/60 hover:bg-[#FFFBEA] transition cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[#F2EFE9] flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6B5E44" strokeWidth="2" className="w-5 h-5">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <p className="text-sm font-semibold text-[#5C3D00]">
+            {fr ? "Ajouter un diplôme ou une certification" : "Add a diploma or certification"}
+          </p>
+          <p className="text-xs text-[#9B8A6B]">
+            {fr ? "Vous pouvez en ajouter plusieurs (PDF uniquement)" : "You can add multiple (PDF only)"}
+          </p>
+        </button>
+      )}
+
+      <div className="space-y-3">
+        {files.map((f, i) => (
+          <div key={i} className={`rounded-2xl border-2 p-4 transition ${f.dataUrl ? "border-green-400 bg-green-50" : "border-[#E8DFC8] bg-white"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              {/* Type selector */}
+              <select
+                value={f.type}
+                onChange={e => setType(i, e.target.value)}
+                className="flex-1 border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] transition font-semibold"
+              >
+                {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {/* Remove */}
+              <button
+                type="button"
+                onClick={() => removeEntry(i)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-[#9B8A6B] hover:bg-red-50 hover:text-red-500 transition flex-shrink-0"
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Upload zone */}
+            <div
+              onClick={() => fileRefs.current[i]?.click()}
+              className={`border-2 border-dashed rounded-xl px-4 py-4 text-center cursor-pointer transition ${
+                f.dataUrl
+                  ? "border-green-400 bg-green-50/50"
+                  : "border-[#6B5E44]/20 hover:border-[#F5C400]/60 hover:bg-[#FFFBEA]"
+              }`}
+            >
+              {f.dataUrl ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-black text-red-600">PDF</span>
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-sm font-bold text-green-700 truncate">{f.name}</p>
+                    <p className="text-xs text-green-600">{fr ? "✓ Chargé — cliquez pour changer" : "✓ Loaded — click to change"}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#6B5E44" strokeWidth="2" className="w-5 h-5 flex-shrink-0">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  <p className="text-sm text-[#6B5E44]">
+                    {fr ? "Cliquer pour choisir un PDF" : "Click to choose a PDF"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {errors[i] && <p className="text-xs text-red-500 mt-1">{errors[i]}</p>}
+
+            <input
+              ref={el => { fileRefs.current[i] = el; }}
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={e => { const file = e.target.files?.[0]; if (file) handleFile(i, file); e.target.value = ""; }}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1084,6 +1260,12 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
         <Row label={fr ? "Certifications" : "Certifications"} value={data.certifications.join(", ")} />
         <Row label="CV" value={data.cvFileName ? `📎 ${data.cvFileName}` : (data.cvUrl ? (fr ? "✓ Fichier chargé" : "✓ File loaded") : "—")} />
         <Row label={fr ? "Lettre de motivation" : "Cover letter"} value={data.motivationLetterFileName ? `📎 ${data.motivationLetterFileName}` : (data.motivationLetterUrl ? (fr ? "✓ Fichier chargé" : "✓ File loaded") : "—")} />
+        {data.certificateFiles.filter(f => f.dataUrl).length > 0 && (
+          <Row
+            label={fr ? "Documents" : "Documents"}
+            value={data.certificateFiles.filter(f => f.dataUrl).map(f => `📎 ${f.type} — ${f.name}`).join(" · ")}
+          />
+        )}
         <Row label={fr ? "Jours dispo." : "Avail. days"} value={data.availabilityDays.join(", ")} />
         <Row label={fr ? "Créneaux" : "Windows"} value={data.timeWindowPreference.join(", ")} />
       </div>
@@ -1158,7 +1340,7 @@ export default function TutorApplyWizard() {
   const [data, setData] = useState<FormData>({
     firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
-    bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "",
+    bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "", certificateFiles: [],
     availabilityDays: [], timeWindowPreference: [],
   });
 
@@ -1182,7 +1364,8 @@ export default function TutorApplyWizard() {
       .catch(() => {});
   }, [isLoggedIn, loggedInEmail]);
 
-  function update(key: keyof FormData, value: string | string[] | number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function update(key: keyof FormData, value: any) {
     setData(prev => ({ ...prev, [key]: value }));
   }
 
@@ -1200,6 +1383,7 @@ export default function TutorApplyWizard() {
           ...data,
           fullName: data.fullName || `${data.firstName} ${data.lastName}`.trim(),
           useExistingAccount: isLoggedIn,
+          certificateUrls: data.certificateFiles.map(f => f.dataUrl).filter(Boolean),
         }),
       });
       const json = await res.json();
@@ -1346,7 +1530,7 @@ export default function TutorApplyWizard() {
                 <ProgressBar step={step} />
                 {step === 1 && <StepPersonal data={data} onChange={(k, v) => update(k, v as string)} onNext={next} phoneVerified={phoneVerified} onPhoneVerified={() => setPhoneVerified(true)} emailVerified={emailVerified} onEmailVerified={() => setEmailVerified(true)} isLoggedIn={isLoggedIn} loggedInEmail={loggedInEmail} />}
                 {step === 2 && <StepTeaching data={data} onChange={(k, v) => update(k, v as string[] | number)} onNext={next} onBack={back} />}
-                {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v as string)} onNext={next} onBack={back} />}
+                {step === 3 && <StepAbout data={data} onChange={(k, v) => update(k, v)} onCertFilesChange={(files) => update("certificateFiles", files)} onNext={next} onBack={back} />}
                 {step === 4 && <StepAvailability data={data} onChange={(k, v) => update(k, v as string[])} onNext={next} onBack={back} />}
                 {step === 5 && <StepReview data={data} onSubmit={handleSubmit} onBack={back} submitting={submitting} error={error} />}
               </div>
