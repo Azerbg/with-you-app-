@@ -1201,7 +1201,7 @@ export default function TutorApplyWizard() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mt-8">
           <p className="text-xs text-white/50 leading-relaxed">
             {fr
-              ? "WithYou accueille des tuteurs du monde entier. Peu importe votre pays, si vous maîtrisez le français ou l'anglais, nous voulons vous rencontrer."
+              ? "WithYou accueille des tuteurs du monde entier. Peu importe votre pays, si vous maîtrisez l'enseignement d'une langue, nous voulons vous rencontrer."
               : "WithYou welcomes tutors from around the world. Wherever you are, if you're fluent in French or English, we want to meet you."}
           </p>
         </div>
