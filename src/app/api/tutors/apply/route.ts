@@ -33,7 +33,7 @@ const baseSchema = z.object({
 
 const guestSchema = baseSchema.extend({
   email:    z.string().email(),
-  password: z.string().min(10),
+  password: z.string().min(8),
 });
 
 export async function POST(req: NextRequest) {

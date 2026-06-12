@@ -1094,7 +1094,11 @@ export default function TutorApplyWizard() {
       const res = await fetch("/api/tutors/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, useExistingAccount: isLoggedIn }),
+        body: JSON.stringify({
+          ...data,
+          fullName: data.fullName || `${data.firstName} ${data.lastName}`.trim(),
+          useExistingAccount: isLoggedIn,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -1103,8 +1107,13 @@ export default function TutorApplyWizard() {
           setError(lang === "fr" ? `Votre candidature a été rejetée. Vous pourrez postuler à nouveau le ${date}.` : `Your application was rejected. You may reapply on ${date}.`);
         } else if (json.error === "email_taken") {
           setError(lang === "fr" ? "Cette adresse e-mail est déjà utilisée." : "This email is already in use.");
+        } else if (json.error === "already_applied") {
+          setError(lang === "fr" ? "Une candidature existe déjà pour ce compte." : "An application already exists for this account.");
+        } else if (json.error === "validation" && json.issues) {
+          const first = json.issues[0];
+          setError(`Erreur de validation : ${first?.path?.join(".") ?? ""} — ${first?.message ?? "données invalides"}`);
         } else {
-          setError(lang === "fr" ? "Une erreur est survenue. Veuillez réessayer." : "Something went wrong. Please try again.");
+          setError(lang === "fr" ? `Erreur inattendue (${json.error ?? res.status}). Veuillez réessayer.` : `Unexpected error (${json.error ?? res.status}). Please try again.`);
         }
       } else {
         setSubmitted(true);
