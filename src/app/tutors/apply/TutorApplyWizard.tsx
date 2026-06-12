@@ -923,8 +923,8 @@ function CertificateUploadList({ files, onChange, fr }: {
   const [errors, setErrors] = useState<Record<number, string>>({});
 
   const DOC_TYPES = fr
-    ? ["Diplôme", "Attestation", "Certification", "Relevé de notes", "Autre"]
-    : ["Diploma", "Certificate", "Attestation", "Transcript", "Other"];
+    ? ["Diplôme", "Attestation de travail", "Certification", "Relevé de notes", "Attestation", "Autre"]
+    : ["Diploma", "Work attestation", "Certification", "Transcript", "Attestation", "Other"];
 
   function addEntry() {
     onChange([...files, { type: DOC_TYPES[0], name: "", dataUrl: "" }]);
