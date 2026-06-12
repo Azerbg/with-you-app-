@@ -15,16 +15,20 @@ interface HrNote {
 interface Application {
   id: string;
   fullName: string;
+  birthday: string | null;
+  gender: string | null;
+  country: string | null;
   city: string | null;
   phone: string | null;
   languagesTaught: string[];
   specializations: string[];
   certifications: string[];
+  englishLevel: string | null;
   yearsExperience: number | null;
   bio: string | null;
-  videoUrl: string | null;
   cvUrl: string | null;
   motivationLetterUrl: string | null;
+  certificateUrls: string[];
   availabilityDays: string[];
   timeWindowPreference: string[];
   status: string;
@@ -166,17 +170,31 @@ function DetailPanel({
         <div className="p-6 flex-1 space-y-6">
           {/* Contact */}
           <Section title="Contact">
-            <Row label="E-mail"    value={app.user.email} />
-            <Row label="Téléphone" value={app.phone} />
-            <Row label="Ville"     value={app.city} />
+            <Row label="E-mail"           value={app.user.email} />
+            <Row label="Téléphone"        value={app.phone} />
+            <Row label="Pays"             value={app.country} />
+            <Row label="Ville"            value={app.city} />
+            <Row label="Date de naissance" value={app.birthday ? new Date(app.birthday).toLocaleDateString("fr-FR") : null} />
+            <Row label="Sexe"             value={
+              app.gender === "M" ? "Homme" :
+              app.gender === "F" ? "Femme" :
+              app.gender === "PREFER_NOT_TO_SAY" ? "Préfère ne pas dire" : null
+            } />
           </Section>
 
           {/* Teaching */}
           <Section title="Profil d'enseignant">
-            <Row label="Langues"        value={app.languagesTaught.join(", ")} />
-            <Row label="Spécialisations" value={app.specializations.join(", ")} />
-            <Row label="Expérience"     value={app.yearsExperience != null ? `${app.yearsExperience} ans` : null} />
-            <Row label="Certifications" value={app.certifications.join(", ") || "Aucune"} />
+            <Row label="Langues"          value={app.languagesTaught.join(", ")} />
+            <Row label="Spécialisations"  value={app.specializations.join(", ")} />
+            <Row label="Expérience"       value={app.yearsExperience != null ? `${app.yearsExperience} ans` : null} />
+            <Row label="Niveau en anglais" value={
+              app.englishLevel === "BEGINNER"      ? "Débutant" :
+              app.englishLevel === "INTERMEDIATE"  ? "Intermédiaire" :
+              app.englishLevel === "ADVANCED"      ? "Avancé" :
+              app.englishLevel === "VERY_ADVANCED" ? "Très avancé" :
+              app.englishLevel === "PROFESSIONAL"  ? "Maîtrise professionnelle" : null
+            } />
+            <Row label="Certifications"   value={app.certifications.join(", ") || "Aucune"} />
           </Section>
 
           {/* Availability */}
@@ -193,7 +211,7 @@ function DetailPanel({
           )}
 
           {/* Documents */}
-          {(app.cvUrl || app.motivationLetterUrl) && (
+          {(app.cvUrl || app.motivationLetterUrl || app.certificateUrls?.length > 0) && (
             <Section title="Documents">
               <div className="flex flex-col gap-2">
                 {app.cvUrl && (
@@ -226,6 +244,22 @@ function DetailPanel({
                     </svg>
                   </a>
                 )}
+                {app.certificateUrls?.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    download={`Document_${i + 1}.pdf`}
+                    className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-black text-red-600">PDF</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">Document justificatif {i + 1}</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 ml-auto">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                    </svg>
+                  </a>
+                ))}
               </div>
             </Section>
           )}
@@ -342,6 +376,7 @@ function InterviewScheduler({ app, onScheduled }: { app: Application; onSchedule
       } else {
         const d = await res.json();
         setSent(true);
+        if (d.devMode) setError(`[DEV] Pas d'e-mail envoyé. Lien : ${d.selectionUrl}`);
         onScheduled(d.token);
       }
     } catch {

@@ -70,26 +70,36 @@ export async function POST(req: NextRequest) {
 
   const selectionUrl = `${BASE_URL}/interview/${token}`;
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM ?? "noreply@withyou.com",
-    to: app.user.email,
-    subject: "WithYou — Invitation à un entretien 🎉",
-    html: `
-      <div style="font-family:sans-serif;max-width:560px;margin:auto">
-        <h2 style="color:#5C3D00">Félicitations ${app.fullName} !</h2>
-        <p>Votre candidature a été présélectionnée. Nous aimerions vous inviter à un entretien avec notre équipe.</p>
-        <p><strong>Veuillez choisir l'un des créneaux suivants</strong> (heure de Tunis) :</p>
-        <ul style="padding-left:20px">${slotLines}</ul>
-        <a href="${selectionUrl}" style="display:inline-block;margin:20px 0;background:#F5C400;color:#5C3D00;padding:12px 28px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px">
-          Choisir mon créneau →
-        </a>
-        <p style="color:#6b7280;font-size:12px">
-          Ce lien expire après la sélection d'un créneau.<br>
-          WithYou · Plateforme d'apprentissage des langues
-        </p>
-      </div>
-    `,
-  });
+  if (!process.env.EMAIL_SERVER_HOST) {
+    // Dev mode: skip email, return token directly
+    return NextResponse.json({ success: true, token, selectionUrl, devMode: true });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM ?? "noreply@withyou.com",
+      to: app.user.email,
+      subject: "WithYou — Invitation à un entretien 🎉",
+      html: `
+        <div style="font-family:sans-serif;max-width:560px;margin:auto">
+          <h2 style="color:#5C3D00">Félicitations ${app.fullName} !</h2>
+          <p>Votre candidature a été présélectionnée. Nous aimerions vous inviter à un entretien avec notre équipe.</p>
+          <p><strong>Veuillez choisir l'un des créneaux suivants</strong> (heure de Tunis) :</p>
+          <ul style="padding-left:20px">${slotLines}</ul>
+          <a href="${selectionUrl}" style="display:inline-block;margin:20px 0;background:#F5C400;color:#5C3D00;padding:12px 28px;border-radius:50px;text-decoration:none;font-weight:700;font-size:15px">
+            Choisir mon créneau →
+          </a>
+          <p style="color:#6b7280;font-size:12px">
+            Ce lien expire après la sélection d'un créneau.<br>
+            WithYou · Plateforme d'apprentissage des langues
+          </p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("[interviews/propose] email failed:", err);
+    return NextResponse.json({ error: "email_failed" }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, token, selectionUrl });
 }

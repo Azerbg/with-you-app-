@@ -50,8 +50,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const canadaTime = formatInTz(slot, CANADA_TZ, "fr-CA");
   const meetingUrl = app.interviewMeetingUrl;
 
-  // Email to candidate
-  await transporter.sendMail({
+  // Emails are fire-and-forget — a failing email must never block slot confirmation
+  transporter.sendMail({
     from: process.env.EMAIL_FROM ?? "noreply@withyou.com",
     to: app.user.email,
     subject: "WithYou — Confirmation de votre entretien",
@@ -71,11 +71,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
       </div>
     `,
-  });
+  }).catch(() => {});
 
-  // Email to HR team
   if (process.env.HR_EMAIL) {
-    await transporter.sendMail({
+    transporter.sendMail({
       from: process.env.EMAIL_FROM ?? "noreply@withyou.com",
       to: process.env.HR_EMAIL,
       subject: `WithYou RH — Entretien confirmé : ${app.fullName}`,
@@ -90,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
           ${meetingUrl ? `<p>Lien : <a href="${meetingUrl}">${meetingUrl}</a></p>` : ""}
         </div>
       `,
-    });
+    }).catch(() => {});
   }
 
   return NextResponse.json({ success: true, scheduledAt: selectedAt });

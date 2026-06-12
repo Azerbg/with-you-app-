@@ -20,17 +20,26 @@ export async function POST(req: NextRequest) {
       update: { otp, expires, verified: false },
     });
 
-    const devMode = !process.env.EMAIL_SERVER_HOST;
+    const isProd = process.env.NODE_ENV === "production";
+    const hasEmailServer = !!process.env.EMAIL_SERVER_HOST;
 
-    if (!devMode) {
-      await sendEmailOtpCode(email, otp);
+    if (hasEmailServer) {
+      try {
+        await sendEmailOtpCode(email, otp);
+        return NextResponse.json({ success: true });
+      } catch (emailErr) {
+        if (isProd) {
+          // In production, a failing email is a real error
+          console.error("[email-otp] SMTP failed:", emailErr);
+          return NextResponse.json({ error: "email_send_failed" }, { status: 500 });
+        }
+        // In dev, fall through to return the OTP directly even if SMTP fails
+        console.warn("[email-otp] SMTP failed in dev, returning OTP directly:", emailErr);
+      }
     }
 
-    return NextResponse.json({
-      success: true,
-      devMode,
-      ...(devMode ? { otp } : {}),
-    });
+    // Dev fallback: no email server configured, or SMTP failed in dev
+    return NextResponse.json({ success: true, devMode: true, otp });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "invalid_email" }, { status: 422 });

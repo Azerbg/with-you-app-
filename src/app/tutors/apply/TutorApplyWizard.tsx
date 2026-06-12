@@ -19,6 +19,7 @@ interface FormData {
   confirmPassword: string;
   phone:     string;
   birthday:  string;
+  gender:    string;
   country:   string;
   city:      string;
   // Step 2
@@ -111,7 +112,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const pwStrong = Object.values(checks).every(Boolean);
   const pwMatch  = data.password === data.confirmPassword && data.confirmPassword !== "";
 
-  const isValid = data.firstName && data.lastName && data.phone && data.birthday && data.country &&
+  const isValid = data.firstName && data.lastName && data.phone && data.birthday && data.gender && data.country &&
     (isLoggedIn || (data.email && pwStrong && pwMatch && emailVerified));
 
   async function sendEmailOtp() {
@@ -126,7 +127,13 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
         body: JSON.stringify({ email: data.email }),
       });
       const json = await res.json();
-      if (!res.ok) { setEmailOtpError(fr ? "Échec de l'envoi du code." : "Failed to send code."); return; }
+      if (!res.ok) {
+        const msg = json.error === "email_send_failed"
+          ? (fr ? "Impossible d'envoyer l'e-mail. Vérifiez votre adresse ou réessayez." : "Could not send the email. Check your address and try again.")
+          : (fr ? "Erreur serveur. Veuillez réessayer." : "Server error. Please try again.");
+        setEmailOtpError(msg);
+        return;
+      }
       setEmailOtpSent(true);
       prevEmail.current = data.email;
       if (json.devMode && json.otp) setDevEmailOtp(json.otp);
@@ -431,6 +438,31 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
             </label>
             <input value={data.phone} onChange={e => { onChange("phone", e.target.value); if (e.target.value !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); } }}
               placeholder="+1 555 000 0000" className={inputCls} />
+          </div>
+        </div>
+
+        {/* Gender */}
+        <div>
+          <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
+            {fr ? "Sexe" : "Gender"} <span className="text-red-400">*</span>
+          </label>
+          <div className="flex gap-3">
+            {[
+              { val: "M",               labelFr: "Homme",              labelEn: "Male" },
+              { val: "F",               labelFr: "Femme",              labelEn: "Female" },
+              { val: "PREFER_NOT_TO_SAY", labelFr: "Préfère ne pas dire", labelEn: "Prefer not to say" },
+            ].map(opt => (
+              <button
+                key={opt.val}
+                type="button"
+                onClick={() => onChange("gender", opt.val)}
+                className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition ${
+                  data.gender === opt.val ? activeCard : `${inactiveCard} text-[#5C3D00]`
+                }`}
+              >
+                {fr ? opt.labelFr : opt.labelEn}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1299,6 +1331,11 @@ function StepReview({ data, onSubmit, onBack, submitting, error }: {
         <Row label={fr ? "Nom de famille" : "Last name"} value={data.lastName} />
         <Row label="E-mail" value={data.email} />
         <Row label={fr ? "Date de naissance" : "Date of birth"} value={data.birthday} />
+        <Row label={fr ? "Sexe" : "Gender"} value={
+          data.gender === "M" ? (fr ? "Homme" : "Male") :
+          data.gender === "F" ? (fr ? "Femme" : "Female") :
+          data.gender === "PREFER_NOT_TO_SAY" ? (fr ? "Préfère ne pas dire" : "Prefer not to say") : "—"
+        } />
         <Row label={fr ? "Pays" : "Country"} value={data.country} />
         <Row label={fr ? "Ville" : "City"} value={data.city} />
         <Row label={fr ? "Téléphone" : "Phone"} value={data.phone} />
@@ -1386,7 +1423,7 @@ export default function TutorApplyWizard() {
   const [emailVerified, setEmailVerified] = useState(false);
 
   const [data, setData] = useState<FormData>({
-    firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
+    firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", gender: "", country: "", city: "",
     languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [], englishLevel: "",
     bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "", certificateFiles: [],
     availabilityDays: [], timeWindowPreference: [],
