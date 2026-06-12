@@ -104,6 +104,11 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
         const existing = await db.user.findUnique({ where: { email: user.email } });
+        // Split Google full name into firstName + lastName
+        const nameParts = (user.name ?? "").trim().split(/\s+/);
+        const firstName = nameParts[0] ?? null;
+        const lastName = nameParts.slice(1).join(" ") || null;
+
         if (!existing) {
           await db.user.create({
             data: {
@@ -111,7 +116,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
               image: null,
               emailVerified: new Date(),
               role: Role.STUDENT,
+              firstName,
+              lastName,
             },
+          });
+        } else if (!existing.firstName && firstName) {
+          // Back-fill name if missing
+          await db.user.update({
+            where: { email: user.email },
+            data: { firstName, lastName },
           });
         }
         return true;
