@@ -197,6 +197,29 @@ export async function sendInterviewEmail(
   });
 }
 
+export async function sendEmailOtpCode(email: string, otp: string) {
+  await transporter.sendMail({
+    from: FROM,
+    to: email,
+    subject: "Votre code de vérification WithYou",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto">
+        <div style="background:#5C3D00;padding:24px 32px;border-radius:16px 16px 0 0;text-align:center">
+          <span style="font-size:28px;font-weight:900;color:#F5C400;letter-spacing:-1px">WithYou</span>
+        </div>
+        <div style="background:#fff;padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
+          <h2 style="margin:0 0 8px;font-size:20px;color:#2D1A00">Confirmez votre adresse e-mail</h2>
+          <p style="color:#6B5E44;font-size:14px;margin:0 0 24px">Utilisez le code ci-dessous pour vérifier votre adresse e-mail. Il expire dans 10 minutes.</p>
+          <div style="background:#FFF3B0;border:2px solid #F5C400;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
+            <span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#5C3D00;font-family:monospace">${otp}</span>
+          </div>
+          <p style="color:#9B8A6B;font-size:12px;margin:0">Si vous n'avez pas demandé ce code, ignorez cet e-mail.</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendPasswordResetEmail(email: string, token: string) {
   const url = `${BASE_URL}/auth/reset-password?token=${token}`;
 
