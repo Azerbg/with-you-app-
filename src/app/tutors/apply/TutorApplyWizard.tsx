@@ -26,6 +26,7 @@ interface FormData {
   specializations: string[];
   yearsExperience: number;
   certifications:  string[];
+  englishLevel:    string;
   // Step 3
   bio:                       string;
   cvUrl:                     string;
@@ -588,7 +589,16 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
     },
   ];
 
-  const isValid = data.languagesTaught.length > 0 && data.specializations.length > 0 && data.certifications.length > 0;
+  const ENGLISH_LEVELS = [
+    { val: "BEGINNER",     labelFr: "Débutant",                labelEn: "Beginner" },
+    { val: "INTERMEDIATE", labelFr: "Intermédiaire",           labelEn: "Intermediate" },
+    { val: "ADVANCED",     labelFr: "Avancé",                  labelEn: "Advanced" },
+    { val: "VERY_ADVANCED",labelFr: "Très avancé",             labelEn: "Very advanced" },
+    { val: "PROFESSIONAL", labelFr: "Maîtrise professionnelle",labelEn: "Professional proficiency" },
+  ];
+
+  const englishOk = data.englishLevel !== "" && data.englishLevel !== "BEGINNER";
+  const isValid = data.languagesTaught.length > 0 && data.specializations.length > 0 && data.certifications.length > 0 && englishOk;
 
   return (
     <div>
@@ -648,6 +658,44 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* English level */}
+      <div className="mb-5">
+        <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
+          {fr ? "Niveau en anglais" : "English level"} <span className="text-red-400">*</span>
+        </label>
+        <div className="flex flex-col gap-2">
+          {ENGLISH_LEVELS.map(lvl => (
+            <button
+              key={lvl.val}
+              type="button"
+              onClick={() => onChange("englishLevel" as keyof FormData, lvl.val as unknown as string[])}
+              className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm font-bold transition ${
+                data.englishLevel === lvl.val ? activeCard : `${inactiveCard} text-[#5C3D00]`
+              }`}
+            >
+              <span>{fr ? lvl.labelFr : lvl.labelEn}</span>
+              {data.englishLevel === lvl.val && (
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#5C3D00]">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+        {data.englishLevel === "BEGINNER" && (
+          <p className="text-xs text-red-500 mt-2">
+            {fr
+              ? "Un niveau minimum Intermédiaire en anglais est requis pour enseigner sur notre plateforme."
+              : "A minimum Intermediate English level is required to teach on our platform."}
+          </p>
+        )}
+        {data.englishLevel === "" && (
+          <p className="text-xs text-[#9B8A6B] mt-2">
+            {fr ? "Sélectionnez votre niveau en anglais pour continuer." : "Select your English level to continue."}
+          </p>
+        )}
       </div>
 
       {/* Certifications */}
@@ -1339,7 +1387,7 @@ export default function TutorApplyWizard() {
 
   const [data, setData] = useState<FormData>({
     firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", country: "", city: "",
-    languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [],
+    languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [], englishLevel: "",
     bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "", certificateFiles: [],
     availabilityDays: [], timeWindowPreference: [],
   });
