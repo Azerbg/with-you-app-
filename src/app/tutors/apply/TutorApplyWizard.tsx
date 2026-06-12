@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -876,6 +876,17 @@ function StepAbout({ data, onChange, onNext, onBack }: {
 
 // ─── Step 4: Availability ─────────────────────────────────────────────────────
 
+// Convert a Tunisia time hour (UTC+1) to the user's local timezone hour
+function tunisToLocal(tunisHour: number): number {
+  const userOffsetHours = -new Date().getTimezoneOffset() / 60; // e.g. -5 for EST
+  const tunisOffset = 1; // Africa/Tunis = UTC+1 year-round
+  return ((tunisHour + userOffsetHours - tunisOffset) % 24 + 24) % 24;
+}
+
+function fmtH(h: number): string {
+  return `${String(h).padStart(2, "0")}h`;
+}
+
 function StepAvailability({ data, onChange, onNext, onBack }: {
   data: FormData;
   onChange: (k: keyof FormData, v: string[]) => void;
@@ -884,14 +895,34 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
+  const [detectedTz, setDetectedTz] = useState("");
+
+  // Auto-detect timezone on mount
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) setDetectedTz(tz);
+  }, []);
+
+  const userOffsetHours = -new Date().getTimezoneOffset() / 60;
+  const isTunisTz = Math.abs(userOffsetHours - 1) < 0.1;
 
   const dayLabels: Record<string, string> = fr
     ? { MON: "Lun", TUE: "Mar", WED: "Mer", THU: "Jeu", FRI: "Ven", SAT: "Sam", SUN: "Dim" }
     : { MON: "Mon", TUE: "Tue", WED: "Wed", THU: "Thu", FRI: "Fri", SAT: "Sat", SUN: "Sun" };
 
-  const windows = fr
-    ? [{ val: "MORNING", label: "Matin", time: "6h–12h" }, { val: "AFTERNOON", label: "Après-midi", time: "12h–18h" }, { val: "EVENING", label: "Soir", time: "18h–23h" }]
-    : [{ val: "MORNING", label: "Morning", time: "6 AM–12 PM" }, { val: "AFTERNOON", label: "Afternoon", time: "12–6 PM" }, { val: "EVENING", label: "Evening", time: "6–11 PM" }];
+  // Tunisia reference times; converted to local for display
+  const TUNIS_WINDOWS = [
+    { val: "MORNING",   labelFr: "Matin",       labelEn: "Morning",   startT: 6,  endT: 12 },
+    { val: "AFTERNOON", labelFr: "Après-midi",  labelEn: "Afternoon", startT: 12, endT: 18 },
+    { val: "EVENING",   labelFr: "Soir",        labelEn: "Evening",   startT: 18, endT: 23 },
+  ];
+
+  const windows = TUNIS_WINDOWS.map(w => ({
+    val: w.val,
+    label: fr ? w.labelFr : w.labelEn,
+    localTime: `${fmtH(tunisToLocal(w.startT))}–${fmtH(tunisToLocal(w.endT))}`,
+    tunisTime: `${fmtH(w.startT)}–${fmtH(w.endT)}`,
+  }));
 
   function toggleDay(d: string) {
     const cur = data.availabilityDays;
@@ -910,11 +941,26 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
       <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">
         {fr ? "Vos disponibilités" : "Your Availability"}
       </h2>
-      <p className="text-[#6B5E44] text-sm mb-6">
+      <p className="text-[#6B5E44] text-sm mb-4">
         {fr
           ? "Indiquez quand vous êtes disponible pour donner des cours."
           : "Let us know when you're available to teach."}
       </p>
+
+      {/* Timezone banner */}
+      {detectedTz && (
+        <div className="flex items-center gap-2 bg-[#F0F7FF] border border-blue-200 rounded-xl px-4 py-2.5 mb-5">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-500 flex-shrink-0">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+          </svg>
+          <p className="text-xs text-blue-700 font-semibold">
+            {fr ? "Fuseau détecté :" : "Detected timezone:"}{" "}
+            <span className="font-bold">{detectedTz}</span>
+            {" · "}
+            {fr ? "Les horaires sont affichés dans votre heure locale." : "Times shown in your local time."}
+          </p>
+        </div>
+      )}
 
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
@@ -933,9 +979,16 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
-          {fr ? "Créneaux horaires (heure de Tunis)" : "Time windows (Tunisia time)"}
+        <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+          {fr ? "Créneaux horaires" : "Time windows"}
         </label>
+        {!isTunisTz && (
+          <p className="text-[11px] text-[#9B8A6B] mb-2">
+            {fr
+              ? `Heure locale · Entre parenthèses : heure de Tunis (UTC+1)`
+              : `Local time · In parentheses: Tunisia time (UTC+1)`}
+          </p>
+        )}
         <div className="flex gap-3">
           {windows.map(w => (
             <button key={w.val} type="button" onClick={() => toggleWindow(w.val)}
@@ -943,7 +996,10 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
                 data.timeWindowPreference.includes(w.val) ? activeCard : `${inactiveCard} text-[#5C3D00]`
               }`}>
               <span className="font-bold">{w.label}</span>
-              <span className="text-xs mt-0.5 text-[#6B5E44]">{w.time}</span>
+              <span className="text-xs mt-0.5 text-[#6B5E44] font-semibold">{w.localTime}</span>
+              {!isTunisTz && (
+                <span className="text-[10px] mt-0.5 text-[#9B8A6B]">({w.tunisTime} Tunis)</span>
+              )}
             </button>
           ))}
         </div>
