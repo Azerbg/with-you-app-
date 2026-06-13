@@ -129,7 +129,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
       const json = await res.json();
       if (!res.ok) {
         const msg = json.error === "email_send_failed"
-          ? (fr ? "Impossible d'envoyer l'e-mail. Vérifiez votre adresse ou réessayez." : "Could not send the email. Check your address and try again.")
+          ? `SMTP: ${json.detail ?? "erreur inconnue"}`
           : (fr ? "Erreur serveur. Veuillez réessayer." : "Server error. Please try again.");
         setEmailOtpError(msg);
         return;
@@ -1484,7 +1484,7 @@ export default function TutorApplyWizard() {
           const first = json.issues[0];
           setError(`Erreur de validation : ${first?.path?.join(".") ?? ""} — ${first?.message ?? "données invalides"}`);
         } else {
-          setError(lang === "fr" ? `Erreur inattendue (${json.error ?? res.status}). Veuillez réessayer.` : `Unexpected error (${json.error ?? res.status}). Please try again.`);
+          setError(`[${json.error ?? res.status}] ${json.detail ?? (lang === "fr" ? "Erreur inattendue." : "Unexpected error.")}`);
         }
       } else {
         setSubmitted(true);

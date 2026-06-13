@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
       } catch (emailErr) {
         if (isProd) {
           // In production, a failing email is a real error
+          const detail = emailErr instanceof Error ? emailErr.message : String(emailErr);
           console.error("[email-otp] SMTP failed:", emailErr);
-          return NextResponse.json({ error: "email_send_failed" }, { status: 500 });
+          return NextResponse.json({ error: "email_send_failed", detail }, { status: 500 });
         }
         // In dev, fall through to return the OTP directly even if SMTP fails
         console.warn("[email-otp] SMTP failed in dev, returning OTP directly:", emailErr);

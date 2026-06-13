@@ -5,6 +5,9 @@ import { sendTutorApplicationConfirmation } from "@/lib/email";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 const baseSchema = z.object({
   // Step 1 — Personal
   fullName:  z.string().min(2),
@@ -89,7 +92,7 @@ export async function POST(req: NextRequest) {
             phoneVerified,
           },
         }),
-        db.user.update({ where: { id: userId }, data: { role: "TUTOR" } }),
+        db.user.update({ where: { id: userId }, data: { role: "TUTOR", gender: data.gender ?? null } }),
       ]);
 
       if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
@@ -124,6 +127,7 @@ export async function POST(req: NextRequest) {
         email:    data.email,
         password: hashed,
         role:     "TUTOR",
+        gender:   data.gender ?? null,
         hrApplication: {
           create: {
             fullName:            data.fullName,
@@ -157,7 +161,8 @@ export async function POST(req: NextRequest) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "validation", issues: err.issues }, { status: 422 });
     }
+    const detail = err instanceof Error ? err.message : String(err);
     console.error("[tutors/apply]", err);
-    return NextResponse.json({ error: "server_error" }, { status: 500 });
+    return NextResponse.json({ error: "server_error", detail }, { status: 500 });
   }
 }
