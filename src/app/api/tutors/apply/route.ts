@@ -123,9 +123,10 @@ export async function POST(req: NextRequest) {
 
     const user = await db.user.create({
       data: {
-        email:    data.email,
-        password: hashed,
-        role:     "TUTOR",
+        email:         data.email,
+        password:      hashed,
+        role:          "TUTOR",
+        emailVerified: new Date(),
         hrApplication: {
           create: {
             fullName:            data.fullName,
