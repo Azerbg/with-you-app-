@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
             phoneVerified,
           },
         }),
-        db.user.update({ where: { id: userId }, data: { role: "TUTOR", gender: data.gender ?? null } }),
+        db.user.update({ where: { id: userId }, data: { role: "TUTOR" } }),
       ]);
 
       if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
@@ -127,7 +127,6 @@ export async function POST(req: NextRequest) {
         email:    data.email,
         password: hashed,
         role:     "TUTOR",
-        gender:   data.gender ?? null,
         hrApplication: {
           create: {
             fullName:            data.fullName,

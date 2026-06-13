@@ -116,7 +116,6 @@ model User {
   firstName     String?
   lastName      String?
   nickname      String?
-  gender        String?   // M | F | PREFER_NOT_TO_SAY
   pendingImage  String?
   role          Role      @default(STUDENT)
   locale        String    @default("en")
