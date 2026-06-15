@@ -40,30 +40,36 @@ interface Application {
   interviewSelectedAt?: string | null;
   interviewScheduledAt?: string | null;
   interviewMeetingUrl?: string | null;
+  videoSubmissionUrl?: string | null;
+  videoSubmittedAt?: string | null;
 }
 
 // ─── Kanban columns ───────────────────────────────────────────────────────────
 
 const COLUMNS: { key: string; label: string; sublabel: string; color: string; icon: string }[] = [
-  { key: "INCOMPLETE",           label: "Tri auto",           sublabel: "Dossier incomplet",      color: "bg-gray-50 border-gray-300",    icon: "⚙️" },
-  { key: "NEW",                  label: "Nouveau",            sublabel: "Reçu, à traiter",         color: "bg-blue-50 border-blue-200",    icon: "📥" },
-  { key: "STAGE1_REVIEW",        label: "À évaluer",          sublabel: "Dossier complet",         color: "bg-yellow-50 border-yellow-200",icon: "🔍" },
-  { key: "INTERVIEW_SCHEDULED",  label: "Entretien",          sublabel: "RDV planifié",            color: "bg-purple-50 border-purple-200",icon: "🎙️" },
-  { key: "INTERVIEW_COMPLETE",   label: "Délibération",       sublabel: "Entretien terminé",       color: "bg-orange-50 border-orange-200",icon: "⏳" },
-  { key: "RESERVE",              label: "Réserve",            sublabel: "Qualifié, en attente",    color: "bg-sky-50 border-sky-200",      icon: "📋" },
-  { key: "OFFER_PENDING",        label: "Offre envoyée",      sublabel: "En attente de signature", color: "bg-pink-50 border-pink-200",    icon: "📄" },
-  { key: "SIGNED",               label: "Signé",              sublabel: "Contrat signé",           color: "bg-teal-50 border-teal-200",    icon: "✍️" },
-  { key: "ACTIVE",               label: "Actif ✓",            sublabel: "En ligne",                color: "bg-green-50 border-green-200",  icon: "🟢" },
-  { key: "REJECTED",             label: "Rejeté",             sublabel: "",                        color: "bg-red-50 border-red-200",      icon: "❌" },
+  { key: "INCOMPLETE",          label: "Tri auto",          sublabel: "Dossier incomplet",       color: "bg-gray-50 border-gray-300",     icon: "⚙️" },
+  { key: "NEW",                 label: "Nouveau",           sublabel: "Reçu, à traiter",          color: "bg-blue-50 border-blue-200",     icon: "📥" },
+  { key: "STAGE1_REVIEW",       label: "À évaluer",         sublabel: "Dossier complet",          color: "bg-yellow-50 border-yellow-200", icon: "🔍" },
+  { key: "VIDEO_REQUESTED",     label: "Vidéo demandée",    sublabel: "En attente candidat",      color: "bg-amber-50 border-amber-200",   icon: "🎬" },
+  { key: "VIDEO_SUBMITTED",     label: "Vidéo reçue",       sublabel: "À visionner",              color: "bg-violet-50 border-violet-200", icon: "▶️" },
+  { key: "INTERVIEW_SCHEDULED", label: "Entretien",         sublabel: "RDV planifié",             color: "bg-purple-50 border-purple-200", icon: "🎙️" },
+  { key: "INTERVIEW_COMPLETE",  label: "Délibération",      sublabel: "Entretien terminé",        color: "bg-orange-50 border-orange-200", icon: "⏳" },
+  { key: "RESERVE",             label: "Réserve",           sublabel: "Qualifié, en attente",     color: "bg-sky-50 border-sky-200",       icon: "📋" },
+  { key: "OFFER_PENDING",       label: "Offre envoyée",     sublabel: "Signature en attente",     color: "bg-pink-50 border-pink-200",     icon: "📄" },
+  { key: "SIGNED",              label: "Signé ✍️",           sublabel: "Contrat accepté",          color: "bg-teal-50 border-teal-200",     icon: "✅" },
+  { key: "ACTIVE",              label: "Actif ✓",           sublabel: "En ligne",                 color: "bg-green-50 border-green-200",   icon: "🟢" },
+  { key: "REJECTED",            label: "Rejeté",            sublabel: "",                         color: "bg-red-50 border-red-200",       icon: "❌" },
 ];
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   INCOMPLETE:          ["NEW", "REJECTED"],
   NEW:                 ["STAGE1_REVIEW", "INCOMPLETE", "REJECTED"],
-  STAGE1_REVIEW:       ["INTERVIEW_SCHEDULED", "RESERVE", "REJECTED"],
+  STAGE1_REVIEW:       ["VIDEO_REQUESTED", "RESERVE", "REJECTED"],
+  VIDEO_REQUESTED:     ["VIDEO_SUBMITTED", "STAGE1_REVIEW", "REJECTED"],
+  VIDEO_SUBMITTED:     ["INTERVIEW_SCHEDULED", "RESERVE", "REJECTED"],
   INTERVIEW_SCHEDULED: ["INTERVIEW_COMPLETE", "REJECTED"],
   INTERVIEW_COMPLETE:  ["OFFER_PENDING", "RESERVE", "REJECTED"],
-  RESERVE:             ["STAGE1_REVIEW", "OFFER_PENDING", "REJECTED"],
+  RESERVE:             ["STAGE1_REVIEW", "VIDEO_REQUESTED", "OFFER_PENDING", "REJECTED"],
   OFFER_PENDING:       ["SIGNED", "REJECTED"],
   SIGNED:              ["ACTIVE", "REJECTED"],
   ACTIVE:              [],
@@ -320,6 +326,42 @@ function DetailPanel({
                   onStatusChange(app.id, "INTERVIEW_SCHEDULED");
                 }}
               />
+            </Section>
+          )}
+
+          {/* Video viewer — shown when VIDEO_SUBMITTED */}
+          {app.status === "VIDEO_SUBMITTED" && app.videoSubmissionUrl && (
+            <Section title="Video de presentation">
+              {app.videoSubmittedAt && (
+                <p className="text-xs text-[#6B5E44] mb-3">
+                  Recue le {new Date(app.videoSubmittedAt).toLocaleString("fr-FR")}
+                </p>
+              )}
+              {app.videoSubmissionUrl.startsWith("data:video") ? (
+                <video
+                  src={app.videoSubmissionUrl}
+                  controls
+                  className="w-full rounded-xl border border-[#C4BAA8] bg-black"
+                  style={{ maxHeight: 280 }}
+                />
+              ) : (
+                <a
+                  href={app.videoSubmissionUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
+                >
+                  <span className="text-xl">▶️</span>
+                  <div>
+                    <p className="text-sm font-bold text-violet-800">Visionner la video</p>
+                    <p className="text-xs text-violet-500 truncate max-w-xs">{app.videoSubmissionUrl}</p>
+                  </div>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                  </svg>
+                </a>
+              )}
             </Section>
           )}
 

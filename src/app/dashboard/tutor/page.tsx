@@ -3,25 +3,30 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import TutorDashboardContent from "./TutorDashboardContent";
+import VideoSubmissionPanel from "./VideoSubmissionPanel";
+import OfferAcceptancePanel from "./OfferAcceptancePanel";
 
 const STAGE_INFO: Record<string, { label: string; desc: string; color: string; step: number }> = {
-  NEW:                 { label: "Candidature reçue",      desc: "Notre équipe RH va examiner votre dossier sous 3–5 jours ouvrables.",          color: "bg-blue-50 border-blue-200 text-blue-700",    step: 1 },
-  STAGE1_REVIEW:       { label: "Examen en cours",         desc: "Un responsable RH examine votre candidature. Nous vous contacterons bientôt.",  color: "bg-yellow-50 border-yellow-200 text-yellow-700", step: 2 },
-  INTERVIEW_SCHEDULED: { label: "Entretien planifié",       desc: "Votre entretien est confirmé. Vérifiez votre email pour les détails.",          color: "bg-purple-50 border-purple-200 text-purple-700", step: 3 },
+  INCOMPLETE:          { label: "Dossier incomplet",        desc: "Votre dossier est incomplet. Veuillez le compléter pour continuer.",           color: "bg-gray-50 border-gray-300 text-gray-700",    step: 1 },
+  NEW:                 { label: "Candidature reçue",        desc: "Notre équipe RH va examiner votre dossier sous 3–5 jours ouvrables.",          color: "bg-blue-50 border-blue-200 text-blue-700",    step: 1 },
+  STAGE1_REVIEW:       { label: "Examen en cours",          desc: "Un responsable RH examine votre candidature. Nous vous contacterons bientôt.", color: "bg-yellow-50 border-yellow-200 text-yellow-700", step: 2 },
+  VIDEO_REQUESTED:     { label: "Vidéo demandée",           desc: "L'équipe RH a examiné votre dossier et souhaite vous voir en vidéo. Suivez les consignes ci-dessous.", color: "bg-amber-50 border-amber-300 text-amber-800", step: 3 },
+  VIDEO_SUBMITTED:     { label: "Vidéo en cours d'examen", desc: "Votre vidéo a bien été reçue. L'équipe RH l'examine et reviendra vers vous sous 3–5 jours.", color: "bg-amber-50 border-amber-200 text-amber-700", step: 3 },
+  INTERVIEW_SCHEDULED: { label: "Entretien planifié",       desc: "Votre entretien est confirmé. Vérifiez votre email pour les détails.",          color: "bg-purple-50 border-purple-200 text-purple-700", step: 4 },
   INTERVIEW_COMPLETE:  { label: "Entretien terminé",        desc: "L'équipe RH délibère. Vous recevrez une réponse très prochainement.",           color: "bg-orange-50 border-orange-200 text-orange-700", step: 4 },
-  OFFER_PENDING:       { label: "Offre en attente",         desc: "Une offre vous a été envoyée par email. Veuillez la signer pour continuer.",    color: "bg-pink-50 border-pink-200 text-pink-700",    step: 5 },
-  SIGNED:              { label: "Contrat signé",            desc: "Votre contrat a été signé. Activation en cours…",                              color: "bg-teal-50 border-teal-200 text-teal-700",    step: 6 },
-  ACTIVE:              { label: "Profil actif",             desc: "Bienvenue dans l'équipe WithYou ! Complétez votre profil pour apparaître dans les recherches.", color: "bg-green-50 border-green-200 text-green-700", step: 7 },
+  RESERVE:             { label: "Candidature en réserve",   desc: "Votre profil est retenu mais nous n'avons pas de poste disponible pour le moment. Nous vous contacterons en priorité.", color: "bg-sky-50 border-sky-200 text-sky-700", step: 2 },
+  OFFER_PENDING:       { label: "Offre à accepter",         desc: "Félicitations ! Une offre vous a été préparée. Lisez-la attentivement et acceptez-la ci-dessous.", color: "bg-pink-50 border-pink-300 text-pink-800", step: 5 },
+  SIGNED:              { label: "Contrat signé",            desc: "Votre offre a été acceptée. L'activation de votre profil est en cours…",       color: "bg-teal-50 border-teal-200 text-teal-700",    step: 5 },
+  ACTIVE:              { label: "Profil actif",             desc: "Bienvenue dans l'équipe WithYou ! Complétez votre profil pour apparaître dans les recherches.", color: "bg-green-50 border-green-200 text-green-700", step: 6 },
   REJECTED:            { label: "Candidature rejetée",      desc: "Votre candidature n'a pas été retenue cette fois. Vous pouvez postuler à nouveau après 90 jours.", color: "bg-red-50 border-red-200 text-red-700", step: 0 },
 };
 
 const STEPS = [
-  "Candidature reçue",
+  "Candidature",
   "Examen RH",
+  "Vidéo",
   "Entretien",
-  "Délibération",
   "Offre",
-  "Contrat signé",
   "Actif",
 ];
 
@@ -37,6 +42,7 @@ export default async function TutorDashboardPage() {
         select: {
           status: true,
           fullName: true,
+          languagesTaught: true,
           interviewScheduledAt: true,
           interviewMeetingUrl: true,
           reapplyAfter: true,
@@ -44,6 +50,8 @@ export default async function TutorDashboardPage() {
           offerHourlyRateTnd: true,
           offerHourlyRateCad: true,
           offerMaxWeeklyHours: true,
+          videoSubmissionUrl: true,
+          videoSubmittedAt: true,
         },
       },
       tutorProfile: {
@@ -307,18 +315,15 @@ export default async function TutorDashboardPage() {
             </div>
           )}
 
-          {/* Offer details */}
-          {status === "OFFER_PENDING" && app?.offerCurrency && (
+          {/* Video submitted confirmation */}
+          {status === "VIDEO_SUBMITTED" && app?.videoSubmittedAt && (
             <div className="mt-4 pt-4 border-t border-current/20 text-sm">
-              <p className="font-semibold mb-1">Détails de votre offre :</p>
-              <p>
-                Taux horaire : <strong>
-                  {app.offerCurrency === "TND"
-                    ? `${app.offerHourlyRateTnd} TND/h`
-                    : `${app.offerHourlyRateCad} CAD/h`}
-                </strong>
+              <p className="font-semibold">
+                Vidéo reçue le{" "}
+                {new Date(app.videoSubmittedAt).toLocaleDateString("fr-FR", {
+                  day: "numeric", month: "long", year: "numeric",
+                })}
               </p>
-              <p>Plafond hebdomadaire : <strong>{app.offerMaxWeeklyHours}h/semaine</strong></p>
             </div>
           )}
 
@@ -364,6 +369,20 @@ export default async function TutorDashboardPage() {
           </div>
         )}
 
+        {/* Video submission panel */}
+        {status === "VIDEO_REQUESTED" && (
+          <VideoSubmissionPanel languages={app?.languagesTaught ?? []} />
+        )}
+
+        {/* Offer acceptance panel */}
+        {status === "OFFER_PENDING" && app?.offerCurrency && (
+          <OfferAcceptancePanel
+            currency={app.offerCurrency}
+            rateTnd={app.offerHourlyRateTnd ?? null}
+            rateCad={app.offerHourlyRateCad ?? null}
+            maxWeeklyHours={app.offerMaxWeeklyHours ?? null}
+          />
+        )}
 
       </div>
     </div>
