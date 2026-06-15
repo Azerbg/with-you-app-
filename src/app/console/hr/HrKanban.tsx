@@ -44,26 +44,59 @@ interface Application {
 
 // ─── Kanban columns ───────────────────────────────────────────────────────────
 
-const COLUMNS: { key: string; label: string; color: string }[] = [
-  { key: "NEW",                  label: "Nouveau",            color: "bg-blue-50 border-blue-200" },
-  { key: "STAGE1_REVIEW",        label: "Examen",             color: "bg-yellow-50 border-yellow-200" },
-  { key: "INTERVIEW_SCHEDULED",  label: "Entretien planifié", color: "bg-purple-50 border-purple-200" },
-  { key: "INTERVIEW_COMPLETE",   label: "Entretien terminé",  color: "bg-orange-50 border-orange-200" },
-  { key: "OFFER_PENDING",        label: "Offre envoyée",      color: "bg-pink-50 border-pink-200" },
-  { key: "SIGNED",               label: "Signé",              color: "bg-teal-50 border-teal-200" },
-  { key: "ACTIVE",               label: "Actif ✓",            color: "bg-green-50 border-green-200" },
-  { key: "REJECTED",             label: "Rejeté",             color: "bg-red-50 border-red-200" },
+const COLUMNS: { key: string; label: string; sublabel: string; color: string; icon: string }[] = [
+  { key: "INCOMPLETE",           label: "Tri auto",           sublabel: "Dossier incomplet",      color: "bg-gray-50 border-gray-300",    icon: "⚙️" },
+  { key: "NEW",                  label: "Nouveau",            sublabel: "Reçu, à traiter",         color: "bg-blue-50 border-blue-200",    icon: "📥" },
+  { key: "STAGE1_REVIEW",        label: "À évaluer",          sublabel: "Dossier complet",         color: "bg-yellow-50 border-yellow-200",icon: "🔍" },
+  { key: "INTERVIEW_SCHEDULED",  label: "Entretien",          sublabel: "RDV planifié",            color: "bg-purple-50 border-purple-200",icon: "🎙️" },
+  { key: "INTERVIEW_COMPLETE",   label: "Délibération",       sublabel: "Entretien terminé",       color: "bg-orange-50 border-orange-200",icon: "⏳" },
+  { key: "RESERVE",              label: "Réserve",            sublabel: "Qualifié, en attente",    color: "bg-sky-50 border-sky-200",      icon: "📋" },
+  { key: "OFFER_PENDING",        label: "Offre envoyée",      sublabel: "En attente de signature", color: "bg-pink-50 border-pink-200",    icon: "📄" },
+  { key: "SIGNED",               label: "Signé",              sublabel: "Contrat signé",           color: "bg-teal-50 border-teal-200",    icon: "✍️" },
+  { key: "ACTIVE",               label: "Actif ✓",            sublabel: "En ligne",                color: "bg-green-50 border-green-200",  icon: "🟢" },
+  { key: "REJECTED",             label: "Rejeté",             sublabel: "",                        color: "bg-red-50 border-red-200",      icon: "❌" },
 ];
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  NEW:                 ["STAGE1_REVIEW", "REJECTED"],
-  STAGE1_REVIEW:       ["INTERVIEW_SCHEDULED", "REJECTED"],
+  INCOMPLETE:          ["NEW", "REJECTED"],
+  NEW:                 ["STAGE1_REVIEW", "INCOMPLETE", "REJECTED"],
+  STAGE1_REVIEW:       ["INTERVIEW_SCHEDULED", "RESERVE", "REJECTED"],
   INTERVIEW_SCHEDULED: ["INTERVIEW_COMPLETE", "REJECTED"],
-  INTERVIEW_COMPLETE:  ["OFFER_PENDING", "REJECTED"],
+  INTERVIEW_COMPLETE:  ["OFFER_PENDING", "RESERVE", "REJECTED"],
+  RESERVE:             ["STAGE1_REVIEW", "OFFER_PENDING", "REJECTED"],
   OFFER_PENDING:       ["SIGNED", "REJECTED"],
   SIGNED:              ["ACTIVE", "REJECTED"],
   ACTIVE:              [],
   REJECTED:            [],
+};
+
+// ─── Language tabs ────────────────────────────────────────────────────────────
+
+const LANG_FLAGS: Record<string, string> = {
+  "French":   "🇫🇷",
+  "English":  "🇬🇧",
+  "Spanish":  "🇪🇸",
+  "German":   "🇩🇪",
+  "Arabic":   "🇹🇳",
+  "Italian":  "🇮🇹",
+  "Portuguese": "🇵🇹",
+};
+
+const LANG_LABELS: Record<string, string> = {
+  "French":   "Français",
+  "English":  "Anglais",
+  "Spanish":  "Espagnol",
+  "German":   "Allemand",
+  "Arabic":   "Arabe",
+  "Italian":  "Italien",
+  "Portuguese": "Portugais",
+};
+
+const SPEC_LABELS: Record<string, string> = {
+  "CONVERSATIONAL": "Conversation",
+  "PROFESSIONAL":   "Professionnel",
+  "ACADEMIC":       "Académique",
+  "EXAM_PREP":      "Prépa examens",
 };
 
 // ─── Application Card ─────────────────────────────────────────────────────────
@@ -83,15 +116,28 @@ function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
         )}
       </div>
       <p className="text-xs text-[#6B5E44] mb-2">{app.user.email}</p>
-      <div className="flex flex-wrap gap-1">
+      {/* Language tags */}
+      <div className="flex flex-wrap gap-1 mb-1">
         {app.languagesTaught.map(l => (
-          <span key={l} className="text-[10px] bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-1.5 py-0.5 rounded-full">{l}</span>
+          <span key={l} className="text-[10px] bg-[#F5C400]/20 text-[#5C3D00] font-bold px-1.5 py-0.5 rounded-full">
+            {LANG_FLAGS[l] ?? "🌐"} {LANG_LABELS[l] ?? l}
+          </span>
         ))}
         {app.city && (
           <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{app.city}</span>
         )}
       </div>
-      <p className="text-[10px] text-[#6B5E44]/60 mt-2">
+      {/* Specialty chips */}
+      {app.specializations.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1">
+          {app.specializations.map(s => (
+            <span key={s} className="text-[10px] bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-full">
+              {SPEC_LABELS[s] ?? s}
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="text-[10px] text-[#6B5E44]/60 mt-1.5">
         {new Date(app.createdAt).toLocaleDateString("fr-FR")}
       </p>
     </div>
@@ -498,7 +544,9 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Application | null>(null);
-  const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeLang, setActiveLang] = useState<string | null>(null);
+  const [activeSpec, setActiveSpec] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/console/hr/applications")
@@ -525,27 +573,52 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
     setSelected(prev => prev?.id === id ? { ...prev, notes: [note, ...prev.notes] } : prev);
   }
 
-  const filtered = filter
-    ? apps.filter(a =>
-        a.fullName.toLowerCase().includes(filter.toLowerCase()) ||
-        a.user.email.toLowerCase().includes(filter.toLowerCase()) ||
-        a.city?.toLowerCase().includes(filter.toLowerCase()) ||
-        a.languagesTaught.some(l => l.toLowerCase().includes(filter.toLowerCase()))
-      )
-    : apps;
+  // All languages present in applications
+  const allLanguages = Array.from(new Set(apps.flatMap(a => a.languagesTaught))).sort();
+
+  // All specializations for selected language
+  const specsForLang = activeLang
+    ? Array.from(new Set(
+        apps
+          .filter(a => a.languagesTaught.includes(activeLang))
+          .flatMap(a => a.specializations)
+      )).sort()
+    : [];
+
+  // Reset specialty when language changes
+  function selectLang(lang: string | null) {
+    setActiveLang(lang);
+    setActiveSpec(null);
+  }
+
+  // Apply all filters
+  const filtered = apps.filter(a => {
+    if (activeLang && !a.languagesTaught.includes(activeLang)) return false;
+    if (activeSpec && !a.specializations.includes(activeSpec)) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return (
+        a.fullName.toLowerCase().includes(q) ||
+        a.user.email.toLowerCase().includes(q) ||
+        a.city?.toLowerCase().includes(q) ||
+        a.languagesTaught.some(l => l.toLowerCase().includes(q))
+      );
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-[#FAF8F0]">
       {/* Top bar */}
-      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between gap-4">
+      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg">WithYou</Link>
           <span className="text-[#6B5E44] text-sm font-semibold">Console RH</span>
         </div>
         <div className="flex items-center gap-3">
           <input
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             placeholder="Rechercher un candidat…"
             className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
           />
@@ -553,10 +626,75 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
         </div>
       </div>
 
+      {/* ── LANGUAGE FILTER ── */}
+      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3">
+        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Filtrer par langue</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => selectLang(null)}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold border-2 transition ${
+              !activeLang
+                ? "bg-[#5C3D00] border-[#5C3D00] text-white"
+                : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#5C3D00]/40"
+            }`}
+          >
+            Toutes
+            <span className="text-xs opacity-70">({apps.length})</span>
+          </button>
+          {allLanguages.map(lang => {
+            const count = apps.filter(a => a.languagesTaught.includes(lang)).length;
+            const flag = LANG_FLAGS[lang] ?? "🌐";
+            const label = LANG_LABELS[lang] ?? lang;
+            return (
+              <button
+                key={lang}
+                onClick={() => selectLang(lang)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold border-2 transition ${
+                  activeLang === lang
+                    ? "bg-[#F5C400] border-[#F5C400] text-[#5C3D00]"
+                    : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#F5C400]/60"
+                }`}
+              >
+                {flag} {label}
+                <span className="text-xs opacity-70">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Specialty sub-filter */}
+        {activeLang && specsForLang.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-[#6B5E44]/10">
+            <span className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest self-center">Spécialité :</span>
+            <button
+              onClick={() => setActiveSpec(null)}
+              className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
+                !activeSpec ? "bg-[#5C3D00] border-[#5C3D00] text-white" : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#5C3D00]/40"
+              }`}
+            >
+              Toutes
+            </button>
+            {specsForLang.map(spec => (
+              <button
+                key={spec}
+                onClick={() => setActiveSpec(activeSpec === spec ? null : spec)}
+                className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
+                  activeSpec === spec
+                    ? "bg-[#FFF3B0] border-[#F5C400] text-[#5C3D00]"
+                    : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#F5C400]/60"
+                }`}
+              >
+                {SPEC_LABELS[spec] ?? spec}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Stats bar */}
-      <div className="px-6 py-3 flex gap-4 border-b border-[#6B5E44]/10 bg-white/50">
+      <div className="px-6 py-2 flex flex-wrap gap-4 border-b border-[#6B5E44]/10 bg-white/50">
         {COLUMNS.map(col => {
-          const count = apps.filter(a => a.status === col.key).length;
+          const count = filtered.filter(a => a.status === col.key).length;
           if (count === 0) return null;
           return (
             <div key={col.key} className="text-xs text-[#6B5E44]">
@@ -565,7 +703,8 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
           );
         })}
         <div className="ml-auto text-xs text-[#6B5E44]">
-          <span className="font-bold text-[#5C3D00]">{apps.length}</span> total
+          <span className="font-bold text-[#5C3D00]">{filtered.length}</span>
+          {filtered.length !== apps.length && <span className="text-[#9B8A6B]"> / {apps.length} total</span>}
         </div>
       </div>
 
@@ -587,11 +726,16 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
               return (
                 <div key={col.key} className="w-60 shrink-0">
                   {/* Column header */}
-                  <div className={`rounded-xl border px-3 py-2 mb-3 flex items-center justify-between ${col.color}`}>
-                    <span className="text-xs font-bold text-[#5C3D00]">{col.label}</span>
-                    <span className="text-xs font-bold text-[#6B5E44] bg-white/60 rounded-full px-2 py-0.5">
-                      {colApps.length}
-                    </span>
+                  <div className={`rounded-xl border px-3 py-2 mb-3 ${col.color}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#5C3D00]">{col.icon} {col.label}</span>
+                      <span className="text-xs font-bold text-[#6B5E44] bg-white/60 rounded-full px-2 py-0.5">
+                        {colApps.length}
+                      </span>
+                    </div>
+                    {col.sublabel && (
+                      <p className="text-[10px] text-[#6B5E44]/60 mt-0.5">{col.sublabel}</p>
+                    )}
                   </div>
 
                   {/* Cards */}

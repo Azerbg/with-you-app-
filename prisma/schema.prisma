@@ -66,10 +66,12 @@ enum Currency {
 }
 
 enum ApplicationStatus {
+  INCOMPLETE           // Auto-flagged: missing required documents
   NEW                  // Passed automated pre-screening
   STAGE1_REVIEW        // HR assigned, async review in progress
   INTERVIEW_SCHEDULED  // Interview date confirmed
   INTERVIEW_COMPLETE   // Interview done, HR entering decision
+  RESERVE              // Qualified but no current need — kept on file
   OFFER_PENDING        // Digital agreement sent via DocuSign, awaiting signature
   SIGNED               // Agreement signed, awaiting Stripe Connect setup
   ACTIVE               // Fully onboarded — profile live on platform
