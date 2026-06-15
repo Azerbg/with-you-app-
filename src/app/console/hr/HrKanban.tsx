@@ -496,14 +496,23 @@ function Row({ label, value }: { label: string; value: string | null | undefined
 export default function HrKanban({ hrEmail }: { hrEmail: string }) {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Application | null>(null);
   const [filter, setFilter] = useState("");
 
   useEffect(() => {
     fetch("/api/console/hr/applications")
-      .then(r => r.json())
-      .then(data => { setApps(data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+          setFetchError(`Erreur ${r.status}: ${data.error ?? JSON.stringify(data)}`);
+          setLoading(false);
+          return;
+        }
+        setApps(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(e => { setFetchError(String(e)); setLoading(false); });
   }, []);
 
   function handleStatusChange(id: string, status: string) {
@@ -563,6 +572,13 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
       {/* Kanban board */}
       {loading ? (
         <div className="flex items-center justify-center h-64 text-[#6B5E44]">Chargement…</div>
+      ) : fetchError ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="bg-red-50 border border-red-200 rounded-xl px-6 py-4 text-red-700 text-sm max-w-lg text-center">
+            <p className="font-bold mb-1">Impossible de charger les candidatures</p>
+            <p className="font-mono text-xs">{fetchError}</p>
+          </div>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <div className="flex gap-4 p-6 min-w-max">

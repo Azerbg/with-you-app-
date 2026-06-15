@@ -43,6 +43,19 @@ interface FormData {
 const TOTAL_STEPS = 5;
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
+// ─── Country dial codes ────────────────────────────────────────────────────────
+const DIAL_CODES: Record<string, string> = {
+  "Tunisia": "+216", "Algeria": "+213", "Morocco": "+212", "Libya": "+218",
+  "Egypt": "+20", "France": "+33", "Belgium": "+32", "Switzerland": "+41",
+  "Luxembourg": "+352", "Canada": "+1", "United States": "+1",
+  "United Kingdom": "+44", "Germany": "+49", "Spain": "+34", "Italy": "+39",
+  "Netherlands": "+31", "Portugal": "+351", "Sweden": "+46", "Norway": "+47",
+  "Denmark": "+45", "Finland": "+358", "Austria": "+43", "Poland": "+48",
+  "Saudi Arabia": "+966", "United Arab Emirates": "+971", "Qatar": "+974",
+  "Kuwait": "+965", "Jordan": "+962", "Lebanon": "+961", "Turkey": "+90",
+  "Senegal": "+221", "Ivory Coast": "+225", "Cameroon": "+237",
+};
+
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const inputCls = "w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 transition";
@@ -101,6 +114,27 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const [devEmailOtp, setDevEmailOtp] = useState("");
   const prevEmail = useRef("");
 
+  // Phone prefix helpers
+  const dialCode = DIAL_CODES[data.country] ?? "";
+  const [localPhone, setLocalPhone] = useState(() =>
+    data.phone.startsWith("+") ? data.phone.replace(/^\+\d{1,4}\s?/, "") : data.phone
+  );
+
+  function handleCountryChange(name: string) {
+    onChange("country", name);
+    const code = DIAL_CODES[name] ?? "";
+    const full = localPhone ? code + localPhone : "";
+    onChange("phone", full);
+    if (full !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); }
+  }
+
+  function handleLocalPhoneChange(val: string) {
+    setLocalPhone(val);
+    const full = val ? dialCode + val : "";
+    onChange("phone", full);
+    if (full !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); }
+  }
+
   // Password strength checks
   const pw = data.password;
   const checks = {
@@ -112,7 +146,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const pwStrong = Object.values(checks).every(Boolean);
   const pwMatch  = data.password === data.confirmPassword && data.confirmPassword !== "";
 
-  const isValid = data.firstName && data.lastName && data.phone && data.birthday && data.gender && data.country &&
+  const isValid = data.firstName && data.lastName && localPhone && data.birthday && data.gender && data.country &&
     (isLoggedIn || (data.email && pwStrong && pwMatch && emailVerified));
 
   async function sendEmailOtp() {
@@ -423,24 +457,6 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           </>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-              {fr ? "Date de naissance" : "Date of birth"}
-            </label>
-            <input type="date" value={data.birthday} onChange={e => onChange("birthday", e.target.value)}
-              max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-              className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-              {fr ? "Téléphone" : "Phone"}
-            </label>
-            <input value={data.phone} onChange={e => { onChange("phone", e.target.value); if (e.target.value !== prevPhone.current) { setOtpSent(false); setOtpValue(""); setDevOtp(""); } }}
-              placeholder="+1 555 000 0000" className={inputCls} />
-          </div>
-        </div>
-
         {/* Gender */}
         <div>
           <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
@@ -469,10 +485,41 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
         <CountryCitySelect
           country={data.country}
           city={data.city}
-          onCountryChange={(name) => onChange("country", name)}
+          onCountryChange={handleCountryChange}
           onCityChange={(name) => onChange("city", name)}
           fr={fr}
         />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Date de naissance" : "Date of birth"}
+            </label>
+            <input type="date" value={data.birthday} onChange={e => onChange("birthday", e.target.value)}
+              max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+              className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
+              {fr ? "Téléphone" : "Phone"}
+            </label>
+            <div className="flex gap-2">
+              {dialCode && (
+                <span className="flex items-center px-3 py-2.5 border border-[#6B5E44]/30 rounded-xl bg-[#FAF8F0] text-sm font-bold text-[#5C3D00] shrink-0 select-none">
+                  {dialCode}
+                </span>
+              )}
+              <input
+                value={localPhone}
+                onChange={e => handleLocalPhoneChange(e.target.value)}
+                placeholder={dialCode ? "XX XXX XXX" : "+216 XX XXX XXX"}
+                className={inputCls + (dialCode ? " flex-1" : "")}
+                type="tel"
+                inputMode="numeric"
+              />
+            </div>
+          </div>
+        </div>
 
         {/* Phone OTP verification — optional */}
         <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#6B5E44]/20 bg-[#FAFAF8]"}`}>
@@ -493,7 +540,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
                 <button
                   type="button"
                   onClick={sendOtp}
-                  disabled={!data.phone || otpLoading}
+                  disabled={!localPhone || otpLoading}
                   className={`w-full py-2 rounded-xl text-sm font-bold transition ${btnPrimary} disabled:opacity-50`}
                 >
                   {otpLoading ? "…" : (fr ? "Envoyer le code SMS" : "Send SMS code")}

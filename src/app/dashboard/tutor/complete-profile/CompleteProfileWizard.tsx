@@ -35,7 +35,40 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
 
   const [bio, setBio] = useState(existing?.bio ?? "");
   const [photoUrl, setPhotoUrl] = useState(existing?.profilePhotoUrl ?? "");
+  const [photoName, setPhotoName] = useState("");
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const [videoUrl, setVideoUrl] = useState(existing?.videoIntroUrl ?? "");
+  const [videoName, setVideoName] = useState("");
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoError, setVideoError] = useState("");
+
+  function readFile(file: File, maxMb: number, onDone: (dataUrl: string, name: string) => void, onError: (msg: string) => void) {
+    if (file.size > maxMb * 1024 * 1024) {
+      onError(`Fichier trop lourd (max ${maxMb} Mo)`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onDone(reader.result as string, file.name);
+    reader.onerror = () => onError("Erreur de lecture du fichier");
+    reader.readAsDataURL(file);
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError("");
+    setPhotoLoading(true);
+    readFile(file, 5, (dataUrl, name) => { setPhotoUrl(dataUrl); setPhotoName(name); setPhotoLoading(false); }, (msg) => { setPhotoError(msg); setPhotoLoading(false); });
+  }
+
+  function handleVideoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoError("");
+    setVideoLoading(true);
+    readFile(file, 150, (dataUrl, name) => { setVideoUrl(dataUrl); setVideoName(name); setVideoLoading(false); }, (msg) => { setVideoError(msg); setVideoLoading(false); });
+  }
   const [cefrMin, setCefrMin] = useState(existing?.cefrTeachingMin ?? "A1");
   const [cefrMax, setCefrMax] = useState(existing?.cefrTeachingMax ?? "C2");
   const [specs, setSpecs] = useState<string[]>(existing?.specializations ?? []);
@@ -111,24 +144,64 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
               </p>
             </div>
 
+            {/* Photo upload */}
             <div className="mb-5">
-              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-                Photo de profil (optionnel)
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
+                Photo de profil <span className="font-normal text-[#6B5E44]">(optionnel)</span>
               </label>
-              <input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)}
-                placeholder="https://…"
-                className={inputCls} />
-              <p className="text-xs text-[#6B5E44] mt-1">Lien direct vers une image (JPG/PNG)</p>
+              {photoUrl && photoUrl.startsWith("data:image") ? (
+                <div className="flex items-center gap-3 mb-2">
+                  <img src={photoUrl} alt="Photo" className="w-14 h-14 rounded-full object-cover border-2 border-[#F5C400]" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-[#5C3D00] truncate">{photoName}</p>
+                    <button type="button" onClick={() => { setPhotoUrl(""); setPhotoName(""); }}
+                      className="text-xs text-red-500 hover:underline mt-0.5">Supprimer</button>
+                  </div>
+                </div>
+              ) : photoUrl ? (
+                <div className="flex items-center gap-3 mb-2">
+                  <img src={photoUrl} alt="Photo" className="w-14 h-14 rounded-full object-cover border-2 border-[#F5C400]" />
+                  <button type="button" onClick={() => setPhotoUrl("")}
+                    className="text-xs text-red-500 hover:underline">Changer</button>
+                </div>
+              ) : null}
+              <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition ${photoLoading ? "opacity-50 pointer-events-none" : "border-[#6B5E44]/30 hover:border-[#F5C400] hover:bg-[#FFF3B0]/30"}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-5 h-5 shrink-0">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+                <span className="text-sm text-[#5C3D00] font-medium">
+                  {photoLoading ? "Chargement…" : photoUrl ? "Changer la photo" : "Choisir une photo (JPG / PNG / WebP · max 5 Mo)"}
+                </span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+              </label>
+              {photoError && <p className="text-xs text-red-500 mt-1">{photoError}</p>}
             </div>
 
+            {/* Video upload */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
-                Vidéo d'introduction (optionnel)
+              <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
+                Vidéo d'introduction <span className="font-normal text-[#6B5E44]">(optionnel · 60–90 sec)</span>
               </label>
-              <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/... ou https://loom.com/..."
-                className={inputCls} />
-              <p className="text-xs text-[#6B5E44] mt-1">YouTube ou Loom · 60–90 secondes</p>
+              {videoUrl && videoName ? (
+                <div className="flex items-center gap-3 p-3 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-xl mb-2">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-5 h-5 shrink-0">
+                    <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                  </svg>
+                  <p className="text-xs font-semibold text-[#5C3D00] flex-1 truncate">{videoName}</p>
+                  <button type="button" onClick={() => { setVideoUrl(""); setVideoName(""); }}
+                    className="text-xs text-red-500 hover:underline shrink-0">Supprimer</button>
+                </div>
+              ) : null}
+              <label className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed cursor-pointer transition ${videoLoading ? "opacity-50 pointer-events-none" : "border-[#6B5E44]/30 hover:border-[#F5C400] hover:bg-[#FFF3B0]/30"}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-5 h-5 shrink-0">
+                  <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+                <span className="text-sm text-[#5C3D00] font-medium">
+                  {videoLoading ? "Chargement…" : videoUrl ? "Changer la vidéo" : "Choisir une vidéo (MP4 / MOV · max 150 Mo)"}
+                </span>
+                <input type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden" onChange={handleVideoChange} />
+              </label>
+              {videoError && <p className="text-xs text-red-500 mt-1">{videoError}</p>}
             </div>
 
             <button onClick={() => setStep(2)} disabled={bio.length < 100}

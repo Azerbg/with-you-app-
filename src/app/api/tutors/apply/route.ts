@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const baseSchema = z.object({
   // Step 1 — Personal
   fullName:  z.string().min(2),
-  phone:     z.string().min(8),
+  phone:     z.string().optional().default(""),
   birthday:  z.string().min(1),
   gender:    z.enum(["M", "F", "PREFER_NOT_TO_SAY"]).optional(),
   country:   z.string().min(1),
