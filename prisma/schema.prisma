@@ -157,6 +157,7 @@ model User {
   payoutsReceived    Payout[]              @relation("TutorPayouts")
   auditActions       AuditLog[]            @relation("AuditActor")
   hrNotesAuthored    HrNote[]              @relation("HrNoteAuthor")
+  paymentMethod      TutorPaymentMethod?
 
   @@map("users")
 }
@@ -760,6 +761,38 @@ model Payout {
   tutor User @relation("TutorPayouts", fields: [tutorId], references: [id])
 
   @@map("payouts")
+}
+
+// ─── TUTOR PAYMENT METHOD ────────────────────────────────────────────────────
+
+model TutorPaymentMethod {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  type String // BANK_TN | BANK_INTL | PAYPAL | WISE | D17
+
+  // Tunisian bank transfer (RIB)
+  bankNameTn    String?
+  accountHolder String?
+  rib           String?  // 20-digit RIB
+
+  // International bank transfer
+  iban   String?
+  swift  String?
+  bankNameIntl String?
+
+  // PayPal / Wise
+  email String?
+
+  // D17 / Mobile
+  phone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tutor_payment_methods")
 }
 
 // ─── PLATFORM PRICING (Admin-Configurable) ────────────────────────────────────
