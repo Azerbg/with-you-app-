@@ -1623,6 +1623,40 @@ export default function TutorApplyWizard() {
               : "WithYou welcomes tutors from around the world. Wherever you are, if you're fluent in French or English, we want to meet you."}
           </p>
         </div>
+
+        {/* FAQ */}
+        <div className="mt-6">
+          <p className="text-xs font-bold text-[#F5C400]/70 uppercase tracking-widest mb-3">
+            {fr ? "Questions fréquentes" : "FAQ"}
+          </p>
+          <div className="space-y-2">
+            {(fr ? [
+              { q: "Comment suis-je payé ?", a: "Par virement bancaire (RIB) ou D17 en dinars tunisiens, mensuellement." },
+              { q: "Quels horaires ?", a: "Vous choisissez vos disponibilités. Les créneaux les plus demandés sont les soirs et week-ends." },
+              { q: "Faut-il un diplôme ?", a: "Une certification linguistique (DELF, IELTS, CELTA…) ou un niveau très avancé est requis." },
+              { q: "Combien de temps dure le recrutement ?", a: "En moyenne 2 à 3 semaines selon vos disponibilités." },
+              { q: "Une question ?", a: "Ecrivez-nous : recrutement@withyou.com" },
+            ] : [
+              { q: "How am I paid?", a: "By bank transfer or D17 in Tunisian dinars, monthly." },
+              { q: "What hours do I work?", a: "You choose your availability. Evenings and weekends are the most in demand." },
+              { q: "Is a degree required?", a: "A language certification (DELF, IELTS, CELTA…) or near-native level is required." },
+              { q: "How long does recruitment take?", a: "Around 2–3 weeks depending on your availability." },
+              { q: "Questions?", a: "Email us: recrutement@withyou.com" },
+            ]).map((item, i) => (
+              <div key={i} className="border border-white/10 rounded-xl overflow-hidden">
+                <details className="group">
+                  <summary className="px-3 py-2.5 text-xs font-semibold text-white/80 cursor-pointer list-none flex items-center justify-between hover:bg-white/5 transition">
+                    {item.q}
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-white/40 flex-shrink-0 group-open:rotate-180 transition-transform">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </summary>
+                  <p className="px-3 pb-3 text-xs text-white/50 leading-relaxed">{item.a}</p>
+                </details>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Right panel — wizard */}

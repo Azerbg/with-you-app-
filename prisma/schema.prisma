@@ -579,16 +579,19 @@ model HrApplication {
 model HrNote {
   id            String @id @default(cuid())
   applicationId String
-  authorId      String // HR user who wrote the note
+  authorId      String? // HR user who wrote the note (null when sent by candidate)
 
   content   String   // Free text, up to 2000 chars
   isPinned  Boolean  @default(false) // Pinned notes show at top of card
+
+  isFromCandidate    Boolean @default(false) // true = question sent by candidate
+  visibleToCandidate Boolean @default(false) // true = HR reply visible to candidate
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   application HrApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  author      User          @relation("HrNoteAuthor", fields: [authorId], references: [id])
+  author      User?         @relation("HrNoteAuthor", fields: [authorId], references: [id])
 
   @@map("hr_notes")
 }

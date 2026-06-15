@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { applicationId, content } = await req.json();
+  const { applicationId, content, visibleToCandidate } = await req.json();
   if (!applicationId || !content?.trim()) {
     return NextResponse.json({ error: "Missing fields" }, { status: 422 });
   }
@@ -18,8 +18,16 @@ export async function POST(req: NextRequest) {
       applicationId,
       authorId: session.user.id!,
       content: content.trim(),
+      visibleToCandidate: visibleToCandidate === true,
     },
-    include: { author: { select: { email: true } } },
+    select: {
+      id: true,
+      content: true,
+      isFromCandidate: true,
+      visibleToCandidate: true,
+      createdAt: true,
+      author: { select: { email: true } },
+    },
   });
 
   return NextResponse.json(note, { status: 201 });

@@ -9,7 +9,9 @@ interface HrNote {
   id: string;
   content: string;
   createdAt: string;
-  author: { email: string };
+  isFromCandidate?: boolean;
+  visibleToCandidate?: boolean;
+  author: { email: string } | null;
 }
 
 interface Application {
@@ -166,11 +168,16 @@ function DetailPanel({
   hrEmail: string;
 }) {
   const [noteText, setNoteText] = useState("");
+  const [replyText, setReplyText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [savingReply, setSavingReply] = useState(false);
   const [movingTo, setMovingTo] = useState("");
   const [interviewToken, setInterviewToken] = useState(app.interviewToken ?? null);
 
   const nextStatuses = STATUS_TRANSITIONS[app.status] ?? [];
+
+  const candidateMessages = app.notes.filter(n => n.isFromCandidate || n.visibleToCandidate);
+  const internalNotes = app.notes.filter(n => !n.isFromCandidate && !n.visibleToCandidate);
 
   async function handleMove(status: string) {
     setMovingTo(status);
@@ -197,6 +204,22 @@ function DetailPanel({
       setNoteText("");
     }
     setSavingNote(false);
+  }
+
+  async function handleReply() {
+    if (!replyText.trim()) return;
+    setSavingReply(true);
+    const res = await fetch("/api/console/hr/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId: app.id, content: replyText, visibleToCandidate: true }),
+    });
+    if (res.ok) {
+      const note = await res.json();
+      onNoteAdded(app.id, note);
+      setReplyText("");
+    }
+    setSavingReply(false);
   }
 
   const colInfo = COLUMNS.find(c => c.key === app.status);
@@ -396,17 +419,57 @@ function DetailPanel({
             </Section>
           )}
 
-          {/* Notes */}
-          <Section title={`Notes (${app.notes.length})`}>
-            <div className="space-y-3 mb-3">
-              {app.notes.length === 0 && (
-                <p className="text-xs text-[#6B5E44]">Aucune note pour l'instant.</p>
+          {/* Candidate messages */}
+          <Section title={`Messages du candidat (${candidateMessages.length})`}>
+            <div className="space-y-2 mb-3 max-h-56 overflow-y-auto">
+              {candidateMessages.length === 0 && (
+                <p className="text-xs text-[#6B5E44]">Aucun message pour l&apos;instant.</p>
               )}
-              {app.notes.map(n => (
+              {candidateMessages.map(n => (
+                <div
+                  key={n.id}
+                  className={`rounded-xl px-3 py-2 text-sm ${
+                    n.isFromCandidate
+                      ? "bg-blue-50 border border-blue-200"
+                      : "bg-[#FFF3B0] border border-[#F5C400]/30 ml-4"
+                  }`}
+                >
+                  {!n.isFromCandidate && (
+                    <p className="text-[10px] font-bold text-[#9B7A00] mb-0.5">Votre reponse (visible par le candidat)</p>
+                  )}
+                  <p className="text-[#5C3D00] whitespace-pre-wrap">{n.content}</p>
+                  <p className="text-[10px] text-[#6B5E44] mt-1">
+                    {n.isFromCandidate ? "Candidat" : (n.author?.email ?? "RH")} · {new Date(n.createdAt).toLocaleString("fr-FR")}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <textarea
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              rows={2}
+              placeholder="Repondre au candidat (visible dans son espace)…"
+              className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-blue-50 focus:outline-none focus:border-blue-400 resize-none"
+            />
+            <button
+              onClick={handleReply}
+              disabled={savingReply || !replyText.trim()}
+              className="mt-1.5 px-4 py-1.5 bg-blue-600 text-white font-bold rounded-full text-sm hover:bg-blue-700 disabled:opacity-50 transition">
+              {savingReply ? "Envoi…" : "Repondre au candidat"}
+            </button>
+          </Section>
+
+          {/* Internal HR notes */}
+          <Section title={`Notes internes (${internalNotes.length})`}>
+            <div className="space-y-3 mb-3">
+              {internalNotes.length === 0 && (
+                <p className="text-xs text-[#6B5E44]">Aucune note interne.</p>
+              )}
+              {internalNotes.map(n => (
                 <div key={n.id} className="bg-[#FAF8F0] rounded-xl px-3 py-2">
                   <p className="text-sm text-[#5C3D00] whitespace-pre-wrap">{n.content}</p>
                   <p className="text-[10px] text-[#6B5E44] mt-1">
-                    {n.author.email} · {new Date(n.createdAt).toLocaleString("fr-FR")}
+                    {n.author?.email ?? "RH"} · {new Date(n.createdAt).toLocaleString("fr-FR")}
                   </p>
                 </div>
               ))}
@@ -415,14 +478,14 @@ function DetailPanel({
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               rows={3}
-              placeholder="Ajouter une note…"
+              placeholder="Note interne (non visible par le candidat)…"
               className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] resize-none"
             />
             <button
               onClick={handleAddNote}
               disabled={savingNote || !noteText.trim()}
               className="mt-2 px-4 py-1.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition">
-              {savingNote ? "Enregistrement…" : "Ajouter la note"}
+              {savingNote ? "Enregistrement…" : "Ajouter note interne"}
             </button>
           </Section>
         </div>

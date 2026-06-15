@@ -5,6 +5,7 @@ import Link from "next/link";
 import TutorDashboardContent from "./TutorDashboardContent";
 import VideoSubmissionPanel from "./VideoSubmissionPanel";
 import OfferAcceptancePanel from "./OfferAcceptancePanel";
+import SupportPanel from "./SupportPanel";
 
 const STAGE_INFO: Record<string, { label: string; desc: string; color: string; step: number }> = {
   INCOMPLETE:          { label: "Dossier incomplet",        desc: "Votre dossier est incomplet. Veuillez le compléter pour continuer.",           color: "bg-gray-50 border-gray-300 text-gray-700",    step: 1 },
@@ -382,6 +383,11 @@ export default async function TutorDashboardPage() {
             rateCad={app.offerHourlyRateCad ?? null}
             maxWeeklyHours={app.offerMaxWeeklyHours ?? null}
           />
+        )}
+
+        {/* Support panel — FAQ + messaging with HR */}
+        {!["ACTIVE", "REJECTED"].includes(status) && (
+          <SupportPanel />
         )}
 
       </div>

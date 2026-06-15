@@ -46,10 +46,12 @@ export async function GET() {
         reapplyAfter: true,
         user: { select: { email: true } },
         notes: {
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: "asc" },
           select: {
             id: true,
             content: true,
+            isFromCandidate: true,
+            visibleToCandidate: true,
             createdAt: true,
             author: { select: { email: true } },
           },
