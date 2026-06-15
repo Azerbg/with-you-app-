@@ -8,16 +8,61 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const applications = await db.hrApplication.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { email: true } },
-      notes: {
-        orderBy: { createdAt: "desc" },
-        include: { author: { select: { email: true } } },
+  try {
+    const applications = await db.hrApplication.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        fullName: true,
+        firstName: true,
+        lastName: true,
+        birthday: true,
+        gender: true,
+        country: true,
+        city: true,
+        phone: true,
+        languagesTaught: true,
+        specializations: true,
+        certifications: true,
+        englishLevel: true,
+        yearsExperience: true,
+        bio: true,
+        cvUrl: true,
+        motivationLetterUrl: true,
+        certificateUrls: true,
+        availabilityDays: true,
+        timeWindowPreference: true,
+        status: true,
+        createdAt: true,
+        interviewSlots: true,
+        interviewToken: true,
+        interviewSelectedAt: true,
+        interviewScheduledAt: true,
+        interviewMeetingUrl: true,
+        offerCurrency: true,
+        offerHourlyRateTnd: true,
+        offerHourlyRateCad: true,
+        offerMaxWeeklyHours: true,
+        reapplyAfter: true,
+        user: { select: { email: true } },
+        notes: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: { select: { email: true } },
+          },
+        },
       },
-    },
-  });
+    });
 
-  return NextResponse.json(applications);
+    return NextResponse.json(applications);
+  } catch (err) {
+    console.error("[hr/applications GET]", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Erreur serveur" },
+      { status: 500 }
+    );
+  }
 }

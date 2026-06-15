@@ -593,13 +593,19 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
   useEffect(() => {
     fetch("/api/console/hr/applications")
       .then(async r => {
-        const data = await r.json();
-        if (!r.ok) {
-          setFetchError(`Erreur ${r.status}: ${data.error ?? JSON.stringify(data)}`);
+        const text = await r.text();
+        let data: unknown;
+        try { data = JSON.parse(text); } catch {
+          setFetchError(`Erreur ${r.status} — réponse invalide: ${text.slice(0, 300)}`);
           setLoading(false);
           return;
         }
-        setApps(Array.isArray(data) ? data : []);
+        if (!r.ok) {
+          setFetchError(`Erreur ${r.status}: ${(data as { error?: string }).error ?? text.slice(0, 300)}`);
+          setLoading(false);
+          return;
+        }
+        setApps(Array.isArray(data) ? data as Application[] : []);
         setLoading(false);
       })
       .catch(e => { setFetchError(String(e)); setLoading(false); });
