@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import TutorSidebar from "@/components/TutorSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +30,6 @@ interface Payout {
 }
 
 interface Props {
-  fullName: string;
   paymentMethod: PaymentMethod | null;
   payouts: Payout[];
   hourlyRateTnd: number | null;
@@ -356,11 +354,9 @@ function PaymentMethodCard({ pm, onEdit }: { pm: PaymentMethod; onEdit: () => vo
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function EarningsClient({ fullName, paymentMethod, payouts, hourlyRateTnd, currency }: Props) {
+export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, currency }: Props) {
   const [pm, setPm] = useState<PaymentMethod | null>(paymentMethod);
   const [editing, setEditing] = useState(false);
-
-  const initials = fullName.split(" ").map(p => p[0]).join("").toUpperCase().slice(0, 2);
 
   const totalPaid = payouts.filter(p => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
   const pending   = payouts.filter(p => p.status === "PENDING" || p.status === "PROCESSING").reduce((s, p) => s + p.amount, 0);
@@ -370,10 +366,7 @@ export default function EarningsClient({ fullName, paymentMethod, payouts, hourl
   const thisMonth  = payouts.filter(p => p.status === "PAID" && new Date(p.completedAt ?? p.createdAt) >= monthStart).reduce((s, p) => s + p.amount, 0);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <TutorSidebar fullName={fullName} initials={initials} photo={null} profileComplete={true} />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+    <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Revenus</h1>
@@ -478,6 +471,5 @@ export default function EarningsClient({ fullName, paymentMethod, payouts, hourl
           </div>
         </div>
       </div>
-    </div>
   );
 }

@@ -8,25 +8,17 @@ export default async function EarningsPage() {
   if (!session?.user?.id) redirect("/auth/login");
 
   const [paymentMethod, payouts, compensation] = await Promise.all([
-    db.tutorPaymentMethod.findUnique({ where: { userId: session.user.id } }),
+    db.tutorPaymentMethod.findUnique({ where: { userId: session.user.id } }).catch(() => null),
     db.payout.findMany({
       where: { tutorId: session.user.id },
       orderBy: { createdAt: "desc" },
       take: 20,
-    }),
-    db.tutorCompensation.findUnique({ where: { userId: session.user.id } }),
+    }).catch(() => []),
+    db.tutorCompensation.findUnique({ where: { userId: session.user.id } }).catch(() => null),
   ]);
-
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { firstName: true, lastName: true },
-  });
-
-  const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Tuteur";
 
   return (
     <EarningsClient
-      fullName={fullName}
       paymentMethod={paymentMethod}
       payouts={payouts.map(p => ({
         ...p,

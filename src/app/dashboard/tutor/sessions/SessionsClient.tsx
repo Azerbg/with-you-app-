@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import TutorSidebar from "@/components/TutorSidebar";
 
 interface Session {
   id: string;
@@ -135,15 +134,7 @@ export default function SessionsClient({
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <TutorSidebar
-        fullName={fullName}
-        initials={initials}
-        photo={photo}
-        profileComplete={profileComplete}
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+    <div className="flex-1 flex flex-col min-w-0 overflow-auto">
 
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
@@ -213,6 +204,5 @@ export default function SessionsClient({
           </div>
         </div>
       </div>
-    </div>
   );
 }
