@@ -367,11 +367,6 @@ export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, 
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-        {/* Top bar */}
-        <div className="h-14 border-b border-black/5 bg-white flex items-center px-8 flex-shrink-0">
-          <h1 className="text-base font-bold text-[#5C3D00]">Revenus</h1>
-        </div>
-
         <div className="flex-1 overflow-auto p-8">
           <div className="max-w-3xl mx-auto space-y-6">
 

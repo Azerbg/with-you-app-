@@ -275,8 +275,8 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
     <div className="flex-1 flex min-w-0 overflow-hidden">
       {/* Thread list */}
       <div className="w-72 flex-shrink-0 border-r border-black/5 bg-white flex flex-col overflow-hidden">
-        <div className="px-4 py-4 border-b border-black/5">
-          <h1 className="font-bold text-[#2D1A00]">Messages</h1>
+        <div className="px-4 py-3 border-b border-black/5">
+          <p className="font-bold text-[#2D1A00] text-sm">Messages</p>
           <p className="text-xs text-[#9B8A6B] mt-0.5">{threads.length} conversation{threads.length !== 1 ? "s" : ""}</p>
         </div>
 

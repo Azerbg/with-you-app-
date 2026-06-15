@@ -136,14 +136,6 @@ export default function SessionsClient({
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
 
-        {/* Top bar */}
-        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
-          <h1 className="text-base font-bold text-[#5C3D00]">Mes séances</h1>
-          <div className="w-8 h-8 rounded-lg bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden">
-            {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : initials}
-          </div>
-        </div>
-
         {/* Content */}
         <div className="flex-1 overflow-auto p-8">
 

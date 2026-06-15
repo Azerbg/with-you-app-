@@ -86,21 +86,6 @@ export default function TutorDashboardContent({
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
 
-        {/* Top bar */}
-        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
-          <h1 className="text-base font-bold text-[#5C3D00]">Tableau de bord</h1>
-          <div className="flex items-center gap-3">
-            <button className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
-                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-              </svg>
-            </button>
-            <div className="w-8 h-8 rounded-lg bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden">
-              {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : initials}
-            </div>
-          </div>
-        </div>
-
         {/* Content */}
         <div className="flex-1 overflow-auto p-8">
 
