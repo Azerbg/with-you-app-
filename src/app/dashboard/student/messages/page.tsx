@@ -26,7 +26,7 @@ export default async function StudentMessagesPage() {
     <div className="flex h-screen overflow-hidden bg-[#F9F7F2]">
       <StudentSidebar
         email={profile.user.email}
-        cefrLevel={profile.currentCefrLevel ?? null}
+        cefrLevel={profile.cefrLevel ?? null}
         tier={profile.programTier}
         initials={initials}
         activePage="messages"
