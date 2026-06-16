@@ -10,7 +10,7 @@ interface Props {
   cefrLevel: string | null;
   tier: string;
   initials: string;
-  activePage?: "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing";
+  activePage?: "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile";
 }
 
 export default function StudentSidebar({ email, cefrLevel, tier, initials, activePage = "overview" }: Props) {
@@ -62,6 +62,12 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
     {
       label: s.account,
       items: [
+        {
+          label: s.myProfile,
+          href: "/dashboard/student/profile",
+          page: "profile" as const,
+          icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></svg>,
+        },
         {
           label: s.billing,
           href: "/dashboard/student/billing",
