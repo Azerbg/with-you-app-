@@ -22,7 +22,7 @@ export default async function StudentDashboardPage() {
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
-  const tier = profile.programTier as ProgramTier;
+  const tier = (profile.programTier ?? "STARTER") as ProgramTier;
 
   const firstName = profile.user.firstName ?? null;
   const lastName  = profile.user.lastName  ?? null;

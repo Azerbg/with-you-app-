@@ -441,7 +441,7 @@ function StepCountry({ data, onChange, onNext, onBack }: { data: WizardData; onC
 }
 
 // ─── Step 8: Tutor languages (3.9) ────────────────────────────────────────────
-function StepTutorLanguages({ data, onChange, onNext, onBack }: { data: WizardData; onChange: (k: keyof WizardData, v: string[]) => void; onNext: () => void; onBack: () => void }) {
+function StepTutorLanguages({ data, onChange, onNext, onBack, saving }: { data: WizardData; onChange: (k: keyof WizardData, v: string[]) => void; onNext: () => void; onBack: () => void; saving?: boolean }) {
   const { lang } = useLanguage();
   function toggle(l: string) { const c = data.tutorLanguages; onChange("tutorLanguages", c.includes(l) ? c.filter((x) => x !== l) : [...c, l]); }
   return (
@@ -457,8 +457,10 @@ function StepTutorLanguages({ data, onChange, onNext, onBack }: { data: WizardDa
         ))}
       </div>
       <div className="flex gap-3">
-        <button onClick={onBack} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
-        <button onClick={onNext} disabled={data.tutorLanguages.length === 0} className={`flex-1 py-2.5 ${btnPrimary}`}>{lang === "fr" ? "Continuer" : "Continue"}</button>
+        <button onClick={onBack} disabled={saving} className={`flex-1 py-2.5 ${btnSecondary}`}>{lang === "fr" ? "Retour" : "Back"}</button>
+        <button onClick={onNext} disabled={data.tutorLanguages.length === 0 || saving} className={`flex-1 py-2.5 ${btnPrimary}`}>
+          {saving ? (lang === "fr" ? "Enregistrement…" : "Saving…") : (lang === "fr" ? "Terminer" : "Finish")}
+        </button>
       </div>
     </div>
   );
@@ -635,6 +637,7 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const [data, setData] = useState<WizardData>({
     timezone: "UTC",
@@ -669,29 +672,40 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
 
   async function handleFinish() {
     setSaving(true);
-    await fetch("/api/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        timezone: data.timezone,
-        nativeLanguage: data.nativeLanguage,
-        targetLanguage: data.targetLanguage,
-        learningObjective: data.learningObjective,
-        selfReportedLevel: data.selfReportedLevel,
-        availabilityDays: data.availabilityDays,
-        timeWindowPreference: data.timeWindowPreference,
-        sessionFrequency: data.sessionFrequency,
-        programDuration: data.programDuration,
-        country: data.country,
-        tutorLanguages: data.tutorLanguages,
-        budgetPerSession: data.budgetPerSession,
-        examTarget: data.examTarget || undefined,
-        preferredCurrency: data.preferredCurrency,
-      }),
-    });
+    setSaveError("");
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timezone: data.timezone,
+          nativeLanguage: data.nativeLanguage,
+          targetLanguage: data.targetLanguage,
+          learningObjective: data.learningObjective,
+          selfReportedLevel: data.selfReportedLevel,
+          availabilityDays: data.availabilityDays,
+          timeWindowPreference: data.timeWindowPreference,
+          sessionFrequency: data.sessionFrequency,
+          programDuration: data.programDuration,
+          country: data.country,
+          tutorLanguages: data.tutorLanguages,
+          examTarget: data.examTarget || undefined,
+          preferredCurrency: data.preferredCurrency,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveError(err.error ?? "Une erreur est survenue. Veuillez réessayer.");
+        setSaving(false);
+        return;
+      }
+    } catch {
+      setSaveError("Erreur réseau. Vérifiez votre connexion et réessayez.");
+      setSaving(false);
+      return;
+    }
     setSaving(false);
-    const lang = data.targetLanguage;
-    router.push(lang ? `/find-tutors?lang=${encodeURIComponent(lang)}` : "/find-tutors");
+    router.push("/dashboard/student");
   }
 
   return (
@@ -708,7 +722,12 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
         {step === 5 && <StepSchedule data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 6 && <StepProgram data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 7 && <StepCountry data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={handleFinish} onBack={prevStep} />}
+        {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={handleFinish} onBack={prevStep} saving={saving} />}
+        {saveError && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+            {saveError}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -45,25 +45,29 @@ export async function POST(req: NextRequest) {
       data: { timezone: d.timezone },
     });
 
-    await db.studentProfile.update({
+    const profileData = {
+      nativeLanguage: d.nativeLanguage,
+      targetLanguage: d.targetLanguage,
+      learningObjective: d.learningObjective as LearningObjective,
+      selfReportedLevel: d.selfReportedLevel,
+      availabilityDays: d.availabilityDays,
+      timeWindowPreference: d.timeWindowPreference,
+      sessionFrequency: d.sessionFrequency as SessionFrequency,
+      programDuration: d.programDuration as ProgramDuration,
+      preferredCurrency: d.preferredCurrency as Currency,
+      country: d.country ?? null,
+      tutorLanguages: d.tutorLanguages ?? [],
+      budgetPerSession: d.budgetPerSession ?? null,
+      examTarget: d.examTarget ?? null,
+      programTier: "STARTER" as const,
+      onboardingCompleted: true,
+      onboardingCompletedAt: new Date(),
+    };
+
+    await db.studentProfile.upsert({
       where: { userId: session.user.id },
-      data: {
-        nativeLanguage: d.nativeLanguage,
-        targetLanguage: d.targetLanguage,
-        learningObjective: d.learningObjective as LearningObjective,
-        selfReportedLevel: d.selfReportedLevel,
-        availabilityDays: d.availabilityDays,
-        timeWindowPreference: d.timeWindowPreference,
-        sessionFrequency: d.sessionFrequency as SessionFrequency,
-        programDuration: d.programDuration as ProgramDuration,
-        preferredCurrency: d.preferredCurrency as Currency,
-        country: d.country ?? null,
-        tutorLanguages: d.tutorLanguages ?? [],
-        budgetPerSession: d.budgetPerSession ?? null,
-        examTarget: d.examTarget ?? null,
-        onboardingCompleted: true,
-        onboardingCompletedAt: new Date(),
-      },
+      update: profileData,
+      create: { userId: session.user.id, ...profileData },
     });
 
     return NextResponse.json({ success: true });
