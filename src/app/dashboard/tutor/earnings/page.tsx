@@ -7,6 +7,12 @@ export default async function EarningsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/auth/login");
 
+  const app = await db.hrApplication.findUnique({
+    where: { userId: session.user.id },
+    select: { status: true },
+  });
+  if (app?.status !== "ACTIVE") redirect("/dashboard/tutor");
+
   const [paymentMethod, payouts, compensation] = await Promise.all([
     db.tutorPaymentMethod.findUnique({ where: { userId: session.user.id } }).catch(() => null),
     db.payout.findMany({
