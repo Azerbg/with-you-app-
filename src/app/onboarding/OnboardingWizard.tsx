@@ -33,7 +33,7 @@ const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const TARGET_LANGUAGES = ["French", "English"];
 const ALL_LANGUAGES = ["English", "French", "Arabic", "Spanish", "German", "Italian", "Portuguese", "Mandarin", "Japanese", "Korean"];
 const TUTOR_LANGUAGES = ["English", "French", "Arabic", "Spanish", "Italian", "German", "Other"];
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 8;
 
 const inputCls = "w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 transition";
 const btnPrimary = "bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition";
@@ -708,9 +708,7 @@ export default function OnboardingWizard({ stripeKey }: { stripeKey: string }) {
         {step === 5 && <StepSchedule data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 6 && <StepProgram data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
         {step === 7 && <StepCountry data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={nextStep} onBack={prevStep} />}
-        {step === 9 && <StepBudget data={data} onChange={update} onNext={nextStep} onBack={prevStep} saving={false} />}
-        {step === 10 && <StepPayment stripeKey={stripeKey} onComplete={handleFinish} onBack={prevStep} saving={saving} />}
+        {step === 8 && <StepTutorLanguages data={data} onChange={update} onNext={handleFinish} onBack={prevStep} />}
       </div>
     </div>
   );
