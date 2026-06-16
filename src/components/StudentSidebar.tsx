@@ -7,13 +7,15 @@ import { T } from "@/lib/translations";
 
 interface Props {
   email: string;
+  name?: string | null;
   cefrLevel: string | null;
   tier: string;
   initials: string;
+  image?: string | null;
   activePage?: "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile";
 }
 
-export default function StudentSidebar({ email, cefrLevel, tier, initials, activePage = "overview" }: Props) {
+export default function StudentSidebar({ email, name, cefrLevel, tier, initials, image, activePage = "overview" }: Props) {
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
 
@@ -91,11 +93,15 @@ export default function StudentSidebar({ email, cefrLevel, tier, initials, activ
       {/* User */}
       <div className="px-3 pb-4 mb-2">
         <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/5 transition cursor-pointer">
-          <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
-            {initials}
-          </div>
+          {image ? (
+            <img src={image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+              {initials}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white/80 truncate leading-tight">{email}</p>
+            <p className="text-xs font-semibold text-white/80 truncate leading-tight">{name || email}</p>
             <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
               {cefrLevel} · {tier}
             </p>

@@ -11,7 +11,7 @@ export default async function StudentMessagesPage() {
 
   const profile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
-    include: { user: { select: { email: true, firstName: true, lastName: true } } },
+    include: { user: { select: { email: true, firstName: true, lastName: true, image: true } } },
   });
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
@@ -26,9 +26,11 @@ export default async function StudentMessagesPage() {
     <div className="flex h-screen overflow-hidden bg-[#F9F7F2]">
       <StudentSidebar
         email={profile.user.email}
+        name={firstName && lastName ? `${firstName} ${lastName}` : firstName ?? null}
         cefrLevel={profile.cefrLevel ?? null}
         tier={profile.programTier}
         initials={initials}
+        image={profile.user.image ?? null}
         activePage="messages"
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

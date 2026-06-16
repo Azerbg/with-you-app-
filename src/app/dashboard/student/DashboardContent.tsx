@@ -59,9 +59,11 @@ export default function DashboardContent(p: Props) {
     <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
       <StudentSidebar
         email={p.email}
+        name={p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName ?? null}
         cefrLevel={p.cefrLevel}
         tier={p.tierLabel ?? ""}
         initials={p.initials}
+        image={p.image}
         activePage="overview"
       />
 

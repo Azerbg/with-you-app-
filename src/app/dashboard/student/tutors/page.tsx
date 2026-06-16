@@ -11,6 +11,7 @@ export default async function MyTutorsPage() {
 
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
+    include: { user: { select: { image: true, firstName: true, lastName: true } } },
   });
 
   // Get all unique tutors this student has booked
@@ -60,7 +61,9 @@ export default async function MyTutorsPage() {
     }));
 
   const email    = session.user.email ?? "";
-  const initials = email.slice(0, 2).toUpperCase();
+  const fn = studentProfile?.user?.firstName;
+  const ln = studentProfile?.user?.lastName;
+  const initials = fn && ln ? (fn[0] + ln[0]).toUpperCase() : email.slice(0, 2).toUpperCase();
   const tier     = studentProfile?.programTier ?? "CORE";
   const cefr     = studentProfile?.cefrLevel ?? null;
 
@@ -75,9 +78,11 @@ export default async function MyTutorsPage() {
     <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
       <StudentSidebar
         email={email}
+        name={fn && ln ? `${fn} ${ln}` : fn ?? null}
         cefrLevel={cefr}
         tier={tier}
         initials={initials}
+        image={studentProfile?.user?.image ?? null}
         activePage="tutors"
       />
 

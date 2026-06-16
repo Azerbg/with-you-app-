@@ -18,10 +18,13 @@ export default async function BillingPage({ searchParams }: Props) {
 
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
+    include: { user: { select: { image: true, firstName: true, lastName: true } } },
   });
 
   const email    = session.user.email ?? "";
-  const initials = email.slice(0, 2).toUpperCase();
+  const fn = studentProfile?.user?.firstName;
+  const ln = studentProfile?.user?.lastName;
+  const initials = fn && ln ? (fn[0] + ln[0]).toUpperCase() : email.slice(0, 2).toUpperCase();
   const tier     = studentProfile?.programTier ?? "CORE";
   const cefr     = studentProfile?.cefrLevel ?? null;
   const locale   = (session.user as { locale?: string }).locale ?? "fr";
@@ -32,7 +35,9 @@ export default async function BillingPage({ searchParams }: Props) {
         email={email}
         cefrLevel={cefr}
         tier={tier}
+        name={fn && ln ? `${fn} ${ln}` : fn ?? null}
         initials={initials}
+        image={studentProfile?.user?.image ?? null}
         activePage="billing"
       />
 

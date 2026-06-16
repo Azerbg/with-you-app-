@@ -215,7 +215,15 @@ export default function StudentProfileClient(p: Props) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar email={p.email} cefrLevel={p.cefrLevel} tier={p.programTier} initials={initials || p.initials} activePage="profile" />
+      <StudentSidebar
+        email={p.email}
+        name={firstName && lastName ? `${firstName} ${lastName}` : firstName || null}
+        cefrLevel={p.cefrLevel}
+        tier={p.programTier}
+        initials={initials || p.initials}
+        image={avatar}
+        activePage="profile"
+      />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
