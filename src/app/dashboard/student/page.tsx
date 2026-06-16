@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { ProgramTier } from "@prisma/client";
 import DashboardContent from "./DashboardContent";
 
+export const dynamic = "force-dynamic";
+
 const TIER_BADGE: Record<ProgramTier, { cls: string }> = {
   STARTER:   { cls: "bg-[#FFF3B0] text-[#C49200]" },
   CORE:      { cls: "bg-[#F5C400]/20 text-[#5C3D00]" },

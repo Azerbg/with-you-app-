@@ -90,6 +90,7 @@ export default function StudentProfileClient(p: Props) {
   const [lastName,  setLastName]  = useState(p.lastName  ?? "");
   const [rawSrc,    setRawSrc]    = useState<string | null>(null);
   const [croppedSrc, setCroppedSrc] = useState<string | null>(null);
+  const [savedImage, setSavedImage] = useState<string | null>(p.image);
   const [crop,  setCrop]  = useState({ x: 0, y: 0 });
   const [zoom,  setZoom]  = useState(1);
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
@@ -155,7 +156,7 @@ export default function StudentProfileClient(p: Props) {
         timeWindowPreference: timeWindows,
         country: country,
       };
-      if (croppedSrc) body.pendingImage = croppedSrc;
+      if (croppedSrc) body.image = croppedSrc;
 
       const res = await fetch("/api/student/profile", {
         method: "PATCH",
@@ -169,6 +170,7 @@ export default function StudentProfileClient(p: Props) {
       } else {
         const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
         await update({ name: fullName });
+        if (croppedSrc) setSavedImage(croppedSrc);
         setSaved(true);
         setCroppedSrc(null);
       }
@@ -178,7 +180,7 @@ export default function StudentProfileClient(p: Props) {
     setSaving(false);
   }
 
-  const avatar = croppedSrc ?? p.image;
+  const avatar = croppedSrc ?? savedImage;
   const initials = (firstName[0] ?? p.initials[0] ?? "").toUpperCase() + (lastName[0] ?? p.initials[1] ?? "").toUpperCase();
 
   // ── Cropper fullscreen ──
@@ -264,11 +266,6 @@ export default function StudentProfileClient(p: Props) {
                   <div className="w-20 h-20 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-2xl ring-2 ring-[#F5C400]/40">
                     {initials || p.initials}
                   </div>
-                )}
-                {(p.hasPendingImage || croppedSrc) && (
-                  <span className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                    En attente
-                  </span>
                 )}
               </div>
               <div>

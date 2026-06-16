@@ -6,7 +6,7 @@ import { z } from "zod";
 const schema = z.object({
   firstName:            z.string().max(50).optional(),
   lastName:             z.string().max(50).optional(),
-  pendingImage:         z.string().optional(),
+  image:                z.string().optional(),
   nativeLanguage:       z.string().optional(),
   targetLanguage:       z.string().optional(),
   learningObjective:    z.string().optional(),
@@ -32,7 +32,7 @@ export async function PATCH(req: Request) {
     const userUpdate: Record<string, string | null> = {};
     if (d.firstName !== undefined) userUpdate.firstName = d.firstName || null;
     if (d.lastName  !== undefined) userUpdate.lastName  = d.lastName  || null;
-    if (d.pendingImage !== undefined) userUpdate.pendingImage = d.pendingImage;
+    if (d.image !== undefined) userUpdate.image = d.image;
     if (d.timezone !== undefined) userUpdate.timezone = d.timezone;
 
     if (Object.keys(userUpdate).length > 0) {
