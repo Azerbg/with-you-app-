@@ -31,16 +31,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = schema.parse(body);
 
-    const profile = await db.tutorProfile.update({
-      where: { userId: session.user.id },
-      data: {
-        bio:             data.bio,
-        profilePhotoUrl: data.profilePhotoUrl || null,
-        videoIntroUrl:   data.videoIntroUrl   || null,
-        cefrTeachingMin: data.cefrTeachingMin,
-        cefrTeachingMax: data.cefrTeachingMax,
-        specializations: data.specializations,
-      },
+    const profileData = {
+      bio:             data.bio,
+      profilePhotoUrl: data.profilePhotoUrl || null,
+      videoIntroUrl:   data.videoIntroUrl   || null,
+      cefrTeachingMin: data.cefrTeachingMin,
+      cefrTeachingMax: data.cefrTeachingMax,
+      specializations: data.specializations,
+    };
+
+    const profile = await db.tutorProfile.upsert({
+      where:  { userId: session.user.id },
+      update: profileData,
+      create: { userId: session.user.id, languagesTaught: [], certifications: [], ...profileData },
     });
 
     return NextResponse.json({ success: true, profileId: profile.id });
