@@ -152,7 +152,7 @@ model User {
   bookingsAsTutor    Booking[]             @relation("TutorBookings")
   disputesAsStudent  Dispute[]             @relation("StudentDisputes")
   disputesAsTutor    Dispute[]             @relation("TutorDisputes")
-  flashcards         Flashcard[]           @relation("StudentFlashcards")
+  flashcardDecks     FlashcardDeck[]       @relation("StudentFlashcardDecks")
   reviewsGiven       Review[]              @relation("StudentReviews")
   reviewsReceived    Review[]              @relation("TutorReviews")
   messageThreadsAsStudent MessageThread[]  @relation("StudentThreads")
@@ -637,30 +637,38 @@ model Lesson {
 
 // ─── FLASHCARDS ───────────────────────────────────────────────────────────────
 
-model Flashcard {
-  id       String  @id @default(cuid())
+model FlashcardDeck {
+  id        String      @id @default(cuid())
   studentId String
-  lessonId  String? // Optional link to a specific lesson
+  name      String
+  language  String      @default("")
+  cards     Flashcard[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  front String // e.g. French word / phrase
-  back  String // e.g. English translation or definition
+  student User @relation("StudentFlashcardDecks", fields: [studentId], references: [id], onDelete: Cascade)
 
-  // Tags for organization
-  tags String[] // e.g. ["Verbs", "Business", "Food"]
+  @@map("flashcard_decks")
+}
 
-  // Spaced repetition (Leitner box algorithm)
+model Flashcard {
+  id     String @id @default(cuid())
+  deckId String
+
+  front String
+  back  String
+
+  // Spaced repetition (SM-2)
   easeFactor   Float    @default(2.5)
-  interval     Int      @default(1)     // days until next review
+  interval     Int      @default(1)
   nextReviewAt DateTime @default(now())
   reviewCount  Int      @default(0)
-
-  // Source: manual or AI-generated (Phase 2)
-  source String @default("MANUAL") // "MANUAL" | "AI_GENERATED"
+  status       String   @default("new") // "new" | "learning" | "known"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  student User @relation("StudentFlashcards", fields: [studentId], references: [id], onDelete: Cascade)
+  deck FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
 
   @@map("flashcards")
 }
