@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import StudentSidebar from "@/components/StudentSidebar";
+import ContactButton from "./ContactButton";
 
 export default async function MyTutorsPage() {
   const session = await auth();
@@ -187,14 +188,7 @@ export default async function MyTutorsPage() {
 
                     {/* Actions */}
                     <div className="flex gap-2">
-                      {p && (
-                        <Link
-                          href={`/tutors/${p.id}`}
-                          className="flex-1 text-center text-xs font-bold border-2 border-[#6B5E44]/20 text-[#5C3D00] rounded-full py-2 hover:border-[#F5C400] transition"
-                        >
-                          Voir le profil
-                        </Link>
-                      )}
+                      <ContactButton tutorUserId={t.userId} />
                       <Link
                         href={`/booking/${t.userId}`}
                         className="flex-1 text-center text-xs font-bold bg-[#F5C400] text-[#5C3D00] rounded-full py-2 hover:bg-[#FFDE59] transition"
