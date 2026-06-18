@@ -130,11 +130,21 @@ export default async function BookingConfirmationPage({ params }: Props) {
               {/* CTAs */}
               <div className="flex flex-col gap-3">
                 <Link
-                  href="/dashboard/student"
+                  href="/dashboard/student/sessions"
                   className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition"
                 >
                   Voir mes séances →
                 </Link>
+                <a
+                  href={`/api/bookings/${bookingId}/ical`}
+                  download
+                  className="block w-full text-center bg-white text-[#5C3D00] py-3 rounded-xl font-semibold text-sm hover:bg-[#FAF8F0] transition border border-[#D9D0C3] flex items-center justify-center gap-2"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+                    <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                  </svg>
+                  Ajouter au calendrier (.ics)
+                </a>
                 <Link
                   href="/find-tutors"
                   className="block w-full text-center bg-[#FAF8F0] text-[#5C3D00] py-3 rounded-xl font-semibold text-sm hover:bg-[#F0EAD8] transition border border-[#D9D0C3]"
