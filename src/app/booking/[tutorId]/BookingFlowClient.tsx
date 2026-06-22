@@ -162,7 +162,6 @@ interface Props {
   availableSlots: string[];
   stripePublishableKey: string;
   alreadyHadDiscovery: boolean;
-  tutorTier: string;
   sessionPriceUsd: number;
   studentCountry: string;
 }
@@ -174,7 +173,6 @@ export default function BookingFlowClient({
   availableSlots,
   stripePublishableKey,
   alreadyHadDiscovery,
-  tutorTier: _tutorTier,
   sessionPriceUsd,
   studentCountry,
 }: Props) {

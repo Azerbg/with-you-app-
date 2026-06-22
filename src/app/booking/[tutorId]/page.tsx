@@ -90,7 +90,6 @@ export default async function BookingPage({ params }: Props) {
       availableSlots={slots.map((s) => s.utc.toISOString())}
       stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
       alreadyHadDiscovery={!!existingDiscovery}
-      tutorTier={profile.verificationTier}
       sessionPriceUsd={sessionPriceUsd}
       studentCountry={studentProfile?.country ?? "US"}
     />
