@@ -63,17 +63,22 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       }
 
       // On Google sign-in: fetch role/totp/name from DB
-      if (account?.provider === "google" && token.email) {
-        const dbUser = await db.user.findUnique({
-          where: { email: token.email },
-          select: { id: true, role: true, totpEnabled: true, firstName: true, lastName: true },
-        });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.totpEnabled = dbUser.totpEnabled;
-          token.totpVerified = false;
-          token.name = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || null;
+      // Use user?.email (always present from Google profile) as primary source,
+      // falling back to token.email in case NextAuth pre-populates it.
+      if (account?.provider === "google") {
+        const googleEmail = (user as { email?: string | null } | undefined)?.email ?? (token.email as string | undefined);
+        if (googleEmail) {
+          const dbUser = await db.user.findFirst({
+            where: { email: { equals: googleEmail, mode: "insensitive" } },
+            select: { id: true, role: true, totpEnabled: true, firstName: true, lastName: true },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            token.totpEnabled = dbUser.totpEnabled;
+            token.totpVerified = false;
+            token.name = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || null;
+          }
         }
       }
 
@@ -103,7 +108,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
-        const existing = await db.user.findUnique({ where: { email: user.email } });
+        // Case-insensitive lookup to avoid duplicates if casing differs
+        const existing = await db.user.findFirst({
+          where: { email: { equals: user.email, mode: "insensitive" } },
+        });
         // Split Google full name into firstName + lastName
         const nameParts = (user.name ?? "").trim().split(/\s+/);
         const firstName = nameParts[0] ?? null;
@@ -120,12 +128,19 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
               lastName,
             },
           });
-        } else if (!existing.firstName && firstName) {
-          // Back-fill name if missing
-          await db.user.update({
-            where: { email: user.email },
-            data: { firstName, lastName },
-          });
+        } else {
+          // Merge: back-fill name if missing, and mark email verified via Google
+          const updates: Record<string, unknown> = {};
+          if (!existing.firstName && firstName) {
+            updates.firstName = firstName;
+            updates.lastName = lastName;
+          }
+          if (!existing.emailVerified) {
+            updates.emailVerified = new Date();
+          }
+          if (Object.keys(updates).length > 0) {
+            await db.user.update({ where: { id: existing.id }, data: updates });
+          }
         }
         return true;
       }

@@ -103,7 +103,8 @@ export default function SessionsClient({
             <p className="text-sm font-bold text-[#5C3D00] mb-1">Politique d&apos;annulation</p>
             <p className="text-xs text-[#6B5E44] leading-relaxed">
               <strong>Plus de 24h avant la séance</strong> : remboursement intégral sur votre carte.<br />
-              <strong>Moins de 24h avant la séance</strong> : le montant est converti en crédit WithYou utilisable pour votre prochaine réservation.
+              <strong>Entre 24h et 12h avant la séance</strong> : le montant est converti en crédit WithYou pour votre prochaine réservation.<br />
+              <strong>Moins de 12h avant la séance</strong> : aucun remboursement — la séance est considérée comme due et payée.
             </p>
           </div>
         </div>
@@ -130,8 +131,11 @@ export default function SessionsClient({
                 const policyLabel =
                   hrs >= 24
                     ? "Remboursement complet si annulé maintenant"
-                    : "Crédit uniquement si annulé maintenant";
-                const policyColor = hrs >= 24 ? "text-green-600" : "text-orange-500";
+                    : hrs >= 12
+                    ? "Crédit WithYou uniquement si annulé maintenant"
+                    : "Non remboursable — moins de 12h avant la séance";
+                const policyColor =
+                  hrs >= 24 ? "text-green-600" : hrs >= 12 ? "text-orange-500" : "text-red-500";
 
                 return (
                   <div key={b.id} className="bg-white border border-black/5 rounded-2xl p-5 flex items-center gap-4">
@@ -246,9 +250,13 @@ export default function SessionsClient({
               <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-5 text-sm text-green-700">
                 <strong>Remboursement complet</strong> — La séance est dans plus de 24h, vous serez remboursé intégralement.
               </div>
-            ) : (
+            ) : hoursUntil(cancelTarget.scheduledAt) >= 12 ? (
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-5 text-sm text-orange-700">
-                <strong>Crédit uniquement</strong> — La séance est dans moins de 24h. Le montant sera converti en crédit WithYou.
+                <strong>Crédit WithYou uniquement</strong> — La séance est dans moins de 24h. Le montant sera converti en crédit pour votre prochaine réservation.
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5 text-sm text-red-700">
+                <strong>Non remboursable</strong> — La séance est dans moins de 12h. Aucun remboursement ni crédit ne sera accordé.
               </div>
             )}
 
@@ -292,7 +300,9 @@ export default function SessionsClient({
               </p>
             )}
             {cancelResult.type === "NONE" && (
-              <p className="text-sm text-[#6B5E44]">Votre séance a été annulée.</p>
+              <p className="text-sm text-[#6B5E44]">
+                Votre séance a été annulée. Aucun remboursement n&apos;est accordé car elle était dans moins de 12h.
+              </p>
             )}
             <button
               onClick={() => { setCancelTarget(null); setCancelResult(null); router.refresh(); }}

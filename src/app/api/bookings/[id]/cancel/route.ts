@@ -32,7 +32,9 @@ export async function POST(
   // Cancellation policy: >24h = full refund, <24h = credit only
   let refundType: "FULL" | "CREDIT" | "NONE" = "NONE";
   if (booking.stripePaymentIntentId) {
-    refundType = hoursUntil >= 24 ? "FULL" : "CREDIT";
+    if (hoursUntil >= 24) refundType = "FULL";
+    else if (hoursUntil >= 12) refundType = "CREDIT";
+    else refundType = "NONE";
   }
 
   // Process refund or credit
