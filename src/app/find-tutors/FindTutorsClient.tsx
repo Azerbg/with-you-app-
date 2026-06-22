@@ -363,7 +363,7 @@ export default function FindTutorsClient({
         <div className="flex gap-8">
           {/* Desktop sidebar */}
           <div className="hidden md:block w-52 flex-shrink-0">
-            <FilterSidebar lang={lang} spec={spec} cefr={cefr} onChange={handleFilter} />
+            <FilterSidebar lang={lang} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onChange={handleFilter} />
           </div>
 
           {/* Results */}
