@@ -29,7 +29,6 @@ const SPEC_LABELS: Record<string, string> = {
   EXAM_PREP: "Prépa examens",
 };
 
-const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 function StarRating({ rating, total }: { rating: number; total: number }) {
   return (
@@ -151,11 +150,13 @@ function FilterSidebar({
   lang,
   spec,
   cefr,
+  studentCefrLevel,
   onChange,
 }: {
   lang: string;
   spec: string;
   cefr: string;
+  studentCefrLevel: string | null;
   onChange: (key: string, value: string) => void;
 }) {
   return (
@@ -218,32 +219,31 @@ function FilterSidebar({
       {/* CEFR level */}
       <div>
         <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">
-          Mon niveau
+          Niveau
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="space-y-1.5">
           <button
             onClick={() => onChange("cefr", "")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+            className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
               cefr === ""
-                ? "bg-[#F5C400] text-[#5C3D00]"
-                : "bg-[#FAF8F0] text-[#6B5E44] hover:bg-[#F0EAD8]"
+                ? "bg-[#F5C400] text-[#5C3D00] font-bold"
+                : "text-[#5C3D00] hover:bg-[#FAF8F0]"
             }`}
           >
-            Tous
+            Tous les niveaux
           </button>
-          {CEFR_LEVELS.map((l) => (
+          {studentCefrLevel && (
             <button
-              key={l}
-              onClick={() => onChange("cefr", l)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                cefr === l
-                  ? "bg-[#F5C400] text-[#5C3D00]"
-                  : "bg-[#FAF8F0] text-[#6B5E44] hover:bg-[#F0EAD8]"
+              onClick={() => onChange("cefr", studentCefrLevel)}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
+                cefr === studentCefrLevel
+                  ? "bg-[#F5C400] text-[#5C3D00] font-bold"
+                  : "text-[#5C3D00] hover:bg-[#FAF8F0]"
               }`}
             >
-              {l}
+              Mon niveau ({studentCefrLevel})
             </button>
-          ))}
+          )}
         </div>
       </div>
     </aside>
@@ -252,8 +252,10 @@ function FilterSidebar({
 
 export default function FindTutorsClient({
   searchParamsPromise,
+  studentCefrLevel,
 }: {
   searchParamsPromise: Promise<{ lang?: string; spec?: string; cefr?: string }>;
+  studentCefrLevel: string | null;
 }) {
   const searchParams = use(searchParamsPromise);
   const router = useRouter();
@@ -350,7 +352,7 @@ export default function FindTutorsClient({
                 <p className="font-bold text-[#2D1A00]">Filtres</p>
                 <button onClick={() => setMobileFiltersOpen(false)} className="text-[#6B5E44]">✕</button>
               </div>
-              <FilterSidebar lang={lang} spec={spec} cefr={cefr} onChange={handleFilter} />
+              <FilterSidebar lang={lang} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onChange={handleFilter} />
             </div>
           </div>
         )}

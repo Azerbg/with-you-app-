@@ -50,6 +50,7 @@ const TUTORS = [
     verificationTier: 'TOP_TUTOR',
     avgResponseHours: 1.5,
     availabilityDays: [0, 1, 2, 3, 4, 5], // Mon–Sat
+    photo: 'https://randomuser.me/api/portraits/women/44.jpg',
   },
 
   // ── 2. Karim Nasri ── certifié TEFL simple, conv uniquement, A1–B2 ──────────
@@ -76,6 +77,7 @@ const TUTORS = [
     verificationTier: 'VERIFIED',
     avgResponseHours: 7,
     availabilityDays: [0, 1, 2], // Mon, Tue, Wed
+    photo: 'https://randomuser.me/api/portraits/men/32.jpg',
   },
 
   // ── 3. Mehdi Trabelsi ── polyvalent, Master, conv+pro+exam, dispo limitée ───
@@ -102,6 +104,7 @@ const TUTORS = [
     verificationTier: 'VERIFIED',
     avgResponseHours: 3,
     availabilityDays: [0, 2, 4, 5], // Mon, Wed, Fri, Sat
+    photo: 'https://randomuser.me/api/portraits/men/75.jpg',
   },
 
   // ── 4. Nadia Ferjani ── nouvelle VERIFIED, 0 avis, conv + pleine dispo ──────
@@ -128,6 +131,7 @@ const TUTORS = [
     verificationTier: 'VERIFIED',
     avgResponseHours: 2,
     availabilityDays: [0, 1, 2, 3, 4], // Mon–Fri
+    photo: 'https://randomuser.me/api/portraits/women/68.jpg',
   },
 
   // ── 5. Salma Gharbi ── docteure, ACADEMIC/PROFESSIONAL, pas de conv ────────
@@ -154,6 +158,7 @@ const TUTORS = [
     verificationTier: 'VERIFIED',
     avgResponseHours: 5,
     availabilityDays: [1, 3, 5], // Tue, Thu, Sat
+    photo: 'https://randomuser.me/api/portraits/women/26.jpg',
   },
 
   // ── 6. Omar Khelil ── TOP_TUTOR 4.8★ mais C1–C2 only + pas conv ───────────
@@ -180,6 +185,7 @@ const TUTORS = [
     verificationTier: 'TOP_TUTOR',
     avgResponseHours: 1,
     availabilityDays: [0, 1, 2, 3], // Mon–Thu
+    photo: 'https://randomuser.me/api/portraits/men/55.jpg',
   },
 ];
 
@@ -228,7 +234,10 @@ async function main() {
   for (const t of TUTORS) {
     const exists = await db.user.findUnique({ where: { email: t.email } });
     if (exists) {
-      console.log(`SKIP  ${t.fullName} — already exists`);
+      // Tuteur déjà créé : on met juste à jour la photo
+      await db.user.update({ where: { id: exists.id }, data: { image: t.photo } });
+      await db.tutorProfile.update({ where: { userId: exists.id }, data: { profilePhotoUrl: t.photo } });
+      console.log(`PHOTO ${t.fullName} — photo mise à jour`);
       continue;
     }
 
@@ -240,6 +249,7 @@ async function main() {
         lastName: t.lastName,
         role: 'TUTOR',
         emailVerified: new Date(),
+        image: t.photo,
       },
     });
 
@@ -288,6 +298,7 @@ async function main() {
         verificationTier: t.verificationTier,
         verificationStatus: 'VERIFIED',
         avgResponseHours: t.avgResponseHours,
+        profilePhotoUrl: t.photo,
         maxWeeklyHours: 20,
       },
     });
