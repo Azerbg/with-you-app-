@@ -605,7 +605,7 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
     onChange(field, cur.includes(val) ? cur.filter(x => x !== val) : [...cur, val]);
   }
 
-  const langs = ["French", "English"];
+  const langs = ["Arabic", "French", "English"];
   const specs = [
     { val: "CONVERSATIONAL", label: fr ? "Conversationnel" : "Conversational" },
     { val: "PROFESSIONAL",   label: fr ? "Professionnel"   : "Professional" },
@@ -699,7 +699,7 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
               className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition ${
                 data.languagesTaught.includes(l) ? activeCard : `${inactiveCard} text-[#5C3D00]`
               }`}>
-              {l === "French" ? "Français" : "English"}
+              {l === "French" ? "Français" : l === "Arabic" ? "عربي" : "English"}
             </button>
           ))}
         </div>
@@ -1471,7 +1471,7 @@ export default function TutorApplyWizard() {
 
   const [data, setData] = useState<FormData>({
     firstName: "", lastName: "", fullName: "", email: "", password: "", confirmPassword: "", phone: "", birthday: "", gender: "", country: "", city: "",
-    languagesTaught: [], specializations: [], yearsExperience: 0, certifications: [], englishLevel: "",
+    languagesTaught: ["Arabic"], specializations: [], yearsExperience: 0, certifications: [], englishLevel: "",
     bio: "", cvUrl: "", cvFileName: "", motivationLetterUrl: "", motivationLetterFileName: "", certificateFiles: [],
     availabilityDays: [], timeWindowPreference: [],
   });

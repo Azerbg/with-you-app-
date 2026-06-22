@@ -141,7 +141,7 @@ export default async function TutorProfilePage({ params }: Props) {
             <div className="flex flex-wrap gap-2 mb-2">
               {profile.languagesTaught.map(l => (
                 <span key={l} className="text-xs bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full">
-                  {l === "French" ? "🇫🇷 Français" : "🇬🇧 English"}
+                  {l === "French" ? "🇫🇷 Français" : l === "Arabic" ? "🇹🇳 Arabe" : "🇬🇧 English"}
                 </span>
               ))}
               <span className="text-xs bg-[#FAF8F0] text-[#6B5E44] font-semibold px-2 py-0.5 rounded-full border border-[#D9D0C3]">

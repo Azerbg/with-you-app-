@@ -116,7 +116,7 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
               key={l}
               className="text-[11px] bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full"
             >
-              {l === "French" ? "🇫🇷 Français" : "🇬🇧 English"}
+              {l === "French" ? "🇫🇷 Français" : l === "Arabic" ? "🇹🇳 Arabe" : "🇬🇧 English"}
             </span>
           ))}
           {tutor.cefrTeachingMin && tutor.cefrTeachingMax && (
@@ -168,6 +168,7 @@ function FilterSidebar({
         <div className="space-y-1.5">
           {[
             { value: "", label: "Toutes" },
+            { value: "Arabic", label: "🇹🇳 Arabe" },
             { value: "French", label: "🇫🇷 Français" },
             { value: "English", label: "🇬🇧 English" },
           ].map((opt) => (
