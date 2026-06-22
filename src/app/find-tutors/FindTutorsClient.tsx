@@ -102,9 +102,13 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
               </span>
             )}
           </div>
-          {tutor.matchScore !== null && (
-            <span className="flex-shrink-0 text-[11px] font-bold text-[#5C3D00] bg-[#FFF3B0] px-2 py-0.5 rounded-full">
-              {tutor.matchScore}% match
+          {tutor.matchScore !== null && tutor.matchScore >= 70 && (
+            <span className={`flex-shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+              tutor.matchScore >= 85
+                ? "bg-green-100 text-green-700"
+                : "bg-[#FFF3B0] text-[#C49200]"
+            }`}>
+              {tutor.matchScore >= 85 ? "Excellent match" : "Bon match"}
             </span>
           )}
         </div>
@@ -137,9 +141,8 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
           <p className="text-xs text-[#6B5E44] line-clamp-2 mb-2">{tutor.bio}</p>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <StarRating rating={tutor.averageRating} total={tutor.totalReviews} />
-          <span className="text-sm font-bold text-[#5C3D00]">15 USD →</span>
         </div>
       </div>
     </Link>
