@@ -357,9 +357,9 @@ export default async function TutorProfilePage({ params }: Props) {
 
             {/* CTA card */}
             <div className="bg-[#5C3D00] rounded-2xl p-5 text-white">
-              <p className="text-[10px] font-bold text-[#F5C400]/60 uppercase tracking-widest mb-1">Seance de decouverte</p>
-              <p className="text-2xl font-bold text-[#F5C400] mb-0.5">15 USD</p>
-              <p className="text-xs text-white/50 mb-4">30 min · Paiement unique</p>
+              <p className="text-[10px] font-bold text-[#F5C400]/60 uppercase tracking-widest mb-1">Votre premiere seance</p>
+              <p className="text-2xl font-bold text-[#F5C400] mb-0.5">A partir de 15 USD</p>
+              <p className="text-xs text-white/50 mb-4">Decouverte 30 min ou cours complet 50 min</p>
               {(isStudent || !isLoggedIn) && (
                 <Link href={bookingHref}
                   className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
@@ -386,7 +386,7 @@ export default async function TutorProfilePage({ params }: Props) {
           <div className="mt-6 sm:hidden">
             <Link href={bookingHref}
               className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-2xl font-bold text-sm hover:bg-[#FFDE59] transition">
-              Reserver une seance de decouverte — 15 USD
+              Reserver une seance
             </Link>
           </div>
         )}

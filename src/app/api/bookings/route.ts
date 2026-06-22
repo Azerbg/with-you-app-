@@ -62,16 +62,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Slot already booked" }, { status: 409 });
   }
 
+  // Read session type and amount from PaymentIntent metadata
+  const sessionType = (paymentIntent.metadata.sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
+  const durationMins = sessionType === "SINGLE" ? 50 : 30;
+  const studentPriceUsd = paymentIntent.amount / 100;
+
   // Create booking
   const booking = await db.booking.create({
     data: {
       studentId: session.user.id,
       tutorId,
-      sessionType: "DISCOVERY",
+      sessionType,
       status: "CONFIRMED",
-      durationMins: 30,
+      durationMins,
       scheduledAt: slotDate,
-      studentPriceUsd: 15,
+      studentPriceUsd,
       studentCurrency: "USD",
       stripePaymentIntentId: paymentIntentId,
     },

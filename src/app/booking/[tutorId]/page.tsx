@@ -49,14 +49,20 @@ export default async function BookingPage({ params }: Props) {
   if (!profile || profile.user.hrApplication?.status !== "ACTIVE") notFound();
 
   // Check if student already has a discovery session with this tutor
-  const existingDiscovery = await db.booking.findFirst({
-    where: {
-      studentId: session.user.id,
-      tutorId,
-      sessionType: "DISCOVERY",
-      status: { not: "CANCELLED" },
-    },
-  });
+  const [existingDiscovery, studentProfile] = await Promise.all([
+    db.booking.findFirst({
+      where: {
+        studentId: session.user.id,
+        tutorId,
+        sessionType: "DISCOVERY",
+        status: { not: "CANCELLED" },
+      },
+    }),
+    db.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { country: true },
+    }),
+  ]);
 
   const bookings = await db.booking.findMany({
     where: { tutorId, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: new Date() } },
@@ -72,6 +78,10 @@ export default async function BookingPage({ params }: Props) {
 
   const photoUrl = profile.user.image ?? profile.profilePhotoUrl;
 
+  // Session price for 50-min full session, based on tutor verification tier
+  const SINGLE_PRICES: Record<string, number> = { BASIC: 25, VERIFIED: 30, TOP_TUTOR: 35 };
+  const sessionPriceUsd = SINGLE_PRICES[profile.verificationTier] ?? 25;
+
   return (
     <BookingFlowClient
       tutorId={tutorId}
@@ -79,7 +89,10 @@ export default async function BookingPage({ params }: Props) {
       tutorPhoto={photoUrl ?? null}
       availableSlots={slots.map((s) => s.utc.toISOString())}
       stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
-      alreadyBooked={!!existingDiscovery}
+      alreadyHadDiscovery={!!existingDiscovery}
+      tutorTier={profile.verificationTier}
+      sessionPriceUsd={sessionPriceUsd}
+      studentCountry={studentProfile?.country ?? "US"}
     />
   );
 }
