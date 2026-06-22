@@ -5,6 +5,7 @@ import { generateAvailableSlots } from "@/lib/slots";
 import type { Metadata } from "next";
 import Link from "next/link";
 import TutorProfileClient from "./TutorProfileClient";
+import WeeklyCalendar from "./WeeklyCalendar";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -102,7 +103,8 @@ export default async function TutorProfilePage({ params }: Props) {
     }),
   ]);
 
-  const slots = generateAvailableSlots(profile.availability, bookingsRaw.map(b => b.scheduledAt), 7);
+  // Generate 3 weeks of slots (21 days) for the weekly calendar
+  const slots = generateAvailableSlots(profile.availability, bookingsRaw.map(b => b.scheduledAt), 21);
 
   const displayName =
     profile.user.firstName && profile.user.lastName
@@ -147,18 +149,8 @@ export default async function TutorProfilePage({ params }: Props) {
   const isStudent  = session?.user?.role === "STUDENT";
   const isLoggedIn = !!session?.user;
 
-  // Group slots by date for 7-day preview
-  const slotsByDate: Record<string, number> = {};
-  for (const s of slots) {
-    const dateKey = s.utc.toISOString().slice(0, 10);
-    slotsByDate[dateKey] = (slotsByDate[dateKey] ?? 0) + 1;
-  }
-
-  const next7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setUTCDate(d.getUTCDate() + i + 1);
-    return d.toISOString().slice(0, 10);
-  });
+  // Serialize slots as UTC ISO strings for the client WeeklyCalendar component
+  const slotsUtc = slots.map(s => s.utc.toISOString());
 
   const bookingHref = isStudent
     ? `/booking/${id}`
@@ -274,6 +266,11 @@ export default async function TutorProfilePage({ params }: Props) {
           </div>
         </div>
 
+        {/* Weekly calendar — full width */}
+        <div className="mb-5">
+          <WeeklyCalendar slotsUtc={slotsUtc} bookingHref={bookingHref} />
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
 
           {/* Left col */}
@@ -369,32 +366,6 @@ export default async function TutorProfilePage({ params }: Props) {
                   Reserver maintenant
                 </Link>
               )}
-            </div>
-
-            {/* Availability preview */}
-            <div className="bg-white border border-[#C4BAA8] rounded-2xl p-4">
-              <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-3">
-                Disponibilites (7 prochains jours)
-              </p>
-              <div className="space-y-1.5">
-                {next7Days.map(dateStr => {
-                  const count = slotsByDate[dateStr] ?? 0;
-                  const date = new Date(dateStr + "T12:00:00Z");
-                  const label = date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
-                  return (
-                    <div key={dateStr} className="flex items-center justify-between text-xs">
-                      <span className="text-[#5C3D00] font-medium capitalize">{label}</span>
-                      {count > 0 ? (
-                        <span className="text-green-700 font-semibold bg-green-50 px-2 py-0.5 rounded-full">
-                          {count} creneau{count > 1 ? "x" : ""}
-                        </span>
-                      ) : (
-                        <span className="text-[#9B8A6B]">Indisponible</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
           </div>
