@@ -32,6 +32,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) return null;
 
+        if (user.accountStatus === "BLOCKED") return null;
+
         if (process.env.NODE_ENV === "production" && !user.emailVerified) return null;
 
         return {
