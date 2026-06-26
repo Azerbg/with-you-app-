@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import TutorProfileClient from "./TutorProfileClient";
 import WeeklyCalendar from "./WeeklyCalendar";
+import ContactTutorButton from "./ContactTutorButton";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -362,10 +363,16 @@ export default async function TutorProfilePage({ params }: Props) {
               <p className="text-xs text-white/50 mb-4">Decouverte 30 min ou cours complet 50 min</p>
               {(isStudent || !isLoggedIn) && (
                 <Link href={bookingHref}
-                  className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
+                  className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition mb-2">
                   Reserver maintenant
                 </Link>
               )}
+              <ContactTutorButton
+                tutorId={id}
+                tutorName={displayName}
+                isStudent={isStudent}
+                loginUrl={`/auth/login?callbackUrl=/tutors/${id}`}
+              />
             </div>
 
           </div>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
@@ -15,5 +16,9 @@ export default async function StudentMessagesPage() {
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
-  return <StudentMessagesClient currentUserId={session.user.id} />;
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-sm text-[#9B8A6B]">Chargement…</div>}>
+      <StudentMessagesClient currentUserId={session.user.id} />
+    </Suspense>
+  );
 }

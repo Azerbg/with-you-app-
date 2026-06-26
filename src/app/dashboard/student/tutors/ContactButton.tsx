@@ -16,7 +16,8 @@ export default function ContactButton({ tutorUserId }: { tutorUserId: string }) 
         body: JSON.stringify({ tutorId: tutorUserId }),
       });
       if (res.ok) {
-        router.push("/dashboard/student/messages");
+        const { id } = await res.json();
+        router.push(`/dashboard/student/messages?thread=${id}`);
       }
     } finally {
       setLoading(false);

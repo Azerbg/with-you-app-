@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface ThreadUser {
   id: string;
@@ -19,6 +20,7 @@ interface Thread {
   tutor: ThreadUser;
   messages: { content: string; createdAt: string; senderId: string; isRead: boolean }[];
   unreadCount: number;
+  isLocked: boolean;
 }
 
 interface Message {
@@ -74,11 +76,13 @@ function ThreadItem({ thread, currentUserId, active, onClick }: {
           <p className="text-xs text-[#9B8A6B] truncate">
             {last ? (last.senderId === currentUserId ? "Vous : " : "") + last.content : "Aucun message"}
           </p>
-          {thread.unreadCount > 0 && (
+          {thread.isLocked ? (
+            <span className="text-[10px] text-[#9B8A6B] shrink-0">🔒</span>
+          ) : thread.unreadCount > 0 ? (
             <span className="text-[10px] font-bold bg-[#F5C400] text-[#5C3D00] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
               {thread.unreadCount}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     </button>
@@ -89,8 +93,10 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
   thread: Thread; currentUserId: string; onMessageSent: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLocked, setIsLocked] = useState(thread.isLocked);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -99,7 +105,11 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
 
   const loadMessages = useCallback(async () => {
     const res = await fetch(`/api/messages/${thread.id}`);
-    if (res.ok) setMessages(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(data.messages);
+      if (typeof data.isLocked === "boolean") setIsLocked(data.isLocked);
+    }
   }, [thread.id]);
 
   useEffect(() => {
@@ -115,6 +125,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
   async function send() {
     if (!text.trim() || sending) return;
     setSending(true);
+    setSendError(null);
     const res = await fetch(`/api/messages/${thread.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -125,6 +136,8 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       setMessages(prev => [...prev, msg]);
       setText("");
       onMessageSent();
+    } else {
+      setSendError("Échec de l'envoi. Réessayez.");
     }
     setSending(false);
   }
@@ -193,30 +206,46 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-black/5 bg-white px-4 py-3 flex items-end gap-3">
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={handleKey}
-          rows={1}
-          placeholder="Écrire un message… (Entrée pour envoyer)"
-          className="flex-1 border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 resize-none transition"
-          style={{ maxHeight: 120 }}
-        />
-        <button onClick={send} disabled={!text.trim() || sending}
-          className="w-9 h-9 bg-[#F5C400] rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#FFDE59] disabled:opacity-40 transition">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#5C3D00]">
-            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
-          </svg>
-        </button>
-      </div>
+      {sendError && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-600 flex items-center justify-between">
+          <span>{sendError}</span>
+          <button onClick={() => setSendError(null)} className="ml-2 text-red-400 hover:text-red-600">✕</button>
+        </div>
+      )}
+      {isLocked ? (
+        <div className="border-t border-black/5 bg-[#FAF8F0] px-4 py-3 flex items-center gap-3">
+          <span className="text-lg">🔒</span>
+          <p className="text-xs text-[#9B8A6B] leading-relaxed">
+            En attente de la réponse du tuteur. Le chat complet s&apos;active dès qu&apos;il répond ou après une réservation.
+          </p>
+        </div>
+      ) : (
+        <div className="border-t border-black/5 bg-white px-4 py-3 flex items-end gap-3">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={handleKey}
+            rows={1}
+            placeholder="Écrire un message… (Entrée pour envoyer)"
+            className="flex-1 border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 resize-none transition"
+            style={{ maxHeight: 120 }}
+          />
+          <button onClick={send} disabled={!text.trim() || sending}
+            className="w-9 h-9 bg-[#F5C400] rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#FFDE59] disabled:opacity-40 transition">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#5C3D00]">
+              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function StudentMessagesClient({ currentUserId }: { currentUserId: string }) {
+  const searchParams = useSearchParams();
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(searchParams.get("thread"));
   const [loading, setLoading] = useState(true);
 
   const loadThreads = useCallback(async () => {
