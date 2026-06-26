@@ -326,7 +326,6 @@ export default function FlashcardsClient(p: Props) {
               </div>
             )}
           </div>
-        </div>
 
         {/* Create deck modal */}
         {showCreate && (
