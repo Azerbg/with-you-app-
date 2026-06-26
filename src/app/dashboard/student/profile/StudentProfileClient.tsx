@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
-import StudentSidebar from "@/components/StudentSidebar";
 
 // ─── Crop utility ─────────────────────────────────────────────────────────────
 
@@ -216,18 +215,7 @@ export default function StudentProfileClient(p: Props) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={p.email}
-        name={firstName && lastName ? `${firstName} ${lastName}` : firstName || null}
-        cefrLevel={p.cefrLevel}
-        tier={p.programTier}
-        initials={initials || p.initials}
-        image={avatar}
-        activePage="profile"
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+    <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Mon profil</h1>
@@ -424,6 +412,5 @@ export default function StudentProfileClient(p: Props) {
 
         </div>
       </div>
-    </div>
   );
 }

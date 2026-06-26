@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
-import StudentSidebar from "@/components/StudentSidebar";
 import ProfileEditPanel from "@/components/ProfileEditPanel";
 
 interface UpcomingBooking {
@@ -56,17 +55,7 @@ export default function DashboardContent(p: Props) {
   const cefrDesc  = p.cefrLevel        ? (t.cefr       as Record<string,string>)[p.cefrLevel]        ?? "" : "";
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={p.email}
-        name={p.firstName && p.lastName ? `${p.firstName} ${p.lastName}` : p.firstName ?? null}
-        cefrLevel={p.cefrLevel}
-        tier={p.tierLabel ?? ""}
-        initials={p.initials}
-        image={p.image}
-        activePage="overview"
-      />
-
+    <>
       <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
@@ -335,6 +324,6 @@ export default function DashboardContent(p: Props) {
           onSaved={(f, l) => { setFirstName(f); setLastName(l); setEditOpen(false); }}
         />
       )}
-    </div>
+    </>
   );
 }

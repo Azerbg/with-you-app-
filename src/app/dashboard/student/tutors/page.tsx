@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import StudentSidebar from "@/components/StudentSidebar";
 import ContactButton from "./ContactButton";
 
 export default async function MyTutorsPage() {
@@ -12,7 +11,7 @@ export default async function MyTutorsPage() {
 
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
-    include: { user: { select: { image: true, firstName: true, lastName: true } } },
+    include: { user: { select: { firstName: true, lastName: true } } },
   });
 
   // Get all unique tutors this student has booked
@@ -65,8 +64,6 @@ export default async function MyTutorsPage() {
   const fn = studentProfile?.user?.firstName;
   const ln = studentProfile?.user?.lastName;
   const initials = fn && ln ? (fn[0] + ln[0]).toUpperCase() : email.slice(0, 2).toUpperCase();
-  const tier     = studentProfile?.programTier ?? "CORE";
-  const cefr     = studentProfile?.cefrLevel ?? null;
 
   const SPEC_LABELS: Record<string, string> = {
     CONVERSATIONAL: "Conversation",
@@ -76,18 +73,7 @@ export default async function MyTutorsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={email}
-        name={fn && ln ? `${fn} ${ln}` : fn ?? null}
-        cefrLevel={cefr}
-        tier={tier}
-        initials={initials}
-        image={studentProfile?.user?.image ?? null}
-        activePage="tutors"
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+    <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Mes tuteurs</h1>
@@ -203,6 +189,5 @@ export default async function MyTutorsPage() {
           )}
         </div>
       </div>
-    </div>
   );
 }

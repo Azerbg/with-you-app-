@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import StudentSidebar from "@/components/StudentSidebar";
 import SessionsClient from "./SessionsClient";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +13,7 @@ export default async function StudentSessionsPage() {
   const [profile, bookings] = await Promise.all([
     db.studentProfile.findUnique({
       where: { userId: session.user.id },
-      include: {
-        user: { select: { email: true, firstName: true, lastName: true, image: true } },
-      },
+      select: { onboardingCompleted: true },
     }),
     db.booking.findMany({
       where: { studentId: session.user.id },
@@ -38,15 +35,6 @@ export default async function StudentSessionsPage() {
 
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
-  const firstName = profile.user.firstName ?? null;
-  const lastName = profile.user.lastName ?? null;
-  const initials =
-    firstName && lastName
-      ? (firstName[0] + lastName[0]).toUpperCase()
-      : firstName
-      ? firstName.slice(0, 2).toUpperCase()
-      : profile.user.email.slice(0, 2).toUpperCase();
-
   const serialized = bookings.map((b) => ({
     id: b.id,
     tutorId: b.tutor.id,
@@ -64,18 +52,5 @@ export default async function StudentSessionsPage() {
     cancelledBy: b.cancelledBy ?? null,
   }));
 
-  return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={profile.user.email}
-        name={firstName && lastName ? `${firstName} ${lastName}` : firstName ?? null}
-        cefrLevel={profile.cefrLevel}
-        tier=""
-        initials={initials}
-        image={profile.user.image ?? null}
-        activePage="sessions"
-      />
-      <SessionsClient bookings={serialized} currentUserId={session.user.id} />
-    </div>
-  );
+  return <SessionsClient bookings={serialized} currentUserId={session.user.id} />;
 }

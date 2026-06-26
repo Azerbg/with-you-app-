@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
+
+type ActivePage = "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile";
 
 interface Props {
   email: string;
@@ -12,12 +15,25 @@ interface Props {
   tier: string;
   initials: string;
   image?: string | null;
-  activePage?: "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile";
+  activePage?: ActivePage;
 }
 
-export default function StudentSidebar({ email, name, cefrLevel, tier, initials, image, activePage = "overview" }: Props) {
+export default function StudentSidebar({ email, name, cefrLevel, tier, initials, image, activePage }: Props) {
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
+  const pathname = usePathname();
+
+  const detectedPage: ActivePage =
+    pathname === "/dashboard/student" ? "overview" :
+    pathname.startsWith("/dashboard/student/sessions") ? "sessions" :
+    pathname.startsWith("/dashboard/student/tutors") ? "tutors" :
+    pathname.startsWith("/dashboard/student/flashcards") ? "flashcards" :
+    pathname.startsWith("/dashboard/student/messages") ? "messages" :
+    pathname.startsWith("/dashboard/student/profile") ? "profile" :
+    pathname.startsWith("/dashboard/student/billing") ? "billing" :
+    "overview";
+
+  const currentPage = activePage ?? detectedPage;
 
   const NAV = [
     {
@@ -125,7 +141,7 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
             )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = activePage === item.page;
+                const active = currentPage === item.page;
                 return (
                   <Link
                     key={item.label}

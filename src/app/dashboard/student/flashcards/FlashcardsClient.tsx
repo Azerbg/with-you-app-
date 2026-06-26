@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import StudentSidebar from "@/components/StudentSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -234,25 +233,11 @@ export default function FlashcardsClient(p: Props) {
 
   // ── Renders ──────────────────────────────────────────────────────────────────
 
-  const sidebar = (
-    <StudentSidebar
-      email={p.email}
-      name={p.name}
-      cefrLevel={p.cefrLevel}
-      tier={p.tier}
-      initials={p.initials}
-      image={p.image}
-      activePage="flashcards"
-    />
-  );
-
   // ── VIEW: DECKS ──────────────────────────────────────────────────────────────
 
   if (view === "decks") {
     return (
-      <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-        {sidebar}
-        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
           {/* Top bar */}
           <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
             <h1 className="text-base font-bold text-[#5C3D00]">Flashcards</h1>
@@ -402,9 +387,7 @@ export default function FlashcardsClient(p: Props) {
 
   if (view === "manage" && selectedDeck) {
     return (
-      <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-        {sidebar}
-        <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
           {/* Top bar */}
           <div className="h-14 border-b border-black/5 bg-white flex items-center gap-4 px-8 flex-shrink-0">
             <button
@@ -541,7 +524,6 @@ export default function FlashcardsClient(p: Props) {
             )}
           </div>
         </div>
-      </div>
     );
   }
 
@@ -557,9 +539,7 @@ export default function FlashcardsClient(p: Props) {
       const learningCount = studyCards.length - knownCount;
       const pct = Math.round((knownCount / studyCards.length) * 100);
       return (
-        <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-          {sidebar}
-          <div className="flex-1 flex flex-col items-center justify-center p-8">
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
             <div className="bg-white rounded-3xl shadow-lg p-10 w-full max-w-md text-center">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-5">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" className="w-8 h-8">
@@ -616,15 +596,12 @@ export default function FlashcardsClient(p: Props) {
               </div>
             </div>
           </div>
-        </div>
       );
     }
 
     // Study card
     return (
-      <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-        {sidebar}
-        <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
           {/* Top bar */}
           <div className="h-14 border-b border-black/5 bg-white flex items-center gap-4 px-8 flex-shrink-0">
             <button
@@ -716,7 +693,6 @@ export default function FlashcardsClient(p: Props) {
             )}
           </div>
         </div>
-      </div>
     );
   }
 

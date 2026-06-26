@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import StudentSidebar from "@/components/StudentSidebar";
 import PaymentSetupClient from "@/app/settings/payment/PaymentSetupClient";
 
 interface Props {
@@ -18,30 +17,17 @@ export default async function BillingPage({ searchParams }: Props) {
 
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
-    include: { user: { select: { image: true, firstName: true, lastName: true } } },
+    include: { user: { select: { firstName: true, lastName: true } } },
   });
 
   const email    = session.user.email ?? "";
   const fn = studentProfile?.user?.firstName;
   const ln = studentProfile?.user?.lastName;
   const initials = fn && ln ? (fn[0] + ln[0]).toUpperCase() : email.slice(0, 2).toUpperCase();
-  const tier     = studentProfile?.programTier ?? "CORE";
-  const cefr     = studentProfile?.cefrLevel ?? null;
   const locale   = (session.user as { locale?: string }).locale ?? "fr";
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={email}
-        cefrLevel={cefr}
-        tier={tier}
-        name={fn && ln ? `${fn} ${ln}` : fn ?? null}
-        initials={initials}
-        image={studentProfile?.user?.image ?? null}
-        activePage="billing"
-      />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+    <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Paiement</h1>
@@ -53,7 +39,6 @@ export default async function BillingPage({ searchParams }: Props) {
         <div className="flex-1 overflow-auto">
           <PaymentSetupClient lang={locale} setupComplete={setupComplete} />
         </div>
-      </div>
     </div>
   );
 }
