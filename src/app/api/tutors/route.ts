@@ -64,10 +64,23 @@ export async function GET(req: NextRequest) {
 
   // CEFR filter (post-fetch since it needs index comparison)
   const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+  const CEFR_GROUPS: Record<string, [string, string]> = {
+    beginner:     ["A1", "A2"],
+    intermediate: ["B1", "B2"],
+    advanced:     ["C1", "C2"],
+  };
   const filtered = cefr
     ? active.filter(p => {
         const minIdx = CEFR_ORDER.indexOf(p.cefrTeachingMin ?? "A1");
         const maxIdx = CEFR_ORDER.indexOf(p.cefrTeachingMax ?? "C2");
+        const group = CEFR_GROUPS[cefr];
+        if (group) {
+          const groupMinIdx = CEFR_ORDER.indexOf(group[0]);
+          const groupMaxIdx = CEFR_ORDER.indexOf(group[1]);
+          // Tutor range must overlap with the selected group
+          return minIdx <= groupMaxIdx && maxIdx >= groupMinIdx;
+        }
+        // Fallback: single CEFR level
         const targetIdx = CEFR_ORDER.indexOf(cefr);
         return targetIdx >= minIdx && targetIdx <= maxIdx;
       })

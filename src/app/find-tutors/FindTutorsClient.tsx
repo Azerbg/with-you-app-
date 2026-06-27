@@ -23,10 +23,10 @@ interface Tutor {
 }
 
 const SPEC_LABELS: Record<string, string> = {
-  CONVERSATIONAL: "Conversationnel",
+  CONVERSATIONAL: "Conversation",
   PROFESSIONAL: "Professionnel",
   ACADEMIC: "Académique",
-  EXAM_PREP: "Prépa examens",
+  EXAM_PREP: "Préparation aux examens",
 };
 
 
@@ -222,10 +222,10 @@ function FilterSidebar({
         <div className="space-y-1.5">
           {[
             { value: "", label: "Toutes" },
-            { value: "CONVERSATIONAL", label: "Conversationnel" },
+            { value: "CONVERSATIONAL", label: "Conversation" },
             { value: "PROFESSIONAL", label: "Professionnel" },
             { value: "ACADEMIC", label: "Académique" },
-            { value: "EXAM_PREP", label: "Prépa examens" },
+            { value: "EXAM_PREP", label: "Préparation aux examens" },
           ].map((opt) => (
             <button
               key={opt.value}
@@ -248,28 +248,29 @@ function FilterSidebar({
           Niveau
         </p>
         <div className="space-y-1.5">
-          <button
-            onClick={() => onChange("cefr", "")}
-            className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
-              cefr === ""
-                ? "bg-[#F5C400] text-[#5C3D00] font-bold"
-                : "text-[#5C3D00] hover:bg-[#FAF8F0]"
-            }`}
-          >
-            Tous les niveaux
-          </button>
-          {studentCefrLevel && (
+          {[
+            { value: "", label: "Tous les niveaux" },
+            { value: "beginner", label: "Débutant", sub: "A1 - A2" },
+            { value: "intermediate", label: "Intermédiaire", sub: "B1 - B2" },
+            { value: "advanced", label: "Avancé", sub: "C1 - C2" },
+          ].map((opt) => (
             <button
-              onClick={() => onChange("cefr", studentCefrLevel)}
+              key={opt.value}
+              onClick={() => onChange("cefr", opt.value)}
               className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
-                cefr === studentCefrLevel
+                cefr === opt.value
                   ? "bg-[#F5C400] text-[#5C3D00] font-bold"
                   : "text-[#5C3D00] hover:bg-[#FAF8F0]"
               }`}
             >
-              Mon niveau ({studentCefrLevel})
+              {opt.label}
+              {"sub" in opt && (
+                <span className={`ml-1.5 text-[11px] font-normal ${cefr === opt.value ? "text-[#5C3D00]/70" : "text-[#9B8A6B]"}`}>
+                  {opt.sub}
+                </span>
+              )}
             </button>
-          )}
+          ))}
         </div>
       </div>
     </aside>
@@ -374,7 +375,7 @@ export default function FindTutorsClient({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
           </svg>
-          Filtres {(lang || spec || cefr) && "•"}
+          Filtres {(langs.length || spec || cefr) && "•"}
         </button>
 
         {/* Mobile filter drawer */}
@@ -386,7 +387,7 @@ export default function FindTutorsClient({
                 <p className="font-bold text-[#2D1A00]">Filtres</p>
                 <button onClick={() => setMobileFiltersOpen(false)} className="text-[#6B5E44]">✕</button>
               </div>
-              <FilterSidebar lang={lang} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onChange={handleFilter} />
+              <FilterSidebar langs={langs} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onLangToggle={handleLangToggle} onChange={handleFilter} />
             </div>
           </div>
         )}
@@ -394,7 +395,7 @@ export default function FindTutorsClient({
         <div className="flex gap-8">
           {/* Desktop sidebar */}
           <div className="hidden md:block w-52 flex-shrink-0">
-            <FilterSidebar lang={lang} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onChange={handleFilter} />
+            <FilterSidebar langs={langs} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onLangToggle={handleLangToggle} onChange={handleFilter} />
           </div>
 
           {/* Results */}
