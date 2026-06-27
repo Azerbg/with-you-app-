@@ -125,7 +125,10 @@ function ChatPanel({
 
   const loadMessages = useCallback(async () => {
     const res = await fetch(`/api/messages/${thread.id}`);
-    if (res.ok) setMessages(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(Array.isArray(data) ? data : (data.messages ?? []));
+    }
   }, [thread.id]);
 
   useEffect(() => {
