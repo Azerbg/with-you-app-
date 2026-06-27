@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       },
       availability: {
         where: { isRecurring: true },
-        select: { dayOfWeek: true, isRecurring: true },
+        select: { dayOfWeek: true, startTime: true, endTime: true, isRecurring: true },
       },
     },
   });
@@ -124,6 +124,11 @@ export async function GET(req: NextRequest) {
       totalReviews: p.totalReviews,
       verificationTier: p.verificationTier,
       matchScore,
+      availability: p.availability.map(a => ({
+        dayOfWeek: a.dayOfWeek,
+        startTime: a.startTime,
+        endTime: a.endTime,
+      })),
     };
   });
 

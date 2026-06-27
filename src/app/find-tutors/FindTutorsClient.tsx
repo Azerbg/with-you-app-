@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, useCallback, useMemo, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -20,6 +20,7 @@ interface Tutor {
   totalReviews: number;
   verificationTier: string;
   matchScore: number | null;
+  availability: { dayOfWeek: number | null; startTime: string | null; endTime: string | null }[];
 }
 
 const SPEC_LABELS: Record<string, string> = {
@@ -163,90 +164,72 @@ function SpeechIcon() {
   );
 }
 
-function FilterSidebar({
-  langs,
-  spec,
-  cefr,
-  studentCefrLevel,
-  onLangToggle,
-  onChange,
+// Tunisia time is UTC+1 (no DST). Convert a "HH:MM" string in Tunisia time to the
+// student's local hour so we can match against morning/afternoon/evening slots.
+function tutorTimeToStudentHour(timeStr: string): number {
+  const [h, m] = timeStr.split(":").map(Number);
+  const utcMinutes = h * 60 + m - 60; // subtract UTC+1
+  const studentOffsetMinutes = new Date().getTimezoneOffset(); // (UTC − local) in minutes
+  const localMinutes = utcMinutes - studentOffsetMinutes;
+  return Math.floor(((localMinutes % 1440) + 1440) % 1440 / 60);
+}
+
+function PriceRangeSlider({
+  priceMin, priceMax, onPriceChange,
 }: {
-  langs: string[];
-  spec: string;
-  cefr: string;
-  studentCefrLevel: string | null;
-  onLangToggle: (value: string) => void;
+  priceMin: number; priceMax: number;
+  onPriceChange: (min: number, max: number) => void;
+}) {
+  return (
+    <div className="space-y-3 pt-1">
+      <div>
+        <div className="flex justify-between mb-1.5">
+          <span className="text-[11px] text-[#9B8A6B]">Min</span>
+          <span className="text-[11px] font-semibold text-[#5C3D00]">{priceMin} USD</span>
+        </div>
+        <input
+          type="range" min={0} max={200} value={priceMin}
+          onChange={e => onPriceChange(Math.min(+e.target.value, priceMax - 10), priceMax)}
+          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+          style={{ accentColor: "#F5C400" }}
+        />
+      </div>
+      <div>
+        <div className="flex justify-between mb-1.5">
+          <span className="text-[11px] text-[#9B8A6B]">Max</span>
+          <span className="text-[11px] font-semibold text-[#5C3D00]">{priceMax} USD</span>
+        </div>
+        <input
+          type="range" min={0} max={200} value={priceMax}
+          onChange={e => onPriceChange(priceMin, Math.max(+e.target.value, priceMin + 10))}
+          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+          style={{ accentColor: "#F5C400" }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FilterSidebar({
+  langs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType,
+  onLangToggle, onAvDayToggle, onAvSlotToggle, onChange, onPriceChange,
+}: {
+  langs: string[]; spec: string; cefr: string;
+  avDays: string[]; avSlots: string[];
+  priceMin: number; priceMax: number;
+  tutorType: string;
+  onLangToggle: (v: string) => void;
+  onAvDayToggle: (v: string) => void;
+  onAvSlotToggle: (v: string) => void;
   onChange: (key: string, value: string) => void;
+  onPriceChange: (min: number, max: number) => void;
 }) {
   return (
     <aside className="space-y-6">
-      {/* Language — communication language of the tutor */}
-      <div>
-        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1">
-          Parle aussi
-        </p>
-        <p className="text-[11px] text-[#9B8A6B] mb-3 leading-relaxed">
-          Langue que le tuteur utilise pour expliquer (utile pour les débutants)
-        </p>
-        <div className="space-y-2">
-          {LANG_OPTIONS.map((opt) => {
-            const checked = langs.includes(opt.value);
-            return (
-              <label
-                key={opt.value}
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition select-none ${
-                  checked ? "bg-[#F5C400]/20" : "hover:bg-[#FAF8F0]"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onLangToggle(opt.value)}
-                  className="w-4 h-4 rounded accent-[#F5C400] cursor-pointer flex-shrink-0"
-                />
-                <span className={`flex items-center gap-2 text-sm font-medium ${checked ? "text-[#5C3D00] font-bold" : "text-[#5C3D00]"}`}>
-                  <SpeechIcon />
-                  {opt.label}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Specialization */}
+      {/* Niveau */}
       <div>
-        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">
-          Spécialisation
-        </p>
-        <div className="space-y-1.5">
-          {[
-            { value: "", label: "Toutes" },
-            { value: "CONVERSATIONAL", label: "Conversation" },
-            { value: "PROFESSIONAL", label: "Professionnel" },
-            { value: "ACADEMIC", label: "Académique" },
-            { value: "EXAM_PREP", label: "Préparation aux examens" },
-          ].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => onChange("spec", opt.value)}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
-                spec === opt.value
-                  ? "bg-[#F5C400] text-[#5C3D00] font-bold"
-                  : "text-[#5C3D00] hover:bg-[#FAF8F0]"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* CEFR level */}
-      <div>
-        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">
-          Niveau
-        </p>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">Niveau</p>
         <div className="space-y-1.5">
           {[
             { value: "", label: "Tous les niveaux" },
@@ -258,9 +241,7 @@ function FilterSidebar({
               key={opt.value}
               onClick={() => onChange("cefr", opt.value)}
               className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
-                cefr === opt.value
-                  ? "bg-[#F5C400] text-[#5C3D00] font-bold"
-                  : "text-[#5C3D00] hover:bg-[#FAF8F0]"
+                cefr === opt.value ? "bg-[#F5C400] text-[#5C3D00] font-bold" : "text-[#5C3D00] hover:bg-[#FAF8F0]"
               }`}
             >
               {opt.label}
@@ -273,72 +254,316 @@ function FilterSidebar({
           ))}
         </div>
       </div>
+
+      {/* Parle aussi */}
+      <div>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1">Parle aussi</p>
+        <p className="text-[11px] text-[#9B8A6B] mb-3 leading-relaxed">
+          Langue que le tuteur utilise pour expliquer
+        </p>
+        <div className="space-y-2">
+          {LANG_OPTIONS.map((opt) => {
+            const checked = langs.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition select-none ${
+                  checked ? "bg-[#F5C400]/20" : "hover:bg-[#FAF8F0]"
+                }`}
+              >
+                <input
+                  type="checkbox" checked={checked}
+                  onChange={() => onLangToggle(opt.value)}
+                  className="w-4 h-4 rounded accent-[#F5C400] cursor-pointer flex-shrink-0"
+                />
+                <span className={`flex items-center gap-2 text-sm font-medium ${checked ? "text-[#5C3D00] font-bold" : "text-[#5C3D00]"}`}>
+                  <SpeechIcon />{opt.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Spécialisation */}
+      <div>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">Spécialisation</p>
+        <div className="space-y-1.5">
+          {[
+            { value: "", label: "Toutes" },
+            { value: "CONVERSATIONAL", label: "Conversation" },
+            { value: "PROFESSIONAL", label: "Professionnel" },
+            { value: "ACADEMIC", label: "Académique" },
+            { value: "EXAM_PREP", label: "Préparation aux examens" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => onChange("spec", opt.value)}
+              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
+                spec === opt.value ? "bg-[#F5C400] text-[#5C3D00] font-bold" : "text-[#5C3D00] hover:bg-[#FAF8F0]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Disponibilité */}
+      <div>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1">Disponibilité</p>
+        <p className="text-[11px] text-[#9B8A6B] mb-3 leading-relaxed">Heure locale · fuseau horaire automatique</p>
+
+        <p className="text-[11px] font-semibold text-[#5C3D00] mb-2">Jours</p>
+        <div className="space-y-2 mb-4">
+          {[
+            { value: "weekday", label: "En semaine" },
+            { value: "weekend", label: "Le week-end" },
+          ].map((opt) => {
+            const checked = avDays.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition select-none ${
+                  checked ? "bg-[#F5C400]/20" : "hover:bg-[#FAF8F0]"
+                }`}
+              >
+                <input
+                  type="checkbox" checked={checked}
+                  onChange={() => onAvDayToggle(opt.value)}
+                  className="w-4 h-4 rounded accent-[#F5C400] cursor-pointer flex-shrink-0"
+                />
+                <span className={`text-sm font-medium ${checked ? "text-[#5C3D00] font-bold" : "text-[#5C3D00]"}`}>{opt.label}</span>
+              </label>
+            );
+          })}
+        </div>
+
+        <p className="text-[11px] font-semibold text-[#5C3D00] mb-2">Moment de la journée</p>
+        <div className="space-y-2">
+          {[
+            { value: "morning",   label: "Matin",      sub: "6h – 12h" },
+            { value: "afternoon", label: "Après-midi", sub: "12h – 18h" },
+            { value: "evening",   label: "Soirée",     sub: "18h – 24h" },
+          ].map((opt) => {
+            const checked = avSlots.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition select-none ${
+                  checked ? "bg-[#F5C400]/20" : "hover:bg-[#FAF8F0]"
+                }`}
+              >
+                <input
+                  type="checkbox" checked={checked}
+                  onChange={() => onAvSlotToggle(opt.value)}
+                  className="w-4 h-4 rounded accent-[#F5C400] cursor-pointer flex-shrink-0"
+                />
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-sm font-medium ${checked ? "text-[#5C3D00] font-bold" : "text-[#5C3D00]"}`}>{opt.label}</span>
+                  <span className={`text-[11px] ${checked ? "text-[#5C3D00]/70" : "text-[#9B8A6B]"}`}>{opt.sub}</span>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Budget */}
+      <div>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">Budget</p>
+        <PriceRangeSlider priceMin={priceMin} priceMax={priceMax} onPriceChange={onPriceChange} />
+      </div>
+
+      {/* Type de tuteur */}
+      <div>
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">Type de tuteur</p>
+        <div className="space-y-1.5">
+          {[
+            { value: "", label: "Tous les tuteurs", sub: null },
+            { value: "professional", label: "Professeur professionnel", sub: "Diplômé · idéal pour les examens" },
+            { value: "community",    label: "Tuteur de la communauté",  sub: "Idéal pour la conversation" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => onChange("tutorType", opt.value)}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                tutorType === opt.value ? "bg-[#F5C400] text-[#5C3D00] font-bold" : "text-[#5C3D00] hover:bg-[#FAF8F0]"
+              }`}
+            >
+              {opt.label}
+              {opt.sub && (
+                <span className={`block text-[10px] font-normal mt-0.5 ${tutorType === opt.value ? "text-[#5C3D00]/70" : "text-[#9B8A6B]"}`}>
+                  {opt.sub}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
     </aside>
   );
 }
 
 export default function FindTutorsClient({
   searchParamsPromise,
-  studentCefrLevel,
+  studentCefrLevel: _studentCefrLevel,
 }: {
-  searchParamsPromise: Promise<{ lang?: string; spec?: string; cefr?: string }>;
+  searchParamsPromise: Promise<{
+    lang?: string; spec?: string; cefr?: string;
+    avDays?: string; avSlots?: string;
+    priceMin?: string; priceMax?: string;
+    tutorType?: string;
+  }>;
   studentCefrLevel: string | null;
 }) {
   const searchParams = use(searchParamsPromise);
   const router = useRouter();
   const pathname = usePathname();
 
+  // Server-side filter state (sent to API)
   const [langs, setLangs] = useState<string[]>(
     searchParams.lang ? searchParams.lang.split(",").filter(Boolean) : []
   );
   const [spec, setSpec] = useState(searchParams.spec ?? "");
   const [cefr, setCefr] = useState(searchParams.cefr ?? "");
-  const [tutors, setTutors] = useState<Tutor[]>([]);
+
+  // Client-side filter state (applied after fetch)
+  const [avDays, setAvDays] = useState<string[]>(
+    searchParams.avDays ? searchParams.avDays.split(",").filter(Boolean) : []
+  );
+  const [avSlots, setAvSlots] = useState<string[]>(
+    searchParams.avSlots ? searchParams.avSlots.split(",").filter(Boolean) : []
+  );
+  const [priceMin, setPriceMin] = useState(searchParams.priceMin ? parseInt(searchParams.priceMin) : 0);
+  const [priceMax, setPriceMax] = useState(searchParams.priceMax ? parseInt(searchParams.priceMax) : 200);
+  const [tutorType, setTutorType] = useState(searchParams.tutorType ?? "");
+
+  const [rawTutors, setRawTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const buildQs = useCallback((l: string[], s: string, c: string) => {
+  const buildQs = useCallback((
+    l: string[], s: string, c: string,
+    days: string[], slots: string[],
+    pMin: number, pMax: number, tt: string,
+  ) => {
     const qs = new URLSearchParams();
     if (l.length) qs.set("lang", l.join(","));
     if (s) qs.set("spec", s);
     if (c) qs.set("cefr", c);
+    if (days.length) qs.set("avDays", days.join(","));
+    if (slots.length) qs.set("avSlots", slots.join(","));
+    if (pMin > 0) qs.set("priceMin", String(pMin));
+    if (pMax < 200) qs.set("priceMax", String(pMax));
+    if (tt) qs.set("tutorType", tt);
     return qs.toString();
   }, []);
 
   const fetchTutors = useCallback(async (l: string[], s: string, c: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/tutors?${buildQs(l, s, c)}`);
-      if (res.ok) setTutors(await res.json());
+      const apiQs = new URLSearchParams();
+      if (l.length) apiQs.set("lang", l.join(","));
+      if (s) apiQs.set("spec", s);
+      if (c) apiQs.set("cefr", c);
+      const res = await fetch(`/api/tutors?${apiQs.toString()}`);
+      if (res.ok) setRawTutors(await res.json());
     } finally {
       setLoading(false);
     }
-  }, [buildQs]);
+  }, []);
 
   useEffect(() => {
     fetchTutors(langs, spec, cefr);
   }, [langs, spec, cefr, fetchTutors]);
 
-  const handleLangToggle = useCallback((value: string) => {
-    const newLangs = langs.includes(value)
-      ? langs.filter(l => l !== value)
-      : [...langs, value];
-    setLangs(newLangs);
-    const qsStr = buildQs(newLangs, spec, cefr);
+  // Client-side filtering for availability, tutor type
+  const tutors = useMemo(() => {
+    let result = rawTutors;
+
+    if (avDays.length) {
+      const WEEKDAY = [0, 1, 2, 3, 4]; // Mon–Fri (schema: 0=Mon)
+      const WEEKEND = [5, 6];           // Sat=5, Sun=6
+      result = result.filter(t =>
+        avDays.some(d =>
+          t.availability.some(a => {
+            if (a.dayOfWeek === null) return false;
+            if (d === "weekday") return WEEKDAY.includes(a.dayOfWeek);
+            if (d === "weekend") return WEEKEND.includes(a.dayOfWeek);
+            return false;
+          })
+        )
+      );
+    }
+
+    if (avSlots.length) {
+      result = result.filter(t =>
+        avSlots.some(slot =>
+          t.availability.some(a => {
+            if (!a.startTime) return false;
+            const h = tutorTimeToStudentHour(a.startTime);
+            if (slot === "morning")   return h >= 6  && h < 12;
+            if (slot === "afternoon") return h >= 12 && h < 18;
+            if (slot === "evening")   return h >= 18 && h < 24;
+            return false;
+          })
+        )
+      );
+    }
+
+    if (tutorType === "professional") result = result.filter(t => t.certifications.length > 0);
+    if (tutorType === "community")    result = result.filter(t => t.certifications.length === 0);
+
+    return result;
+  }, [rawTutors, avDays, avSlots, tutorType]);
+
+  const pushUrl = useCallback((
+    l: string[], s: string, c: string,
+    days: string[], slots: string[],
+    pMin: number, pMax: number, tt: string,
+  ) => {
+    const qsStr = buildQs(l, s, c, days, slots, pMin, pMax, tt);
     router.replace(qsStr ? `${pathname}?${qsStr}` : pathname, { scroll: false });
-  }, [langs, spec, cefr, router, pathname, buildQs]);
+  }, [buildQs, router, pathname]);
+
+  const handleLangToggle = useCallback((value: string) => {
+    const newLangs = langs.includes(value) ? langs.filter(l => l !== value) : [...langs, value];
+    setLangs(newLangs);
+    pushUrl(newLangs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType);
+  }, [langs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType, pushUrl]);
+
+  const handleAvDayToggle = useCallback((value: string) => {
+    const newDays = avDays.includes(value) ? avDays.filter(d => d !== value) : [...avDays, value];
+    setAvDays(newDays);
+    pushUrl(langs, spec, cefr, newDays, avSlots, priceMin, priceMax, tutorType);
+  }, [langs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType, pushUrl]);
+
+  const handleAvSlotToggle = useCallback((value: string) => {
+    const newSlots = avSlots.includes(value) ? avSlots.filter(s => s !== value) : [...avSlots, value];
+    setAvSlots(newSlots);
+    pushUrl(langs, spec, cefr, avDays, newSlots, priceMin, priceMax, tutorType);
+  }, [langs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType, pushUrl]);
+
+  const handlePriceChange = useCallback((min: number, max: number) => {
+    setPriceMin(min);
+    setPriceMax(max);
+    pushUrl(langs, spec, cefr, avDays, avSlots, min, max, tutorType);
+  }, [langs, spec, cefr, avDays, avSlots, tutorType, pushUrl]);
 
   const handleFilter = useCallback(
     (key: string, value: string) => {
       const newSpec = key === "spec" ? value : spec;
       const newCefr = key === "cefr" ? value : cefr;
+      const newTutorType = key === "tutorType" ? value : tutorType;
       if (key === "spec") setSpec(value);
       if (key === "cefr") setCefr(value);
-      const qsStr = buildQs(langs, newSpec, newCefr);
-      router.replace(qsStr ? `${pathname}?${qsStr}` : pathname, { scroll: false });
+      if (key === "tutorType") setTutorType(value);
+      pushUrl(langs, newSpec, newCefr, avDays, avSlots, priceMin, priceMax, newTutorType);
       setMobileFiltersOpen(false);
     },
-    [langs, spec, cefr, router, pathname, buildQs],
+    [langs, spec, cefr, avDays, avSlots, priceMin, priceMax, tutorType, pushUrl],
   );
 
   return (
@@ -364,6 +589,9 @@ export default function FindTutorsClient({
           </h1>
           <p className="text-sm text-[#6B5E44]">
             {loading ? "Chargement…" : `${tutors.length} tuteur${tutors.length !== 1 ? "s" : ""} disponible${tutors.length !== 1 ? "s" : ""}`}
+          {!loading && rawTutors.length !== tutors.length && (
+            <span className="ml-1 text-[#9B8A6B]">· filtres appliqués</span>
+          )}
           </p>
         </div>
 
@@ -375,7 +603,7 @@ export default function FindTutorsClient({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M7 12h10M11 20h2" />
           </svg>
-          Filtres {(langs.length || spec || cefr) && "•"}
+          Filtres {(langs.length || spec || cefr || avDays.length || avSlots.length || priceMin > 0 || priceMax < 200 || tutorType) && "•"}
         </button>
 
         {/* Mobile filter drawer */}
@@ -387,7 +615,17 @@ export default function FindTutorsClient({
                 <p className="font-bold text-[#2D1A00]">Filtres</p>
                 <button onClick={() => setMobileFiltersOpen(false)} className="text-[#6B5E44]">✕</button>
               </div>
-              <FilterSidebar langs={langs} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onLangToggle={handleLangToggle} onChange={handleFilter} />
+              <FilterSidebar
+                langs={langs} spec={spec} cefr={cefr}
+                avDays={avDays} avSlots={avSlots}
+                priceMin={priceMin} priceMax={priceMax}
+                tutorType={tutorType}
+                onLangToggle={handleLangToggle}
+                onAvDayToggle={handleAvDayToggle}
+                onAvSlotToggle={handleAvSlotToggle}
+                onChange={handleFilter}
+                onPriceChange={handlePriceChange}
+              />
             </div>
           </div>
         )}
@@ -395,7 +633,17 @@ export default function FindTutorsClient({
         <div className="flex gap-8">
           {/* Desktop sidebar */}
           <div className="hidden md:block w-52 flex-shrink-0">
-            <FilterSidebar langs={langs} spec={spec} cefr={cefr} studentCefrLevel={studentCefrLevel} onLangToggle={handleLangToggle} onChange={handleFilter} />
+            <FilterSidebar
+              langs={langs} spec={spec} cefr={cefr}
+              avDays={avDays} avSlots={avSlots}
+              priceMin={priceMin} priceMax={priceMax}
+              tutorType={tutorType}
+              onLangToggle={handleLangToggle}
+              onAvDayToggle={handleAvDayToggle}
+              onAvSlotToggle={handleAvSlotToggle}
+              onChange={handleFilter}
+              onPriceChange={handlePriceChange}
+            />
           </div>
 
           {/* Results */}
