@@ -119,7 +119,7 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
               key={l}
               className="text-[11px] bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full"
             >
-              {l === "French" ? "🇫🇷 Français" : l === "Arabic" ? "🇹🇳 Arabe" : "🇬🇧 English"}
+              {l === "French" ? "Français" : l === "Arabic" ? "Arabe" : "English"}
             </span>
           ))}
           {tutor.cefrTeachingMin && tutor.cefrTeachingMax && (
@@ -149,45 +149,68 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
   );
 }
 
+const LANG_OPTIONS = [
+  { value: "Arabic",  label: "Arabe" },
+  { value: "French",  label: "Français" },
+  { value: "English", label: "English" },
+];
+
+function SpeechIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 flex-shrink-0">
+      <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 function FilterSidebar({
-  lang,
+  langs,
   spec,
   cefr,
   studentCefrLevel,
+  onLangToggle,
   onChange,
 }: {
-  lang: string;
+  langs: string[];
   spec: string;
   cefr: string;
   studentCefrLevel: string | null;
+  onLangToggle: (value: string) => void;
   onChange: (key: string, value: string) => void;
 }) {
   return (
     <aside className="space-y-6">
-      {/* Language */}
+      {/* Language — communication language of the tutor */}
       <div>
-        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-2">
-          Langue
+        <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1">
+          Parle aussi
         </p>
-        <div className="space-y-1.5">
-          {[
-            { value: "", label: "Toutes" },
-            { value: "Arabic", label: "🇹🇳 Arabe" },
-            { value: "French", label: "🇫🇷 Français" },
-            { value: "English", label: "🇬🇧 English" },
-          ].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => onChange("lang", opt.value)}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition ${
-                lang === opt.value
-                  ? "bg-[#F5C400] text-[#5C3D00] font-bold"
-                  : "text-[#5C3D00] hover:bg-[#FAF8F0]"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <p className="text-[11px] text-[#9B8A6B] mb-3 leading-relaxed">
+          Langue que le tuteur utilise pour expliquer (utile pour les débutants)
+        </p>
+        <div className="space-y-2">
+          {LANG_OPTIONS.map((opt) => {
+            const checked = langs.includes(opt.value);
+            return (
+              <label
+                key={opt.value}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition select-none ${
+                  checked ? "bg-[#F5C400]/20" : "hover:bg-[#FAF8F0]"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onLangToggle(opt.value)}
+                  className="w-4 h-4 rounded accent-[#F5C400] cursor-pointer flex-shrink-0"
+                />
+                <span className={`flex items-center gap-2 text-sm font-medium ${checked ? "text-[#5C3D00] font-bold" : "text-[#5C3D00]"}`}>
+                  <SpeechIcon />
+                  {opt.label}
+                </span>
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -264,49 +287,57 @@ export default function FindTutorsClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  const [lang, setLang] = useState(searchParams.lang ?? "");
+  const [langs, setLangs] = useState<string[]>(
+    searchParams.lang ? searchParams.lang.split(",").filter(Boolean) : []
+  );
   const [spec, setSpec] = useState(searchParams.spec ?? "");
   const [cefr, setCefr] = useState(searchParams.cefr ?? "");
   const [tutors, setTutors] = useState<Tutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const fetchTutors = useCallback(async (l: string, s: string, c: string) => {
+  const buildQs = useCallback((l: string[], s: string, c: string) => {
+    const qs = new URLSearchParams();
+    if (l.length) qs.set("lang", l.join(","));
+    if (s) qs.set("spec", s);
+    if (c) qs.set("cefr", c);
+    return qs.toString();
+  }, []);
+
+  const fetchTutors = useCallback(async (l: string[], s: string, c: string) => {
     setLoading(true);
     try {
-      const qs = new URLSearchParams();
-      if (l) qs.set("lang", l);
-      if (s) qs.set("spec", s);
-      if (c) qs.set("cefr", c);
-      const res = await fetch(`/api/tutors?${qs.toString()}`);
+      const res = await fetch(`/api/tutors?${buildQs(l, s, c)}`);
       if (res.ok) setTutors(await res.json());
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [buildQs]);
 
   useEffect(() => {
-    fetchTutors(lang, spec, cefr);
-  }, [lang, spec, cefr, fetchTutors]);
+    fetchTutors(langs, spec, cefr);
+  }, [langs, spec, cefr, fetchTutors]);
+
+  const handleLangToggle = useCallback((value: string) => {
+    const newLangs = langs.includes(value)
+      ? langs.filter(l => l !== value)
+      : [...langs, value];
+    setLangs(newLangs);
+    const qsStr = buildQs(newLangs, spec, cefr);
+    router.replace(qsStr ? `${pathname}?${qsStr}` : pathname, { scroll: false });
+  }, [langs, spec, cefr, router, pathname, buildQs]);
 
   const handleFilter = useCallback(
     (key: string, value: string) => {
-      const newLang = key === "lang" ? value : lang;
       const newSpec = key === "spec" ? value : spec;
       const newCefr = key === "cefr" ? value : cefr;
-      if (key === "lang") setLang(value);
       if (key === "spec") setSpec(value);
       if (key === "cefr") setCefr(value);
-
-      const qs = new URLSearchParams();
-      if (newLang) qs.set("lang", newLang);
-      if (newSpec) qs.set("spec", newSpec);
-      if (newCefr) qs.set("cefr", newCefr);
-      const qsStr = qs.toString();
+      const qsStr = buildQs(langs, newSpec, newCefr);
       router.replace(qsStr ? `${pathname}?${qsStr}` : pathname, { scroll: false });
       setMobileFiltersOpen(false);
     },
-    [lang, spec, cefr, router, pathname],
+    [langs, spec, cefr, router, pathname, buildQs],
   );
 
   return (

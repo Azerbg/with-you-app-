@@ -7,15 +7,16 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   const { searchParams } = new URL(req.url);
 
-  const lang    = searchParams.get("lang")   ?? "";
-  const spec    = searchParams.get("spec")   ?? "";
-  const cefr    = searchParams.get("cefr")   ?? "";
+  const langParam = searchParams.get("lang") ?? "";
+  const langs     = langParam ? langParam.split(",").filter(Boolean) : [];
+  const spec      = searchParams.get("spec") ?? "";
+  const cefr      = searchParams.get("cefr") ?? "";
 
   // Fetch all active tutors with their profiles
   const profiles = await db.tutorProfile.findMany({
     where: {
       verificationStatus: "VERIFIED",
-      ...(lang ? { languagesTaught: { has: lang } } : {}),
+      ...(langs.length ? { languagesTaught: { hasSome: langs } } : {}),
       ...(spec ? { specializations: { has: spec } } : {}),
     },
     include: {

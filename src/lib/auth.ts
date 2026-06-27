@@ -50,37 +50,29 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
   callbacks: {
     async jwt({ token, user, trigger, session, account }) {
-      // On sign-in: populate token from user/DB
-      if (user) {
+      // On credentials sign-in: user object has our real DB fields
+      if (user && account?.provider === "credentials") {
         token.id = user.id as string;
         token.role = (user as { role?: Role }).role ?? Role.STUDENT;
         token.totpEnabled = (user as { totpEnabled?: boolean }).totpEnabled ?? false;
         token.totpVerified = false;
-        // Fetch display name from DB (nickname takes priority over firstName+lastName)
-        const dbProfile = await db.user.findUnique({
-          where: { id: user.id as string },
-          select: { firstName: true, lastName: true, nickname: true },
-        });
-        token.name = dbProfile?.nickname || [dbProfile?.firstName, dbProfile?.lastName].filter(Boolean).join(" ") || null;
       }
 
-      // On Google sign-in: fetch role/totp/name from DB
-      // Use user?.email (always present from Google profile) as primary source,
-      // falling back to token.email in case NextAuth pre-populates it.
+      // On Google sign-in: user.id is Google's sub ID (NOT our DB ID).
+      // Always re-fetch the real DB user by email to get the correct ID/role.
       if (account?.provider === "google") {
         const googleEmail = (user as { email?: string | null } | undefined)?.email ?? (token.email as string | undefined);
         if (googleEmail) {
           const dbUser = await db.user.findFirst({
             where: { email: { equals: googleEmail, mode: "insensitive" } },
-            select: { id: true, role: true, totpEnabled: true, firstName: true, lastName: true },
+            select: { id: true, role: true, totpEnabled: true, accountStatus: true },
           });
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.role = dbUser.role;
-            token.totpEnabled = dbUser.totpEnabled;
-            token.totpVerified = false;
-            token.name = [dbUser.firstName, dbUser.lastName].filter(Boolean).join(" ") || null;
-          }
+          // Block BLOCKED accounts even via Google
+          if (!dbUser || dbUser.accountStatus === "BLOCKED") return token;
+          token.id = dbUser.id;
+          token.role = dbUser.role;
+          token.totpEnabled = dbUser.totpEnabled;
+          token.totpVerified = false;
         }
       }
 
@@ -91,9 +83,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         if (session.name !== undefined) token.name = session.name;
       }
 
-      // Strip everything heavy — keep cookie tiny
       delete token.picture;
-      delete token.name;
 
       return token;
     },
@@ -113,7 +103,12 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         // Case-insensitive lookup to avoid duplicates if casing differs
         const existing = await db.user.findFirst({
           where: { email: { equals: user.email, mode: "insensitive" } },
+          select: { id: true, firstName: true, emailVerified: true, accountStatus: true },
         });
+
+        // Block BLOCKED accounts from signing in via Google
+        if (existing?.accountStatus === "BLOCKED") return false;
+
         // Split Google full name into firstName + lastName
         const nameParts = (user.name ?? "").trim().split(/\s+/);
         const firstName = nameParts[0] ?? null;

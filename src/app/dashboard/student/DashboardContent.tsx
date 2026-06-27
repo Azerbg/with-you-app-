@@ -83,6 +83,23 @@ export default function DashboardContent(p: Props) {
         {/* Content */}
         <div className="flex-1 overflow-auto p-8">
 
+          {/* Placement test banner — shown when cefrLevel is missing */}
+          {!p.cefrLevel && (
+            <div className="mb-6 flex items-center gap-4 bg-[#FFF3B0] border border-[#F5C400]/60 rounded-2xl px-5 py-4">
+              <span className="text-2xl flex-shrink-0">📋</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#5C3D00]">Complétez votre test de niveau</p>
+                <p className="text-xs text-[#7A6B55] mt-0.5">
+                  Votre niveau CECR n&apos;a pas encore été défini. Passez le test de positionnement pour personnaliser votre programme.
+                </p>
+              </div>
+              <a href="/placement-test"
+                className="flex-shrink-0 px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-xs rounded-xl hover:bg-[#FFDE59] transition whitespace-nowrap">
+                Passer le test →
+              </a>
+            </div>
+          )}
+
           {/* Welcome */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#5C3D00]">{t.greeting}</h2>
