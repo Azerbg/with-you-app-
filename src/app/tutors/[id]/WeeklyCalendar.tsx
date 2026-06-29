@@ -63,12 +63,12 @@ export default function WeeklyCalendar({ slotsUtc, bookingHref }: WeeklyCalendar
 
       {/* Section title + week navigation */}
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest">Disponibilites</p>
+        <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest">Disponibilités</p>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setWeekOffset(o => Math.max(0, o - 1))}
             disabled={weekOffset === 0}
-            aria-label="Semaine precedente"
+            aria-label="Semaine précédente"
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-[#D9D0C3] text-[#5C3D00] text-base hover:bg-[#F0EBE0] disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             ‹
@@ -89,7 +89,7 @@ export default function WeeklyCalendar({ slotsUtc, bookingHref }: WeeklyCalendar
 
       {/* Timezone notice */}
       <p className="text-[11px] text-[#9B8A6B] mb-4">
-        Heures affichees selon votre fuseau :{" "}
+        Heures affichées selon votre fuseau :{" "}
         <span className="font-semibold text-[#6B5E44]">{userTz}</span>
       </p>
 
@@ -165,7 +165,7 @@ export default function WeeklyCalendar({ slotsUtc, bookingHref }: WeeklyCalendar
       {/* CTA hint */}
       {Object.values(slotsByDay).some(s => s.length > 0) && (
         <p className="text-[10px] text-[#9B8A6B] text-center mt-3">
-          Cliquez sur un creneau pour choisir votre heure exacte lors de la reservation.
+          Cliquez sur un créneau pour choisir votre heure exacte lors de la réservation.
         </p>
       )}
     </div>

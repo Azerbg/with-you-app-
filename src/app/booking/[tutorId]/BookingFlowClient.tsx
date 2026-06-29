@@ -223,7 +223,7 @@ export default function BookingFlowClient({
       });
       if (!res.ok) {
         const d = await res.json();
-        setPayError(d.error ?? "Erreur lors de la creation de la reservation");
+        setPayError(d.error ?? "Erreur lors de la création de la réservation");
         return;
       }
       const booking = await res.json();
@@ -330,7 +330,7 @@ export default function BookingFlowClient({
       {/* Progress steps */}
       <div className="bg-white border-b border-[#E8E0D4] px-6 py-3">
         <div className="max-w-2xl mx-auto flex items-center gap-2 text-xs font-semibold">
-          <span className={selectedSlot ? "text-[#9B8A6B]" : "text-[#5C3D00]"}>1. Choisir un creneau</span>
+          <span className={selectedSlot ? "text-[#9B8A6B]" : "text-[#5C3D00]"}>1. Choisir un créneau</span>
           <span className="text-[#D9D0C3]">›</span>
           <span className={selectedProduct ? "text-[#9B8A6B]" : selectedSlot ? "text-[#5C3D00]" : "text-[#C4BAA8]"}>
             2. Choisir une offre
@@ -355,7 +355,7 @@ export default function BookingFlowClient({
             <p className="font-bold text-[#2D1A00]">{tutorName}</p>
             {slotLabel && (
               <p className="text-xs text-[#6B5E44] mt-0.5">
-                Creneau choisi : <span className="font-semibold">{slotLabel}</span>
+                Créneau choisi : <span className="font-semibold">{slotLabel}</span>
               </p>
             )}
           </div>
@@ -381,11 +381,11 @@ export default function BookingFlowClient({
         {!selectedSlot && (
           <div>
             <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-3">
-              Choisissez votre creneau
+              Choisissez votre créneau
             </p>
             {dates.length === 0 ? (
               <div className="bg-white border border-[#C4BAA8] rounded-2xl p-8 text-center">
-                <p className="text-sm text-[#9B8A6B]">Aucun creneau disponible dans les 21 prochains jours.</p>
+                <p className="text-sm text-[#9B8A6B]">Aucun créneau disponible dans les 21 prochains jours.</p>
                 <Link href={`/tutors/${tutorId}`} className="text-sm font-semibold text-[#5C3D00] hover:underline mt-2 inline-block">
                   Revenir au profil
                 </Link>
@@ -431,13 +431,13 @@ export default function BookingFlowClient({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold bg-[#F5C400]/20 text-[#5C3D00] px-2 py-0.5 rounded-full">Decouverte</span>
+                      <span className="text-xs font-bold bg-[#F5C400]/20 text-[#5C3D00] px-2 py-0.5 rounded-full">Découverte</span>
                       {alreadyHadDiscovery && (
-                        <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Deja utilisee</span>
+                        <span className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Déjà utilisée</span>
                       )}
                     </div>
-                    <p className="font-bold text-[#2D1A00] text-lg">Seance de decouverte</p>
-                    <p className="text-xs text-[#7A6B55] mt-0.5">30 min — Faire connaissance et definir vos objectifs</p>
+                    <p className="font-bold text-[#2D1A00] text-lg">Séance de découverte</p>
+                    <p className="text-xs text-[#7A6B55] mt-0.5">30 min — Faire connaissance et définir vos objectifs</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-2xl font-black text-[#5C3D00]">15 USD</p>
@@ -448,7 +448,7 @@ export default function BookingFlowClient({
                 </div>
                 {!alreadyHadDiscovery && (
                   <div className="mt-3 pt-3 border-t border-[#F0EBE0] flex items-center justify-between">
-                    <p className="text-xs text-[#9B8A6B]">Remboursee si non satisfait — testez autant de tuteurs que necessaire</p>
+                    <p className="text-xs text-[#9B8A6B]">Remboursée si non satisfait — testez autant de tuteurs que nécessaire</p>
                     <span className="text-sm font-bold text-[#5C3D00]">Choisir</span>
                   </div>
                 )}
@@ -462,9 +462,9 @@ export default function BookingFlowClient({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold bg-[#E8F4EC] text-green-700 px-2 py-0.5 rounded-full">Seance complete</span>
+                      <span className="text-xs font-bold bg-[#E8F4EC] text-green-700 px-2 py-0.5 rounded-full">Séance complète</span>
                     </div>
-                    <p className="font-bold text-[#2D1A00] text-lg">Premiere vraie seance</p>
+                    <p className="font-bold text-[#2D1A00] text-lg">Première vraie séance</p>
                     <p className="text-xs text-[#7A6B55] mt-0.5">50 min — Entrer directement dans l&apos;apprentissage</p>
                   </div>
                   <div className="text-right flex-shrink-0">
@@ -475,7 +475,7 @@ export default function BookingFlowClient({
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-[#F0EBE0] flex items-center justify-between">
-                  <p className="text-xs text-[#9B8A6B]">Ideale si vous avez deja eu une seance decouverte</p>
+                  <p className="text-xs text-[#9B8A6B]">Idéale si vous avez déjà eu une séance découverte</p>
                   <span className="text-sm font-bold text-[#5C3D00]">Choisir</span>
                 </div>
               </div>
@@ -487,8 +487,8 @@ export default function BookingFlowClient({
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Meilleure valeur</span>
                     </div>
-                    <p className="font-bold text-[#2D1A00] text-lg">Pack de seances</p>
-                    <p className="text-xs text-[#7A6B55] mt-0.5">Economisez jusqu&apos;a 15 % en vous engageant sur un rythme regulier</p>
+                    <p className="font-bold text-[#2D1A00] text-lg">Pack de séances</p>
+                    <p className="text-xs text-[#7A6B55] mt-0.5">Économisez jusqu&apos;à 15 % en vous engageant sur un rythme régulier</p>
                   </div>
                   <button
                     onClick={() => setShowPackDetail(v => !v)}
@@ -508,7 +508,7 @@ export default function BookingFlowClient({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="font-bold text-[#2D1A00] text-sm">{pack.name}</p>
-                              <p className="text-xs text-[#7A6B55]">{pack.sessions} seances × 50 min</p>
+                              <p className="text-xs text-[#7A6B55]">{pack.sessions} séances × 50 min</p>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-lg font-black text-[#5C3D00]">{discountedPrice} USD</p>
@@ -518,17 +518,17 @@ export default function BookingFlowClient({
                           </div>
                           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
                             <p className="text-[11px] text-amber-800 font-semibold">
-                              Condition : consommer les {pack.sessions} seances en {pack.days} jours apres achat. Les seances non utilisees a expiration sont perdues.
+                              Condition : consommer les {pack.sessions} séances en {pack.days} jours après achat. Les séances non utilisées à expiration sont perdues.
                             </p>
                           </div>
                           <div className="mt-2 p-2 bg-[#FAF8F0] rounded-lg text-center">
-                            <p className="text-xs font-bold text-[#9B8A6B]">Bientot disponible — rejoignez la liste d&apos;attente</p>
+                            <p className="text-xs font-bold text-[#9B8A6B]">Bientôt disponible — rejoignez la liste d&apos;attente</p>
                           </div>
                         </div>
                       );
                     })}
                     <p className="text-[10px] text-[#9B8A6B] text-center pt-1">
-                      Les packs seront disponibles prochainement. En attendant, reservez une seance a l&apos;unite.
+                      Les packs seront disponibles prochainement. En attendant, réservez une séance à l&apos;unité.
                     </p>
                   </div>
                 )}
@@ -542,19 +542,19 @@ export default function BookingFlowClient({
         {selectedSlot && selectedProduct && (
           <div>
             <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-4">
-              Paiement securise
+              Paiement sécurisé
             </p>
 
             {/* Order summary */}
             <div className="bg-[#FAF8F0] border border-[#E8E0D4] rounded-xl p-4 mb-4 space-y-1.5">
               <div className="flex justify-between text-sm">
                 <span className="text-[#6B5E44]">
-                  {selectedProduct === "DISCOVERY" ? "Seance de decouverte (30 min)" : "Seance complete (50 min)"}
+                  {selectedProduct === "DISCOVERY" ? "Séance de découverte (30 min)" : "Séance complète (50 min)"}
                 </span>
                 <span className="font-bold text-[#2D1A00]">{amountUsd} USD</span>
               </div>
               <div className="flex justify-between text-xs text-[#9B8A6B]">
-                <span>Creneau</span>
+                <span>Créneau</span>
                 <span className="font-medium">{slotLabel}</span>
               </div>
               {studentCountry !== "US" && (
@@ -642,7 +642,7 @@ export default function BookingFlowClient({
             </div>
 
             <p className="text-[11px] text-[#9B8A6B] text-center mt-2">
-              Paiement securise par Stripe — vos donnees ne sont jamais stockees
+              Paiement sécurisé par Stripe — vos données ne sont jamais stockées
             </p>
           </div>
         )}

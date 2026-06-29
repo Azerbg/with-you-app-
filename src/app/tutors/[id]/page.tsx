@@ -25,10 +25,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const SPEC_LABELS: Record<string, string> = {
-  CONVERSATIONAL: "Conversationnel",
+  CONVERSATIONAL: "Conversation",
   PROFESSIONAL:   "Professionnel",
   ACADEMIC:       "Académique",
-  EXAM_PREP:      "Prépa examens",
+  EXAM_PREP:      "Préparation aux examens",
 };
 
 const CERT_LABELS: Record<string, string> = {
@@ -89,7 +89,7 @@ export default async function TutorProfilePage({ params }: Props) {
     db.review.findMany({
       where: { tutorId: id, isPublished: true },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: 50,
       select: {
         id: true,
         ratingComposite: true,
@@ -129,8 +129,8 @@ export default async function TutorProfilePage({ params }: Props) {
   const avgAcc    = avg("ratingAccuracy");
   const avgVal    = avg("ratingValue");
 
-  // Serialize reviews for client component
-  const serializedReviews = reviewsRaw.map(r => ({
+  // Serialize reviews for client component — only pass first page; rest loaded on demand
+  const serializedReviews = reviewsRaw.slice(0, 8).map(r => ({
     id: r.id,
     ratingComposite: r.ratingComposite,
     text: r.text,
@@ -196,7 +196,7 @@ export default async function TutorProfilePage({ params }: Props) {
                   <span className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-2 py-0.5 rounded-full">Top Tuteur</span>
                 )}
                 {profile.verificationTier === "VERIFIED" && (
-                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Verifie</span>
+                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Vérifié</span>
                 )}
               </div>
 
@@ -207,7 +207,7 @@ export default async function TutorProfilePage({ params }: Props) {
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {profile.languagesTaught.map(l => (
                   <span key={l} className="text-xs bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full">
-                    {l === "French" ? "Francais" : l === "Arabic" ? "Arabe" : "English"}
+                    {l === "French" ? "Français" : l === "Arabic" ? "Arabe" : "English"}
                   </span>
                 ))}
               </div>
@@ -256,8 +256,8 @@ export default async function TutorProfilePage({ params }: Props) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#5C3D00]">Video a venir</p>
-                  <p className="text-xs">Ce tuteur n&apos;a pas encore ajoute de video d&apos;introduction.</p>
+                  <p className="text-sm font-semibold text-[#5C3D00]">Vidéo à venir</p>
+                  <p className="text-xs">Ce tuteur n&apos;a pas encore ajouté de vidéo d&apos;introduction.</p>
                 </div>
               </div>
             )}
@@ -265,7 +265,7 @@ export default async function TutorProfilePage({ params }: Props) {
             {/* Bio */}
             {(bioBody || (!hasReviews && tagline)) && (
               <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
-                <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-4">A propos de {displayName.split(" ")[0]}</p>
+                <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-4">À propos de {displayName.split(" ")[0]}</p>
                 <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">
                   {bioBody ?? tagline}
                 </p>
@@ -278,13 +278,13 @@ export default async function TutorProfilePage({ params }: Props) {
 
             {/* CTA card */}
             <div className="bg-[#5C3D00] rounded-2xl p-5 text-white">
-              <p className="text-[10px] font-bold text-[#F5C400]/60 uppercase tracking-widest mb-1">Votre premiere seance</p>
-              <p className="text-2xl font-bold text-[#F5C400] mb-0.5">A partir de 15 USD</p>
-              <p className="text-xs text-white/50 mb-4">Decouverte 30 min ou cours complet 50 min</p>
+              <p className="text-[10px] font-bold text-[#F5C400]/60 uppercase tracking-widest mb-1">Votre première séance</p>
+              <p className="text-2xl font-bold text-[#F5C400] mb-0.5">À partir de 15 USD</p>
+              <p className="text-xs text-white/50 mb-4">Découverte 30 min ou cours complet 50 min</p>
               {(isStudent || !isLoggedIn) && (
                 <Link href={bookingHref}
                   className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition mb-2">
-                  Reserver maintenant
+                  Réserver maintenant
                 </Link>
               )}
               <ContactTutorButton
@@ -298,7 +298,7 @@ export default async function TutorProfilePage({ params }: Props) {
             {/* Quick info */}
             <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 space-y-4">
               <div>
-                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Specialisations</p>
+                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Spécialisations</p>
                 <div className="flex flex-wrap gap-1.5">
                   {profile.specializations.map(s => (
                     <span key={s} className="text-xs bg-[#FFF3B0] text-[#C49200] font-semibold px-2 py-0.5 rounded-full">
@@ -308,10 +308,10 @@ export default async function TutorProfilePage({ params }: Props) {
                 </div>
               </div>
               <div className="border-t border-[#F0EBE0] pt-4">
-                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Niveaux enseignes</p>
+                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Niveaux enseignés</p>
                 <p className="text-sm font-bold text-[#5C3D00]">{profile.cefrTeachingMin} → {profile.cefrTeachingMax}</p>
                 {profile.yearsExperience != null && (
-                  <p className="text-xs text-[#9B8A6B] mt-0.5">{profile.yearsExperience} ans d&apos;experience</p>
+                  <p className="text-xs text-[#9B8A6B] mt-0.5">{profile.yearsExperience} ans d&apos;expérience</p>
                 )}
               </div>
               {profile.certifications.length > 0 && (
@@ -350,27 +350,31 @@ export default async function TutorProfilePage({ params }: Props) {
                 </div>
                 <div>
                   <StarFull rating={profile.averageRating} size="lg" />
-                  <p className="text-xs text-[#7A6B55] mt-1.5">{profile.totalReviews} avis verifies</p>
+                  <p className="text-xs text-[#7A6B55] mt-1.5">{profile.totalReviews} avis vérifiés</p>
                 </div>
               </div>
               <div className="space-y-3">
                 <RatingBar label="Communication" value={avgComm} />
-                <RatingBar label="Structure des seances" value={avgStruct} />
+                <RatingBar label="Structure des séances" value={avgStruct} />
                 <RatingBar label="Correction linguistique" value={avgAcc} />
-                <RatingBar label="Rapport qualite/prix" value={avgVal} />
+                <RatingBar label="Rapport qualité/prix" value={avgVal} />
               </div>
             </div>
 
             {/* AI summary placeholder */}
             <div className="border border-dashed border-[#C4BAA8] rounded-xl p-4 mb-6 bg-[#FAF8F0]">
-              <p className="text-[11px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">Resume IA des avis</p>
+              <p className="text-[11px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">Résumé IA des avis</p>
               <p className="text-xs text-[#9B8A6B] italic">
-                Bientot disponible — un resume intelligent des points forts mentionnes par les etudiants.
+                Bientôt disponible — un résumé intelligent des points forts mentionnés par les étudiants.
               </p>
             </div>
 
             {/* Reviews in 2-col grid */}
-            <TutorProfileClient reviews={serializedReviews} />
+            <TutorProfileClient
+              reviews={serializedReviews}
+              tutorId={id}
+              totalReviews={profile.totalReviews}
+            />
           </div>
         )}
 
@@ -379,7 +383,7 @@ export default async function TutorProfilePage({ params }: Props) {
           <div className="mt-6 sm:hidden">
             <Link href={bookingHref}
               className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-2xl font-bold text-sm hover:bg-[#FFDE59] transition">
-              Reserver une seance
+              Réserver une séance
             </Link>
           </div>
         )}

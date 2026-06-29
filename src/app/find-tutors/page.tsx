@@ -31,9 +31,9 @@ export default async function FindTutorsPage({
       {/* A — Satisfaction guarantee banner */}
       <div className="bg-[#5C3D00] text-white px-6 py-3">
         <p className="text-sm text-center max-w-3xl mx-auto">
-          <span className="font-bold text-[#F5C400]">Satisfait ou Reessaye</span>
-          {" "}— Si votre premiere seance ne vous convient pas, essayez un autre tuteur{" "}
-          <span className="font-semibold">gratuitement</span>, autant de fois que necessaire jusqu&apos;a trouver le bon.
+          <span className="font-bold text-[#F5C400]">Satisfait ou Réessayez</span>
+          {" "}— Si votre première séance ne vous convient pas, essayez un autre tuteur{" "}
+          <span className="font-semibold">gratuitement</span>, autant de fois que nécessaire jusqu&apos;à trouver le bon.
         </p>
       </div>
 

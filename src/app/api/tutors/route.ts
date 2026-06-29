@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
     learningObjective: string | null;
     cefrLevel: string | null;
     availabilityDays: string[];
+    timeWindowPreference: string[];
+    timezone: string | null;
   } | null = null;
 
   if (session?.user?.role === "STUDENT") {
@@ -57,9 +59,20 @@ export async function GET(req: NextRequest) {
         learningObjective: true,
         cefrLevel: true,
         availabilityDays: true,
+        timeWindowPreference: true,
+        user: { select: { timezone: true } },
       },
     });
-    if (sp) student = sp;
+    if (sp) {
+      student = {
+        targetLanguage: sp.targetLanguage,
+        learningObjective: sp.learningObjective,
+        cefrLevel: sp.cefrLevel,
+        availabilityDays: sp.availabilityDays,
+        timeWindowPreference: sp.timeWindowPreference,
+        timezone: sp.user.timezone ?? null,
+      };
+    }
   }
 
   // CEFR filter (post-fetch since it needs index comparison)
@@ -100,6 +113,8 @@ export async function GET(req: NextRequest) {
             cefrTeachingMin: p.cefrTeachingMin,
             cefrTeachingMax: p.cefrTeachingMax,
             averageRating: p.averageRating,
+            totalReviews: p.totalReviews,
+            yearsExperience: p.yearsExperience,
             avgResponseHours: p.avgResponseHours,
             verificationTier: p.verificationTier,
             availability: p.availability,
