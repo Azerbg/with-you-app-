@@ -99,7 +99,7 @@ export default function AvailabilityManager({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F0]">
+    <div className="flex-1 overflow-auto bg-[#FAF8F0]">
       {/* Top bar */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

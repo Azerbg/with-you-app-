@@ -107,7 +107,7 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#FAF8F0]">
+    <div className="flex-1 overflow-auto flex items-center justify-center px-4 py-12 bg-[#FAF8F0]">
       <div className="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(92,61,0,0.12)] p-8 border border-[#F5C400]/30">
 
         <div className="flex items-center justify-between mb-1">

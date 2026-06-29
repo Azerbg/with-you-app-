@@ -124,10 +124,10 @@ export default async function TutorProfilePage({ params }: Props) {
   const hasReviews = reviewsRaw.length > 0;
   const avg = (key: "ratingCommunication" | "ratingStructure" | "ratingAccuracy" | "ratingValue") =>
     hasReviews ? reviewsRaw.reduce((s, r) => s + r[key], 0) / reviewsRaw.length : 0;
-  const avgComm   = avg("ratingCommunication");
-  const avgStruct = avg("ratingStructure");
-  const avgAcc    = avg("ratingAccuracy");
-  const avgVal    = avg("ratingValue");
+  const avgComm    = avg("ratingCommunication");
+  const avgStruct  = avg("ratingStructure");
+  const avgSupport = avg("ratingAccuracy");   // Soutien & Motivation
+  const avgClarity = avg("ratingValue");      // Clarté des explications
 
   // Serialize reviews for client component — only pass first page; rest loaded on demand
   const serializedReviews = reviewsRaw.slice(0, 8).map(r => ({
@@ -356,8 +356,8 @@ export default async function TutorProfilePage({ params }: Props) {
               <div className="space-y-3">
                 <RatingBar label="Communication" value={avgComm} />
                 <RatingBar label="Structure des séances" value={avgStruct} />
-                <RatingBar label="Correction linguistique" value={avgAcc} />
-                <RatingBar label="Rapport qualité/prix" value={avgVal} />
+                <RatingBar label="Soutien & Motivation" value={avgSupport} />
+                <RatingBar label="Clarté des explications" value={avgClarity} />
               </div>
             </div>
 

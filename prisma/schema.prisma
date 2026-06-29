@@ -694,10 +694,10 @@ model Review {
   tutorId   String
 
   // 4 dimensions, 1–5 stars each
-  ratingCommunication Int // Clarity, responsiveness
-  ratingStructure     Int // Lesson plan, pacing
-  ratingAccuracy      Int // Language correctness, corrections
-  ratingValue         Int // Overall value for money / time
+  ratingCommunication Int // Communication (clarté, réactivité)
+  ratingStructure     Int // Structure des séances (organisation, rythme)
+  ratingAccuracy      Int // Soutien & Motivation (encouragement, accompagnement)
+  ratingValue         Int // Clarté des explications (pédagogie, compréhension)
   ratingComposite     Float // Computed: average of 4 dimensions
 
   text String? // 20–500 characters
