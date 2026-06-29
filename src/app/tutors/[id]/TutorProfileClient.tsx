@@ -25,12 +25,13 @@ function StarRow({ rating, size = "sm" }: { rating: number; size?: "sm" | "xs" }
 
 export default function TutorProfileClient({ reviews }: { reviews: Review[] }) {
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? reviews : reviews.slice(0, 3);
+  const shown = expanded ? reviews : reviews.slice(0, 4);
 
   if (reviews.length === 0) return null;
 
   return (
-    <div className="mt-5 space-y-4">
+    <div className="mt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       {shown.map(r => {
         const firstName = r.student.firstName ?? "";
         const lastInitial = r.student.lastName ? r.student.lastName[0] + "." : "";
@@ -39,7 +40,7 @@ export default function TutorProfileClient({ reviews }: { reviews: Review[] }) {
         const date = new Date(r.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
         return (
-          <div key={r.id} className="flex gap-3">
+          <div key={r.id} className="bg-[#FAF8F0] rounded-xl p-4 flex gap-3">
             <div className="w-9 h-9 rounded-full bg-[#F5C400]/25 flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
               {initials}
             </div>
@@ -56,13 +57,14 @@ export default function TutorProfileClient({ reviews }: { reviews: Review[] }) {
           </div>
         );
       })}
+      </div>
 
-      {reviews.length > 3 && (
+      {reviews.length > 4 && (
         <button
           onClick={() => setExpanded(v => !v)}
           className="w-full py-2.5 rounded-xl border border-[#D9D0C3] text-sm font-semibold text-[#6B5E44] hover:bg-[#FAF8F0] transition"
         >
-          {expanded ? "Voir moins" : `Voir les ${reviews.length - 3} autres avis`}
+          {expanded ? "Voir moins" : `Voir les ${reviews.length - 4} autres avis`}
         </button>
       )}
     </div>

@@ -124,18 +124,17 @@ export default function WeeklyCalendar({ slotsUtc, bookingHref }: WeeklyCalendar
           return (
             <div
               key={`s-${i}`}
-              className={`rounded-lg p-1 min-h-16 transition-opacity
+              className={`rounded-xl p-1.5 min-h-28 transition-opacity
                 ${isPast ? "opacity-40" : ""}
                 ${hasSlots ? "bg-green-50" : "bg-[#F8F6F0]"}`}
             >
               {hasSlots ? (
-                <div className="space-y-0.5">
-                  {daySlots.slice(0, 5).map((slot, j) => (
+                <div className="space-y-1">
+                  {daySlots.slice(0, 6).map((slot, j) => (
                     <a
                       key={j}
                       href={bookingHref}
-                      className="block text-center font-semibold text-green-800 bg-green-100 hover:bg-green-200 rounded px-0.5 py-0.5 transition leading-tight"
-                      style={{ fontSize: "9px" }}
+                      className="block text-center text-[11px] font-semibold text-green-800 bg-green-100 hover:bg-green-200 rounded-lg px-1 py-1 transition leading-tight"
                     >
                       {slot.toLocaleTimeString("fr-FR", {
                         timeZone: userTz,
@@ -144,19 +143,18 @@ export default function WeeklyCalendar({ slotsUtc, bookingHref }: WeeklyCalendar
                       })}
                     </a>
                   ))}
-                  {daySlots.length > 5 && (
+                  {daySlots.length > 6 && (
                     <a
                       href={bookingHref}
-                      className="block text-center text-green-700 font-bold leading-tight"
-                      style={{ fontSize: "9px" }}
+                      className="block text-center text-[11px] text-green-700 font-bold py-0.5 hover:text-green-900 transition"
                     >
-                      +{daySlots.length - 5}
+                      +{daySlots.length - 6} autres
                     </a>
                   )}
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center min-h-12">
-                  <span className="text-[#D9D0C3]" style={{ fontSize: "10px" }}>—</span>
+                <div className="h-full flex items-center justify-center min-h-20">
+                  <span className="text-xs text-[#D9D0C3]">—</span>
                 </div>
               )}
             </div>

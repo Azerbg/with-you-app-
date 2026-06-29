@@ -176,10 +176,10 @@ export default async function TutorProfilePage({ params }: Props) {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 py-10">
 
         {/* A — Hero */}
-        <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6 mb-5">
+        <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6 mb-6">
           <div className="flex gap-5 items-start">
             {photoUrl ? (
               <img src={photoUrl} alt={displayName}
@@ -222,60 +222,14 @@ export default async function TutorProfilePage({ params }: Props) {
                 <p className="text-xs text-[#9B8A6B]">Nouveau tuteur</p>
               )}
             </div>
-
-            {(isStudent || !isLoggedIn) && (
-              <Link href={bookingHref}
-                className="shrink-0 px-4 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-xl text-sm hover:bg-[#FFDE59] transition hidden sm:block">
-                Reserver
-              </Link>
-            )}
           </div>
         </div>
 
-        {/* B — Quick info pills */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          <div className="bg-white border border-[#C4BAA8] rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Specialisations</p>
-            <div className="flex flex-wrap gap-1">
-              {profile.specializations.map(s => (
-                <span key={s} className="text-[11px] bg-[#FFF3B0] text-[#C49200] font-semibold px-1.5 py-0.5 rounded-full">
-                  {SPEC_LABELS[s] ?? s}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="bg-white border border-[#C4BAA8] rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Niveaux</p>
-            <p className="text-sm font-bold text-[#5C3D00]">{profile.cefrTeachingMin} a {profile.cefrTeachingMax}</p>
-            {profile.yearsExperience != null && (
-              <p className="text-xs text-[#9B8A6B] mt-0.5">{profile.yearsExperience} ans d&apos;experience</p>
-            )}
-          </div>
-          <div className="bg-white border border-[#C4BAA8] rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Certifications</p>
-            {profile.certifications.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {profile.certifications.map(c => (
-                  <span key={c} className="text-[11px] bg-[#FAF8F0] text-[#5C3D00] font-semibold px-1.5 py-0.5 rounded-full border border-[#D9D0C3]">
-                    {CERT_LABELS[c] ?? c}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-[#9B8A6B]">—</p>
-            )}
-          </div>
-        </div>
+        {/* B — Main 2-col: content left (3/5) + sidebar right (2/5) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
 
-        {/* Weekly calendar — full width */}
-        <div className="mb-5">
-          <WeeklyCalendar slotsUtc={slotsUtc} bookingHref={bookingHref} />
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-
-          {/* Left col */}
-          <div className="md:col-span-2 space-y-5">
+          {/* Left: video + bio */}
+          <div className="lg:col-span-3 space-y-5">
 
             {/* Video */}
             {videoEmbed ? (
@@ -296,7 +250,7 @@ export default async function TutorProfilePage({ params }: Props) {
               </div>
             ) : (
               <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 flex items-center gap-4 text-[#9B8A6B]">
-                <div className="w-12 h-12 rounded-xl bg-[#F0EBE0] flex items-center justify-center text-2xl flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-[#F0EBE0] flex items-center justify-center flex-shrink-0">
                   <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
                   </svg>
@@ -308,53 +262,19 @@ export default async function TutorProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* C — Ratings & avis */}
-            {hasReviews && (
-              <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
-
-                {/* Overall score */}
-                <div className="flex items-center gap-5 pb-5 border-b border-[#F0EBE0] mb-5">
-                  <div className="text-center">
-                    <div className="text-5xl font-black text-[#2D1A00] leading-none">
-                      {profile.averageRating.toFixed(1)}
-                    </div>
-                    <p className="text-xs text-[#9B8A6B] mt-1">sur 5</p>
-                  </div>
-                  <div>
-                    <StarFull rating={profile.averageRating} size="lg" />
-                    <p className="text-xs text-[#7A6B55] mt-1.5">
-                      {profile.totalReviews} avis verifies
-                    </p>
-                  </div>
-                </div>
-
-                {/* Dimension bars */}
-                <div className="space-y-3 pb-5 border-b border-[#F0EBE0] mb-5">
-                  <RatingBar label="Communication" value={avgComm} />
-                  <RatingBar label="Structure des seances" value={avgStruct} />
-                  <RatingBar label="Correction linguistique" value={avgAcc} />
-                  <RatingBar label="Rapport qualite/prix" value={avgVal} />
-                </div>
-
-                {/* AI summary placeholder */}
-                <div className="border border-dashed border-[#C4BAA8] rounded-xl p-4 mb-5 bg-[#FAF8F0]">
-                  <p className="text-[11px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">
-                    Resume IA des avis
-                  </p>
-                  <p className="text-xs text-[#9B8A6B] italic">
-                    Bientot disponible — un resume intelligent des points forts mentionnes par les etudiants.
-                  </p>
-                </div>
-
-                {/* Reviews list */}
-                <TutorProfileClient reviews={serializedReviews} />
+            {/* Bio */}
+            {(bioBody || (!hasReviews && tagline)) && (
+              <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
+                <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-4">A propos de {displayName.split(" ")[0]}</p>
+                <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">
+                  {bioBody ?? tagline}
+                </p>
               </div>
             )}
-
           </div>
 
-          {/* Right col */}
-          <div className="space-y-4">
+          {/* Right: CTA + quick info */}
+          <div className="lg:col-span-2 space-y-4">
 
             {/* CTA card */}
             <div className="bg-[#5C3D00] rounded-2xl p-5 text-white">
@@ -375,16 +295,82 @@ export default async function TutorProfilePage({ params }: Props) {
               />
             </div>
 
+            {/* Quick info */}
+            <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Specialisations</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.specializations.map(s => (
+                    <span key={s} className="text-xs bg-[#FFF3B0] text-[#C49200] font-semibold px-2 py-0.5 rounded-full">
+                      {SPEC_LABELS[s] ?? s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-[#F0EBE0] pt-4">
+                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Niveaux enseignes</p>
+                <p className="text-sm font-bold text-[#5C3D00]">{profile.cefrTeachingMin} → {profile.cefrTeachingMax}</p>
+                {profile.yearsExperience != null && (
+                  <p className="text-xs text-[#9B8A6B] mt-0.5">{profile.yearsExperience} ans d&apos;experience</p>
+                )}
+              </div>
+              {profile.certifications.length > 0 && (
+                <div className="border-t border-[#F0EBE0] pt-4">
+                  <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Certifications</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.certifications.map(c => (
+                      <span key={c} className="text-xs bg-[#FAF8F0] text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full border border-[#D9D0C3]">
+                        {CERT_LABELS[c] ?? c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* D — Biographie longue (pleine largeur) */}
-        {(bioBody || (!hasReviews && tagline)) && (
-          <div className="mt-5 bg-white border border-[#C4BAA8] rounded-2xl p-6">
-            <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-4">A propos de {displayName.split(" ")[0]}</p>
-            <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">
-              {bioBody ?? tagline}
-            </p>
+        {/* C — Calendar — full width */}
+        <div className="mb-6">
+          <WeeklyCalendar slotsUtc={slotsUtc} bookingHref={bookingHref} />
+        </div>
+
+        {/* D — Ratings & avis — full width */}
+        {hasReviews && (
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
+
+            {/* Score + bars side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-[#F0EBE0] mb-6">
+              <div className="flex items-center gap-5">
+                <div className="text-center">
+                  <div className="text-6xl font-black text-[#2D1A00] leading-none">
+                    {profile.averageRating.toFixed(1)}
+                  </div>
+                  <p className="text-xs text-[#9B8A6B] mt-1">sur 5</p>
+                </div>
+                <div>
+                  <StarFull rating={profile.averageRating} size="lg" />
+                  <p className="text-xs text-[#7A6B55] mt-1.5">{profile.totalReviews} avis verifies</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <RatingBar label="Communication" value={avgComm} />
+                <RatingBar label="Structure des seances" value={avgStruct} />
+                <RatingBar label="Correction linguistique" value={avgAcc} />
+                <RatingBar label="Rapport qualite/prix" value={avgVal} />
+              </div>
+            </div>
+
+            {/* AI summary placeholder */}
+            <div className="border border-dashed border-[#C4BAA8] rounded-xl p-4 mb-6 bg-[#FAF8F0]">
+              <p className="text-[11px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">Resume IA des avis</p>
+              <p className="text-xs text-[#9B8A6B] italic">
+                Bientot disponible — un resume intelligent des points forts mentionnes par les etudiants.
+              </p>
+            </div>
+
+            {/* Reviews in 2-col grid */}
+            <TutorProfileClient reviews={serializedReviews} />
           </div>
         )}
 
