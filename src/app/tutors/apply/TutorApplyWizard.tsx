@@ -961,11 +961,36 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
       <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">
         {fr ? "Parlez-nous de vous" : "About You"}
       </h2>
-      <p className="text-[#6B5E44] text-sm mb-6">
+      <p className="text-[#6B5E44] text-sm mb-5">
         {fr
-          ? "Présentez-vous à notre équipe RH — en tant que personne et en tant qu'enseignant."
-          : "Introduce yourself to our HR team — as a person and as a teacher."}
+          ? "Cette biographie sera lue par notre équipe RH, puis publiée sur votre profil public. Soyez vous-même — pas un CV."
+          : "This bio will be reviewed by our HR team, then published on your public profile. Be yourself — not a résumé."}
       </p>
+
+      {/* Bio writing tips */}
+      <div className="bg-[#FFF8E1] border border-[#F5C400]/40 rounded-xl p-4 mb-4 space-y-1.5">
+        <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide mb-2">
+          {fr ? "✦ Comment écrire une bio qui attire des étudiants" : "✦ How to write a bio that attracts students"}
+        </p>
+        {(fr ? [
+          "Parlez de votre passion pour la langue, pas de vos diplômes.",
+          "Décrivez votre style : êtes-vous structuré, ludique, orienté conversation ?",
+          "Citez un ou deux résultats concrets que vous avez aidé à atteindre.",
+          "Soyez chaleureux — l'étudiant doit avoir envie de vous rencontrer.",
+          "Évitez le jargon académique. Écrivez comme si vous parliez à un ami.",
+        ] : [
+          "Talk about your passion for the language, not your degrees.",
+          "Describe your style: are you structured, playful, conversation-focused?",
+          "Mention one or two concrete outcomes you've helped students achieve.",
+          "Be warm — the student should want to meet you after reading this.",
+          "Avoid academic jargon. Write like you're talking to a friend.",
+        ]).map((tip, i) => (
+          <div key={i} className="flex items-start gap-2 text-xs text-[#6B5E44]">
+            <span className="text-[#F5C400] font-bold mt-0.5 flex-shrink-0">→</span>
+            <span>{tip}</span>
+          </div>
+        ))}
+      </div>
 
       {/* Bio */}
       <div className="mb-5">
@@ -977,10 +1002,10 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
         <textarea
           value={data.bio}
           onChange={e => onChange("bio", e.target.value)}
-          rows={5}
+          rows={6}
           placeholder={fr
-            ? "Parlez-nous de vous en tant que personne et en tant qu'enseignant. Décrivez votre parcours, votre méthode d'enseignement et ce qui vous rend unique…"
-            : "Tell us about yourself as a person and as a teacher. Describe your background, teaching style, and what makes you unique…"}
+            ? "Bonjour ! Je m'appelle [Prénom] et j'adore faire tomber les barrières linguistiques.\n\nMa méthode ? On parle. Beaucoup. Et on s'amuse aussi ! Je m'adapte à votre rythme et à vos objectifs — que vous vouliez briller en réunion professionnelle, réussir le TCF, ou simplement commander un café à Paris sans rougir.\n\nAvec moi, vous progresserez vite parce qu'on vise directement ce dont vous avez besoin."
+            : "Hi! I'm [Name] and I love breaking down language barriers.\n\nMy approach? We talk. A lot. And we have fun doing it! I adapt to your pace and your goals — whether you want to shine in business meetings, pass the IELTS, or simply feel confident ordering a coffee in London.\n\nWith me, you'll progress fast because we go straight to what you actually need."}
           className={inputCls + " resize-none"}
         />
         <p className={`text-xs mt-1 ${data.bio.length < 100 ? "text-[#9B8A6B]" : "text-green-600"}`}>

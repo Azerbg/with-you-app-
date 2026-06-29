@@ -642,9 +642,234 @@ function Row({ label, value }: { label: string; value: string | null | undefined
   );
 }
 
+// ─── Pending Profile Changes View ─────────────────────────────────────────────
+
+interface ProfileSnapshot {
+  bio: string | null;
+  profilePhotoUrl: string | null;
+  videoIntroUrl: string | null;
+  cefrTeachingMin: string | null;
+  cefrTeachingMax: string | null;
+  specializations: string[];
+}
+
+interface PendingChange {
+  id: string;
+  tutorId: string;
+  tutorName: string;
+  tutorEmail: string;
+  currentProfile: ProfileSnapshot | null;
+  proposedChanges: Record<string, unknown>;
+  createdAt: string;
+}
+
+function toDisplayStr(val: unknown): string {
+  if (val == null) return "—";
+  if (Array.isArray(val)) return (val as string[]).join(", ") || "—";
+  return String(val) || "—";
+}
+
+function DiffRow({ label, current, proposed }: { label: string; current: unknown; proposed: unknown }) {
+  const cur = toDisplayStr(current);
+  const prop = toDisplayStr(proposed);
+  const changed = cur !== prop;
+  return (
+    <div className={`grid grid-cols-[100px_1fr_1fr] gap-2 py-2 border-b border-[#6B5E44]/10 text-xs ${changed ? "bg-amber-50/60 -mx-4 px-4" : ""}`}>
+      <span className="text-[#6B5E44] font-semibold self-start pt-0.5">{label}</span>
+      <span className="text-[#5C3D00] whitespace-pre-wrap break-words">{cur}</span>
+      <span className={`whitespace-pre-wrap break-words font-semibold ${changed ? "text-amber-800" : "text-[#5C3D00]"}`}>
+        {changed && "→ "}{prop}
+      </span>
+    </div>
+  );
+}
+
+function PendingChangeCard({
+  change,
+  onReviewed,
+}: {
+  change: PendingChange;
+  onReviewed: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  const proposed = change.proposedChanges as Record<string, unknown>;
+  const current = change.currentProfile;
+
+  async function handleAction(action: "APPROVE" | "REJECT") {
+    if (action === "REJECT" && !rejectNote.trim()) {
+      setActionError("Veuillez indiquer un motif de refus.");
+      return;
+    }
+    setSaving(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/console/hr/pending-changes/${change.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, hrNote: rejectNote.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setActionError(d.error ?? "Erreur serveur");
+        return;
+      }
+      onReviewed(change.id);
+    } catch {
+      setActionError("Erreur réseau");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#6B5E44]/15 shadow-sm overflow-hidden">
+      {/* Card header */}
+      <div className="flex items-start justify-between gap-4 px-5 py-4">
+        <div>
+          <p className="font-bold text-[#5C3D00]">{change.tutorName}</p>
+          <p className="text-xs text-[#6B5E44]">{change.tutorEmail}</p>
+          <p className="text-[10px] text-[#9B8A6B] mt-0.5">
+            Soumis le {new Date(change.createdAt).toLocaleString("fr-FR")}
+          </p>
+        </div>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="text-xs font-bold text-[#5C3D00] bg-[#FFF3B0] border border-[#F5C400]/50 rounded-full px-3 py-1 hover:bg-[#FFDE59] transition shrink-0"
+        >
+          {expanded ? "Réduire" : "Voir le détail"}
+        </button>
+      </div>
+
+      {/* Photo preview if changed */}
+      {typeof proposed.profilePhotoUrl === "string" && proposed.profilePhotoUrl !== current?.profilePhotoUrl && (
+        <div className="px-5 pb-3 flex items-center gap-4">
+          {current?.profilePhotoUrl && (
+            <div className="text-center">
+              <p className="text-[10px] text-[#6B5E44] mb-1">Actuel</p>
+              <img src={current.profilePhotoUrl} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-[#6B5E44]/20" />
+            </div>
+          )}
+          <div className="text-[#6B5E44] text-sm font-bold">→</div>
+          <div className="text-center">
+            <p className="text-[10px] text-amber-700 mb-1 font-bold">Proposé</p>
+            <img src={proposed.profilePhotoUrl as string} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-amber-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Diff table */}
+      {expanded && (
+        <div className="px-5 pb-4 border-t border-[#6B5E44]/10 pt-3">
+          <div className="grid grid-cols-[100px_1fr_1fr] gap-2 mb-1">
+            <span />
+            <span className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest">Actuel</span>
+            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Proposé</span>
+          </div>
+          <DiffRow label="Bio" current={current?.bio} proposed={proposed.bio} />
+          <DiffRow label="Niv. min" current={current?.cefrTeachingMin} proposed={proposed.cefrTeachingMin} />
+          <DiffRow label="Niv. max" current={current?.cefrTeachingMax} proposed={proposed.cefrTeachingMax} />
+          <DiffRow label="Spécialisations" current={current?.specializations} proposed={proposed.specializations} />
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="border-t border-[#6B5E44]/10 px-5 py-4 bg-[#FAF8F0] space-y-3">
+        {rejecting ? (
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-[#5C3D00]">Motif du refus (visible par le tuteur) *</label>
+            <textarea
+              value={rejectNote}
+              onChange={e => setRejectNote(e.target.value)}
+              rows={2}
+              placeholder="Ex : La biographie est trop courte, veuillez développer votre méthode d'enseignement."
+              className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-red-400 resize-none"
+            />
+            {actionError && <p className="text-xs text-red-600">{actionError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setRejecting(false); setRejectNote(""); setActionError(""); }}
+                disabled={saving}
+                className="flex-1 py-2 text-xs font-bold border-2 border-[#6B5E44]/30 text-[#5C3D00] rounded-full hover:bg-white transition">
+                Annuler
+              </button>
+              <button onClick={() => handleAction("REJECT")}
+                disabled={saving || !rejectNote.trim()}
+                className="flex-1 py-2 text-xs font-bold bg-red-600 text-white rounded-full hover:bg-red-700 disabled:opacity-50 transition">
+                {saving ? "Envoi…" : "Confirmer le refus"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            {actionError && <p className="text-xs text-red-600 w-full">{actionError}</p>}
+            <button
+              onClick={() => setRejecting(true)}
+              disabled={saving}
+              className="flex-1 py-2.5 text-sm font-bold border-2 border-red-300 text-red-600 rounded-full hover:bg-red-50 disabled:opacity-50 transition"
+            >
+              Refuser
+            </button>
+            <button
+              onClick={() => handleAction("APPROVE")}
+              disabled={saving}
+              className="flex-1 py-2.5 text-sm font-bold bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 transition"
+            >
+              {saving ? "…" : "Approuver ✓"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PendingChangesView() {
+  const [changes, setChanges] = useState<PendingChange[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/console/hr/pending-changes")
+      .then(r => r.json())
+      .then(data => { setChanges(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(e => { setError(String(e)); setLoading(false); });
+  }, []);
+
+  function handleReviewed(id: string) {
+    setChanges(prev => prev.filter(c => c.id !== id));
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-[#6B5E44]">Chargement…</div>;
+  if (error) return <div className="flex items-center justify-center h-64 text-red-600 text-sm">{error}</div>;
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      {changes.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">✓</p>
+          <p className="font-bold text-[#5C3D00] text-lg">Aucune modification en attente</p>
+          <p className="text-sm text-[#6B5E44] mt-1">Tous les profils tuteurs sont à jour.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {changes.map(c => (
+            <PendingChangeCard key={c.id} change={c} onReviewed={handleReviewed} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Kanban Board ────────────────────────────────────────────────────────
 
 export default function HrKanban({ hrEmail }: { hrEmail: string }) {
+  const [view, setView] = useState<"kanban" | "pending">("kanban");
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -652,6 +877,14 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
   const [search, setSearch] = useState("");
   const [activeLang, setActiveLang] = useState<string | null>(null);
   const [activeSpec, setActiveSpec] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch pending profile changes count for badge
+    fetch("/api/console/hr/pending-changes")
+      .then(r => r.json())
+      .then(data => Array.isArray(data) && setPendingCount(data.length))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/console/hr/applications")
@@ -725,18 +958,44 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
         <div className="flex items-center gap-3">
           <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg">WithYou</Link>
           <span className="text-[#6B5E44] text-sm font-semibold">Console RH</span>
+          {/* View toggle */}
+          <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15">
+            <button
+              onClick={() => setView("kanban")}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition ${view === "kanban" ? "bg-white text-[#5C3D00] shadow-sm" : "text-[#6B5E44] hover:text-[#5C3D00]"}`}
+            >
+              Candidatures
+            </button>
+            <button
+              onClick={() => setView("pending")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition ${view === "pending" ? "bg-white text-[#5C3D00] shadow-sm" : "text-[#6B5E44] hover:text-[#5C3D00]"}`}
+            >
+              Modifications en attente
+              {pendingCount !== null && pendingCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher un candidat…"
-            className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
-          />
+          {view === "kanban" && (
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher un candidat…"
+              className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
+            />
+          )}
           <span className="text-xs text-[#6B5E44]">{hrEmail}</span>
         </div>
       </div>
 
+      {/* Pending profile changes view */}
+      {view === "pending" && <PendingChangesView />}
+
+      {view === "kanban" && <>
       {/* ── LANGUAGE FILTER ── */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3">
         <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Filtrer par langue</p>
@@ -875,6 +1134,7 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
           hrEmail={hrEmail}
         />
       )}
+      </>}
     </div>
   );
 }

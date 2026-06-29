@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Existing {
@@ -11,6 +10,14 @@ interface Existing {
   cefrTeachingMin: string | null;
   cefrTeachingMax: string | null;
   specializations: string[];
+}
+
+interface PendingChange {
+  id: string;
+  status: "PENDING" | "REJECTED";
+  hrNote: string | null;
+  changes: Record<string, unknown>;
+  createdAt: string;
 }
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -27,12 +34,19 @@ const btnSecondary = "border-2 border-[#6B5E44]/30 text-[#5C3D00] font-bold roun
 
 const TOTAL_STEPS = 3;
 
-export default function CompleteProfileWizard({ existing }: { existing: Existing | null }) {
-  const router = useRouter();
+export default function CompleteProfileWizard({
+  existing,
+  pendingChange,
+}: {
+  existing: Existing | null;
+  pendingChange: PendingChange | null;
+}) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
+  // Pre-fill with existing approved data (not pending — tutors see what's live)
   const [bio, setBio] = useState(existing?.bio ?? "");
   const [photoUrl, setPhotoUrl] = useState(existing?.profilePhotoUrl ?? "");
   const [photoName, setPhotoName] = useState("");
@@ -42,6 +56,9 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
   const [videoName, setVideoName] = useState("");
   const [videoLoading, setVideoLoading] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [cefrMin, setCefrMin] = useState(existing?.cefrTeachingMin ?? "A1");
+  const [cefrMax, setCefrMax] = useState(existing?.cefrTeachingMax ?? "C2");
+  const [specs, setSpecs] = useState<string[]>(existing?.specializations ?? []);
 
   function readFile(file: File, maxMb: number, onDone: (dataUrl: string, name: string) => void, onError: (msg: string) => void) {
     if (file.size > maxMb * 1024 * 1024) {
@@ -69,9 +86,6 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
     setVideoLoading(true);
     readFile(file, 150, (dataUrl, name) => { setVideoUrl(dataUrl); setVideoName(name); setVideoLoading(false); }, (msg) => { setVideoError(msg); setVideoLoading(false); });
   }
-  const [cefrMin, setCefrMin] = useState(existing?.cefrTeachingMin ?? "A1");
-  const [cefrMax, setCefrMax] = useState(existing?.cefrTeachingMax ?? "C2");
-  const [specs, setSpecs] = useState<string[]>(existing?.specializations ?? []);
 
   function toggleSpec(val: string) {
     setSpecs(prev => prev.includes(val) ? prev.filter(s => s !== val) : [...prev, val]);
@@ -100,10 +114,36 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
         setError("Une erreur est survenue. Veuillez réessayer.");
         return;
       }
-      router.push("/dashboard/tutor");
+      setSubmitted(true);
     } finally {
       setSaving(false);
     }
+  }
+
+  // ── Submitted confirmation screen ──────────────────────────────────────────
+  if (submitted) {
+    return (
+      <div className="flex-1 overflow-auto flex items-center justify-center px-4 py-12 bg-[#FAF8F0]">
+        <div className="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(92,61,0,0.12)] p-8 border border-[#F5C400]/30 text-center">
+          <div className="w-16 h-16 rounded-full bg-[#FFF3B0] border-2 border-[#F5C400] flex items-center justify-center mx-auto mb-5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2.5" className="w-8 h-8">
+              <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[#5C3D00] mb-2">Modifications soumises</h2>
+          <p className="text-[#6B5E44] text-sm mb-6">
+            Votre profil est en cours de validation par notre équipe RH. Vous serez notifié par e-mail dès qu&apos;une décision sera prise.
+          </p>
+          <Link
+            href="/dashboard/tutor"
+            className="inline-block px-6 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] transition"
+          >
+            Retour au tableau de bord
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -114,6 +154,33 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
           <Link href="/dashboard/tutor"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto" /></Link>
           <Link href="/dashboard/tutor" className="text-xs text-[#6B5E44] hover:text-[#5C3D00]">← Retour</Link>
         </div>
+
+        {/* Pending / Rejected banner */}
+        {pendingChange?.status === "PENDING" && (
+          <div className="mb-4 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-amber-500 text-lg mt-0.5">⏳</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Modification en attente de validation</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Une modification a été soumise le {new Date(pendingChange.createdAt).toLocaleDateString("fr-FR")} et attend la validation de l&apos;équipe RH. Vous pouvez soumettre une nouvelle version pour la remplacer.
+              </p>
+            </div>
+          </div>
+        )}
+        {pendingChange?.status === "REJECTED" && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-start gap-3">
+            <span className="text-red-500 text-lg mt-0.5">✕</span>
+            <div>
+              <p className="text-sm font-bold text-red-700">Modification refusée par l&apos;équipe RH</p>
+              {pendingChange.hrNote && (
+                <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                  <strong>Motif :</strong> {pendingChange.hrNote}
+                </p>
+              )}
+              <p className="text-xs text-red-500 mt-1">Veuillez corriger votre profil et resoumettre.</p>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="flex justify-between text-xs text-[#6B5E44] mb-2">
@@ -130,14 +197,33 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
         {step === 1 && (
           <div>
             <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">Votre présentation</h2>
-            <p className="text-[#6B5E44] text-sm mb-6">Ces informations seront visibles par les étudiants.</p>
+            <p className="text-[#6B5E44] text-sm mb-5">
+              C&apos;est la première chose que vos futurs étudiants liront. Soyez vous-même — pas un CV.
+            </p>
+
+            {/* Bio writing tips */}
+            <div className="bg-[#FFF8E1] border border-[#F5C400]/40 rounded-xl p-4 mb-4 space-y-1.5">
+              <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide mb-2">✦ Comment écrire une bio qui attire des étudiants</p>
+              {[
+                "Parlez de votre passion pour la langue, pas de vos diplômes.",
+                "Décrivez votre style : êtes-vous structuré, ludique, orienté conversation ?",
+                "Citez un ou deux résultats concrets que vous avez aidé à atteindre.",
+                "Soyez chaleureux — l'étudiant doit avoir envie de vous rencontrer.",
+                "Évitez le jargon académique. Écrivez comme si vous parliez à un ami.",
+              ].map((tip, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs text-[#6B5E44]">
+                  <span className="text-[#F5C400] font-bold mt-0.5 flex-shrink-0">→</span>
+                  <span>{tip}</span>
+                </div>
+              ))}
+            </div>
 
             <div className="mb-5">
               <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
                 Biographie <span className="font-normal text-[#6B5E44]">(100–2000 caractères)</span>
               </label>
-              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={6}
-                placeholder="Décrivez votre parcours, votre méthode d'enseignement et ce qui vous rend unique…"
+              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={7}
+                placeholder={"Bonjour ! Je m'appelle [Prénom] et j'adore faire tomber les barrières linguistiques.\n\nMa méthode ? On parle. Beaucoup. Et on s'amuse aussi ! Je m'adapte à votre rythme et à vos objectifs — que vous vouliez briller en réunion professionnelle, réussir le TCF, ou simplement commander un café à Paris sans rougir.\n\nAvec moi, vous progresserez vite parce qu'on vise directement ce dont vous avez besoin."}
                 className={inputCls + " resize-none"} />
               <p className={`text-xs mt-1 ${bio.length < 100 ? "text-red-400" : "text-green-600"}`}>
                 {bio.length} / 100 caractères minimum
@@ -180,7 +266,7 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
             {/* Video upload */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-[#5C3D00] mb-2">
-                Vidéo d'introduction <span className="font-normal text-[#6B5E44]">(optionnel · 60–90 sec)</span>
+                Vidéo d&apos;introduction <span className="font-normal text-[#6B5E44]">(optionnel · 60–90 sec)</span>
               </label>
               {videoUrl && videoName ? (
                 <div className="flex items-center gap-3 p-3 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-xl mb-2">
@@ -267,7 +353,7 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
         {step === 3 && (
           <div>
             <h2 className="text-2xl font-bold text-[#5C3D00] mb-1">Spécialisations</h2>
-            <p className="text-[#6B5E44] text-sm mb-6">Confirmez vos domaines d'enseignement.</p>
+            <p className="text-[#6B5E44] text-sm mb-6">Confirmez vos domaines d&apos;enseignement.</p>
 
             <div className="grid grid-cols-2 gap-3 mb-6">
               {SPECS.map(s => (
@@ -282,6 +368,16 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
               ))}
             </div>
 
+            {/* Moderation notice */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-500 mt-0.5 shrink-0">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+              </svg>
+              <p className="text-xs text-blue-700">
+                Vos modifications seront soumises à l&apos;équipe RH avant d&apos;être publiées sur votre profil public.
+              </p>
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-600">
                 {error}
@@ -293,7 +389,7 @@ export default function CompleteProfileWizard({ existing }: { existing: Existing
                 className={`flex-1 py-2.5 ${btnSecondary}`}>Retour</button>
               <button onClick={handleSave} disabled={saving || specs.length === 0}
                 className={`flex-1 py-2.5 ${btnPrimary}`}>
-                {saving ? "Enregistrement…" : "Enregistrer le profil"}
+                {saving ? "Envoi…" : "Soumettre pour validation"}
               </button>
             </div>
           </div>

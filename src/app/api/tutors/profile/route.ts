@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Only ACTIVE tutors can complete their profile
   const app = await db.hrApplication.findUnique({
     where: { userId: session.user.id },
     select: { status: true },
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = schema.parse(body);
 
-    const profileData = {
+    const proposedChanges = {
       bio:             data.bio,
       profilePhotoUrl: data.profilePhotoUrl || null,
       videoIntroUrl:   data.videoIntroUrl   || null,
@@ -40,13 +39,16 @@ export async function POST(req: NextRequest) {
       specializations: data.specializations,
     };
 
-    const profile = await db.tutorProfile.upsert({
-      where:  { userId: session.user.id },
-      update: profileData,
-      create: { userId: session.user.id, languagesTaught: [], certifications: [], ...profileData },
+    // Replace any existing PENDING change with the new submission
+    await db.pendingProfileChange.deleteMany({
+      where: { tutorId: session.user.id, status: "PENDING" },
     });
 
-    return NextResponse.json({ success: true, profileId: profile.id });
+    const change = await db.pendingProfileChange.create({
+      data: { tutorId: session.user.id, changes: proposedChanges },
+    });
+
+    return NextResponse.json({ pending: true, changeId: change.id });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "validation", issues: err.issues }, { status: 422 });
@@ -62,9 +64,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await db.tutorProfile.findUnique({
-    where: { userId: session.user.id },
-  });
+  const [profile, pendingChange] = await Promise.all([
+    db.tutorProfile.findUnique({ where: { userId: session.user.id } }),
+    db.pendingProfileChange.findFirst({
+      where: { tutorId: session.user.id, status: { in: ["PENDING", "REJECTED"] } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
 
-  return NextResponse.json(profile ?? {});
+  return NextResponse.json({ profile: profile ?? null, pendingChange: pendingChange ?? null });
 }

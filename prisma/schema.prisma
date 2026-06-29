@@ -86,6 +86,12 @@ enum ApplicationStatus {
   REJECTED             // Rejected at any stage — 90-day reapplication block
 }
 
+enum PendingChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BookingStatus {
   PENDING    // Slot held, awaiting payment
   CONFIRMED  // Payment captured — session is locked in
@@ -174,6 +180,8 @@ model User {
   auditActions       AuditLog[]            @relation("AuditActor")
   hrNotesAuthored    HrNote[]              @relation("HrNoteAuthor")
   paymentMethod      TutorPaymentMethod?
+  pendingProfileChanges  PendingProfileChange[] @relation("TutorPendingChanges")
+  hrProfileChangeReviews PendingProfileChange[] @relation("HrProfileChangeReviewer")
 
   @@map("users")
 }
@@ -388,6 +396,31 @@ model TutorAvailability {
   tutorProfile TutorProfile @relation(fields: [tutorProfileId], references: [id], onDelete: Cascade)
 
   @@map("tutor_availability")
+}
+
+// ─── PENDING PROFILE CHANGES (HR Moderation) ─────────────────────────────────
+// Tutor profile edits are staged here before HR approves them.
+// On APPROVE: fields are applied to TutorProfile.
+// On REJECT:  tutor sees the HR note and can resubmit.
+
+model PendingProfileChange {
+  id         String              @id @default(cuid())
+  tutorId    String
+  tutor      User                @relation("TutorPendingChanges", fields: [tutorId], references: [id], onDelete: Cascade)
+
+  // JSON snapshot of all proposed field changes
+  // { bio?, profilePhotoUrl?, videoIntroUrl?, cefrTeachingMin?, cefrTeachingMax?, specializations? }
+  changes    Json
+
+  status     PendingChangeStatus @default(PENDING)
+  hrNote     String?             // Rejection reason or HR comment
+  reviewedBy String?
+  reviewer   User?               @relation("HrProfileChangeReviewer", fields: [reviewedBy], references: [id])
+
+  createdAt  DateTime @default(now())
+  reviewedAt DateTime?
+
+  @@map("pending_profile_changes")
 }
 
 // ─── BOOKINGS (LESSON SESSIONS) ───────────────────────────────────────────────
