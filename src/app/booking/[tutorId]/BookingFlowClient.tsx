@@ -5,6 +5,8 @@ import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
+import { ZONES, useZone, type PriceZone } from "@/app/tutors/[id]/PricingCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,39 +20,73 @@ interface SavedCard {
   expYear: number;
 }
 
-// ─── Currency conversion ──────────────────────────────────────────────────────
+// ─── Zone pricing (fixed psychological prices — no live conversion) ─────────────
+// Stripe always charges USD. Local display uses fixed round numbers per zone.
 
-const COUNTRY_CURRENCY: Record<string, { code: string; symbol: string; rate: number }> = {
-  FR: { code: "EUR", symbol: "€", rate: 0.92 },
-  BE: { code: "EUR", symbol: "€", rate: 0.92 },
-  DE: { code: "EUR", symbol: "€", rate: 0.92 },
-  AT: { code: "EUR", symbol: "€", rate: 0.92 },
-  ES: { code: "EUR", symbol: "€", rate: 0.92 },
-  IT: { code: "EUR", symbol: "€", rate: 0.92 },
-  NL: { code: "EUR", symbol: "€", rate: 0.92 },
-  PT: { code: "EUR", symbol: "€", rate: 0.92 },
-  LU: { code: "EUR", symbol: "€", rate: 0.92 },
-  CH: { code: "CHF", symbol: "CHF", rate: 0.90 },
-  GB: { code: "GBP", symbol: "£", rate: 0.79 },
-  CA: { code: "CAD", symbol: "CA$", rate: 1.37 },
-  AU: { code: "AUD", symbol: "A$", rate: 1.53 },
-  MA: { code: "MAD", symbol: "DH", rate: 10.0 },
-  DZ: { code: "DZD", symbol: "DA", rate: 134.5 },
+// Timezone → ISO country code (fallback when DB country is not set)
+const TZ_TO_COUNTRY: Record<string, string> = {
+  "America/Toronto":    "CA", "America/Vancouver":   "CA",
+  "America/Montreal":   "CA", "America/Halifax":     "CA",
+  "America/Winnipeg":   "CA", "America/Regina":      "CA",
+  "America/Edmonton":   "CA", "America/St_Johns":    "CA",
+  "Europe/Paris":       "FR", "Europe/Brussels":     "BE",
+  "Europe/Berlin":      "DE", "Europe/Vienna":       "AT",
+  "Europe/Madrid":      "ES", "Europe/Rome":         "IT",
+  "Europe/Amsterdam":   "NL", "Europe/Lisbon":       "PT",
+  "Europe/Luxembourg":  "LU", "Europe/Zurich":       "CH",
+  "Europe/London":      "GB",
+  "Australia/Sydney":   "AU", "Australia/Melbourne": "AU",
+  "Australia/Perth":    "AU", "Australia/Brisbane":  "AU",
+  "Africa/Casablanca":  "MA", "Africa/Algiers":      "DZ",
 };
 
-function toCurrency(usdAmount: number, countryCode: string): string {
-  const cur = COUNTRY_CURRENCY[countryCode.toUpperCase()];
-  if (!cur || cur.code === "USD") return `${usdAmount} USD`;
-  const converted = Math.round(usdAmount * cur.rate);
-  return `${usdAmount} USD (~${converted}\u00a0${cur.symbol})`;
+const COUNTRY_ZONE: Record<string, string> = {
+  FR: "EUR", BE: "EUR", DE: "EUR", AT: "EUR",
+  ES: "EUR", IT: "EUR", NL: "EUR", PT: "EUR", LU: "EUR",
+  CA: "CAD",
+  GB: "GBP",
+};
+
+function p(amount: number, zone: PriceZone) {
+  return `${amount}\u00a0${zone.symbol}`;
 }
 
 // ─── Pack definitions ─────────────────────────────────────────────────────────
 
 const PACKS = [
-  { id: "launch",    name: "Pack Decollage",  sessions: 4,  discount: 5,  days: 21 },
-  { id: "regular",   name: "Pack Regulier",   sessions: 8,  discount: 10, days: 30 },
-  { id: "intensive", name: "Pack Intensif",   sessions: 12, discount: 15, days: 45 },
+  {
+    id: "launch",
+    name: "Pack Décollage",
+    sessions: 4,
+    discount: 5,
+    days: 21,
+    tagline: {
+      fr: "Le premier pas parfait pour découvrir notre méthode et activer vos compétences linguistiques.",
+      en: "The perfect first step to discover our method and activate your language skills.",
+    },
+  },
+  {
+    id: "regular",
+    name: "Pack Régulier",
+    sessions: 8,
+    discount: 10,
+    days: 30,
+    tagline: {
+      fr: "Idéal pour installer un rythme solide, gagner en confiance et obtenir des résultats visibles en un mois.",
+      en: "Ideal for building a solid routine, gaining confidence, and achieving visible results in one month.",
+    },
+  },
+  {
+    id: "intensive",
+    name: "Pack Intensif",
+    sessions: 12,
+    discount: 15,
+    days: 45,
+    tagline: {
+      fr: "Le choix ultime pour booster votre niveau, réussir vos examens (TCF, TEF, etc.) et vous intégrer avec succès.",
+      en: "The ultimate choice to boost your level, ace your exams (TCF, TEF, etc.), and integrate successfully.",
+    },
+  },
 ] as const;
 
 // ─── Slot helpers ─────────────────────────────────────────────────────────────
@@ -86,11 +122,13 @@ const BRAND_LABELS: Record<string, string> = {
 function NewCardForm({
   clientSecret,
   amountUsd,
+  displayPrice,
   onSuccess,
   onCancel,
 }: {
   clientSecret: string;
   amountUsd: number;
+  displayPrice: string;
   onSuccess: (paymentIntentId: string) => Promise<void>;
   onCancel?: () => void;
 }) {
@@ -120,7 +158,7 @@ function NewCardForm({
     });
 
     if (stripeError) {
-      setError(stripeError.message ?? "Paiement refuse");
+      setError(stripeError.message ?? "Paiement refusé");
       setLoading(false);
       return;
     }
@@ -142,11 +180,11 @@ function NewCardForm({
         disabled={!stripe || loading}
         className="w-full bg-[#F5C400] text-[#5C3D00] font-bold py-3 rounded-xl hover:bg-[#FFDE59] transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? "Traitement en cours..." : `Payer ${amountUsd} USD`}
+        {loading ? "Traitement en cours..." : `Payer ${displayPrice}`}
       </button>
       {onCancel && (
         <button type="button" onClick={onCancel} className="w-full text-sm text-[#9B8A6B] hover:text-[#5C3D00] transition">
-          Utiliser ma carte enregistree
+          Utiliser ma carte enregistrée
         </button>
       )}
     </form>
@@ -162,8 +200,9 @@ interface Props {
   availableSlots: string[];
   stripePublishableKey: string;
   alreadyHadDiscovery: boolean;
-  sessionPriceUsd: number;
-  studentCountry: string;
+  sessionPriceUsd: number;   // USD amount charged by Stripe (22)
+  discoveryPriceUsd: number; // USD amount charged by Stripe (15)
+  studentCountry: string;    // DB country, used as hint (timezone detection overrides if missing)
 }
 
 export default function BookingFlowClient({
@@ -174,9 +213,11 @@ export default function BookingFlowClient({
   stripePublishableKey,
   alreadyHadDiscovery,
   sessionPriceUsd,
+  discoveryPriceUsd,
   studentCountry,
 }: Props) {
   const router = useRouter();
+  const { lang } = useLanguage();
 
   const stripePromise = useMemo(
     () => (stripePublishableKey ? loadStripe(stripePublishableKey) : null),
@@ -187,10 +228,19 @@ export default function BookingFlowClient({
   const dates = Object.keys(slotsByDate).sort();
   const initials = tutorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
+  // ── Zone de prix : DB country → fallback timezone navigateur ──
+  const zone: PriceZone = useMemo(() => {
+    const country = studentCountry !== "US"
+      ? studentCountry
+      : (TZ_TO_COUNTRY[Intl.DateTimeFormat().resolvedOptions().timeZone] ?? "US");
+    const zoneKey = COUNTRY_ZONE[country.toUpperCase()] ?? "USD";
+    return ZONES[zoneKey];
+  }, [studentCountry]);
+
   // ── State ──
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(null);
-  const [showPackDetail, setShowPackDetail] = useState(false);
+  const [showPackDetail, setShowPackDetail] = useState(true);
 
   const [amountUsd, setAmountUsd] = useState<number>(15);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -306,7 +356,7 @@ export default function BookingFlowClient({
 
   // ── Slot summary line ──
   const slotLabel = selectedSlot
-    ? `${formatDateLabel(selectedSlot.slice(0, 10))} a ${formatSlotTime(selectedSlot)}`
+    ? `${formatDateLabel(selectedSlot.slice(0, 10))} à ${formatSlotTime(selectedSlot)}`
     : null;
 
   return (
@@ -440,10 +490,7 @@ export default function BookingFlowClient({
                     <p className="text-xs text-[#7A6B55] mt-0.5">30 min — Faire connaissance et définir vos objectifs</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-2xl font-black text-[#5C3D00]">15 USD</p>
-                    {studentCountry !== "US" && (
-                      <p className="text-[11px] text-[#9B8A6B]">{toCurrency(15, studentCountry).replace(/^\d+ USD /, "")}</p>
-                    )}
+                    <p className="text-2xl font-black text-[#5C3D00]">{p(zone.discovery, zone)}</p>
                   </div>
                 </div>
                 {!alreadyHadDiscovery && (
@@ -468,10 +515,7 @@ export default function BookingFlowClient({
                     <p className="text-xs text-[#7A6B55] mt-0.5">50 min — Entrer directement dans l&apos;apprentissage</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-2xl font-black text-[#5C3D00]">{sessionPriceUsd} USD</p>
-                    {studentCountry !== "US" && (
-                      <p className="text-[11px] text-[#9B8A6B]">{toCurrency(sessionPriceUsd, studentCountry).replace(/^\d+ USD /, "")}</p>
-                    )}
+                    <p className="text-2xl font-black text-[#5C3D00]">{p(zone.session, zone)}</p>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-[#F0EBE0] flex items-center justify-between">
@@ -482,56 +526,42 @@ export default function BookingFlowClient({
 
               {/* Option 3: Packs */}
               <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Meilleure valeur</span>
-                    </div>
-                    <p className="font-bold text-[#2D1A00] text-lg">Pack de séances</p>
-                    <p className="text-xs text-[#7A6B55] mt-0.5">Économisez jusqu&apos;à 15 % en vous engageant sur un rythme régulier</p>
-                  </div>
-                  <button
-                    onClick={() => setShowPackDetail(v => !v)}
-                    className="text-sm font-bold text-[#5C3D00] hover:text-[#F5C400] transition flex-shrink-0"
-                  >
-                    {showPackDetail ? "Masquer" : "Voir les packs"}
-                  </button>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Meilleure valeur</span>
                 </div>
+                <p className="font-bold text-[#2D1A00] text-lg mb-0.5">Packs de séances</p>
+                <p className="text-xs text-[#7A6B55] mb-4">Économisez jusqu&apos;à 15&nbsp;% en vous engageant sur un rythme régulier</p>
 
-                {showPackDetail && (
-                  <div className="space-y-3 pt-3 border-t border-[#F0EBE0]">
-                    {PACKS.map((pack) => {
-                      const normalPrice = sessionPriceUsd * pack.sessions;
-                      const discountedPrice = Math.round(normalPrice * (1 - pack.discount / 100));
-                      return (
-                        <div key={pack.id} className="rounded-xl border border-[#E8E0D4] p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-bold text-[#2D1A00] text-sm">{pack.name}</p>
-                              <p className="text-xs text-[#7A6B55]">{pack.sessions} séances × 50 min</p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-lg font-black text-[#5C3D00]">{discountedPrice} USD</p>
-                              <p className="text-[11px] text-[#9B8A6B] line-through">{normalPrice} USD</p>
-                              <p className="text-[11px] font-bold text-green-700">-{pack.discount}%</p>
-                            </div>
+                <div className="space-y-3">
+                  {PACKS.map((pack) => {
+                    const normalPrice     = zone.session * pack.sessions;
+                    const discountedPrice = Math.round(normalPrice * (1 - pack.discount / 100));
+                    return (
+                      <div key={pack.id} className="rounded-xl border border-[#E8E0D4] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[#2D1A00] text-sm">{pack.name}</p>
+                            <p className="text-xs text-[#7A6B55] mb-1">{pack.sessions} séances × 50&nbsp;min</p>
+                            <p className="text-xs text-[#5C3D00] italic leading-snug">{pack.tagline[lang]}</p>
                           </div>
-                          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                            <p className="text-[11px] text-amber-800 font-semibold">
-                              Condition : consommer les {pack.sessions} séances en {pack.days} jours après achat. Les séances non utilisées à expiration sont perdues.
-                            </p>
-                          </div>
-                          <div className="mt-2 p-2 bg-[#FAF8F0] rounded-lg text-center">
-                            <p className="text-xs font-bold text-[#9B8A6B]">Bientôt disponible — rejoignez la liste d&apos;attente</p>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-lg font-black text-[#5C3D00]">{p(discountedPrice, zone)}</p>
+                            <p className="text-[11px] text-[#9B8A6B] line-through">{p(normalPrice, zone)}</p>
+                            <p className="text-[11px] font-bold text-green-700">−{pack.discount}&nbsp;%</p>
                           </div>
                         </div>
-                      );
-                    })}
-                    <p className="text-[10px] text-[#9B8A6B] text-center pt-1">
-                      Les packs seront disponibles prochainement. En attendant, réservez une séance à l&apos;unité.
-                    </p>
-                  </div>
-                )}
+                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-[11px] text-amber-800 font-semibold">
+                            Condition : consommer les {pack.sessions} séances en {pack.days} jours après achat. Les séances non utilisées à expiration sont perdues.
+                          </p>
+                        </div>
+                        <div className="mt-2 p-2 bg-[#FAF8F0] rounded-lg text-center">
+                          <p className="text-xs font-bold text-[#9B8A6B]">Bientôt disponible</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
             </div>
@@ -551,18 +581,12 @@ export default function BookingFlowClient({
                 <span className="text-[#6B5E44]">
                   {selectedProduct === "DISCOVERY" ? "Séance de découverte (30 min)" : "Séance complète (50 min)"}
                 </span>
-                <span className="font-bold text-[#2D1A00]">{amountUsd} USD</span>
+                <span className="font-bold text-[#2D1A00]">{p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}</span>
               </div>
               <div className="flex justify-between text-xs text-[#9B8A6B]">
                 <span>Créneau</span>
                 <span className="font-medium">{slotLabel}</span>
               </div>
-              {studentCountry !== "US" && (
-                <div className="flex justify-between text-xs text-[#9B8A6B]">
-                  <span>Equivalent</span>
-                  <span className="font-medium">{toCurrency(amountUsd, studentCountry).replace(/^\d+ USD /, "")}</span>
-                </div>
-              )}
             </div>
 
             <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
@@ -609,7 +633,7 @@ export default function BookingFlowClient({
                             Traitement en cours...
                           </span>
                         ) : (
-                          `Payer ${amountUsd} USD`
+                          `Payer ${p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}`
                         )}
                       </button>
                       <button onClick={() => setUseNewCard(true)} className="w-full text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition py-1">
@@ -632,6 +656,7 @@ export default function BookingFlowClient({
                       <NewCardForm
                         clientSecret={clientSecret}
                         amountUsd={amountUsd}
+                        displayPrice={p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}
                         onSuccess={confirmBooking}
                         onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
                       />

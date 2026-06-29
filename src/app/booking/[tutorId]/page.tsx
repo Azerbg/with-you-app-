@@ -78,9 +78,9 @@ export default async function BookingPage({ params }: Props) {
 
   const photoUrl = profile.user.image ?? profile.profilePhotoUrl;
 
-  // Session price for 50-min full session, based on tutor verification tier
-  const SINGLE_PRICES: Record<string, number> = { BASIC: 25, VERIFIED: 30, TOP_TUTOR: 35 };
-  const sessionPriceUsd = SINGLE_PRICES[profile.verificationTier] ?? 25;
+  // Fixed USD amount charged by Stripe (display currency handled client-side per zone)
+  const sessionPriceUsd = 22;
+  const discoveryPriceUsd = 15;
 
   return (
     <BookingFlowClient
@@ -91,6 +91,7 @@ export default async function BookingPage({ params }: Props) {
       stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
       alreadyHadDiscovery={!!existingDiscovery}
       sessionPriceUsd={sessionPriceUsd}
+      discoveryPriceUsd={discoveryPriceUsd}
       studentCountry={studentProfile?.country ?? "US"}
     />
   );

@@ -7,6 +7,7 @@ import Link from "next/link";
 import TutorProfileClient from "./TutorProfileClient";
 import WeeklyCalendar from "./WeeklyCalendar";
 import ContactTutorButton from "./ContactTutorButton";
+import PricingCard from "./PricingCard";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -278,21 +279,21 @@ export default async function TutorProfilePage({ params }: Props) {
 
             {/* CTA card */}
             <div className="bg-[#5C3D00] rounded-2xl p-5 text-white">
-              <p className="text-[10px] font-bold text-[#F5C400]/60 uppercase tracking-widest mb-1">Votre première séance</p>
-              <p className="text-2xl font-bold text-[#F5C400] mb-0.5">À partir de 15 USD</p>
-              <p className="text-xs text-white/50 mb-4">Découverte 30 min ou cours complet 50 min</p>
-              {(isStudent || !isLoggedIn) && (
-                <Link href={bookingHref}
-                  className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition mb-2">
-                  Réserver maintenant
-                </Link>
-              )}
-              <ContactTutorButton
-                tutorId={id}
-                tutorName={displayName}
-                isStudent={isStudent}
-                loginUrl={`/auth/login?callbackUrl=/tutors/${id}`}
-              />
+              <PricingCard />
+              <div className="border-t border-white/10 pt-4 mt-4 space-y-2">
+                {(isStudent || !isLoggedIn) && (
+                  <Link href={bookingHref}
+                    className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
+                    Réserver maintenant
+                  </Link>
+                )}
+                <ContactTutorButton
+                  tutorId={id}
+                  tutorName={displayName}
+                  isStudent={isStudent}
+                  loginUrl={`/auth/login?callbackUrl=/tutors/${id}`}
+                />
+              </div>
             </div>
 
             {/* Quick info */}
