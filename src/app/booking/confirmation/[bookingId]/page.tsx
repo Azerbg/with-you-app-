@@ -123,7 +123,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
               <div className="bg-[#FFF3B0] border border-[#F5C400] rounded-xl p-4 mb-6">
                 <p className="text-xs font-bold text-[#5C3D00] mb-1">Prochaines étapes</p>
                 <p className="text-xs text-[#6B5E44] leading-relaxed">
-                  Un lien de visioconférence vous sera envoyé par email 24h avant la séance. Pensez à tester votre caméra et microphone.
+                  Rejoignez la salle de classe 5 minutes avant le début. Pensez à tester votre caméra et microphone.
                 </p>
               </div>
 

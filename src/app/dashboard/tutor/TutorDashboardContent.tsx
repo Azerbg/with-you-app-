@@ -176,11 +176,25 @@ export default function TutorDashboardContent({
                           {" · "}{formatTime(s.scheduledAt)} · {s.durationMins} min
                         </p>
                       </div>
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
-                        s.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                      }`}>
-                        {s.status === "CONFIRMED" ? "Confirmé" : "En attente"}
-                      </span>
+                      {(() => {
+                        const now = Date.now();
+                        const sessionMs = new Date(s.scheduledAt).getTime();
+                        const canJoin = sessionMs - now <= 15 * 60 * 1000 && sessionMs - now > -s.durationMins * 60 * 1000;
+                        return canJoin ? (
+                          <a
+                            href={`/classroom/${s.id}`}
+                            className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#FFDE59] transition"
+                          >
+                            Rejoindre →
+                          </a>
+                        ) : (
+                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                            s.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                          }`}>
+                            {s.status === "CONFIRMED" ? "Confirmé" : "En attente"}
+                          </span>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

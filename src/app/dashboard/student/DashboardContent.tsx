@@ -8,7 +8,11 @@ import ProfileEditPanel from "@/components/ProfileEditPanel";
 
 interface UpcomingBooking {
   id: string;
+  tutorId: string;
+  tutorName: string;
+  tutorPhoto: string | null;
   scheduledAt: string;
+  status: string;
   durationMins: number;
 }
 
@@ -264,6 +268,55 @@ export default function DashboardContent(p: Props) {
                   )}
                 </div>
               </div>
+
+              {/* Upcoming sessions */}
+              {p.upcomingBookings && p.upcomingBookings.length > 0 && (
+                <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
+                  <div className="px-6 py-4 border-b border-black/5">
+                    <p className="font-bold text-[#5C3D00]">Prochaines séances</p>
+                  </div>
+                  <div className="divide-y divide-black/4">
+                    {p.upcomingBookings.map((b) => {
+                      const date = new Date(b.scheduledAt);
+                      const dateStr = date.toLocaleString("fr-FR", {
+                        weekday: "short", day: "numeric", month: "short",
+                        hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis",
+                      });
+                      const initials = b.tutorName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+                      const now = Date.now();
+                      const sessionMs = date.getTime();
+                      const canJoin = sessionMs - now <= 15 * 60 * 1000 && sessionMs - now > -b.durationMins * 60 * 1000;
+                      return (
+                        <div key={b.id} className="flex items-center gap-4 px-6 py-4">
+                          {b.tutorPhoto ? (
+                            <img src={b.tutorPhoto} alt={b.tutorName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+                              {initials}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-[#2D1A00] text-sm truncate">{b.tutorName}</p>
+                            <p className="text-xs text-[#6B5E44] capitalize">{dateStr} · {b.durationMins} min</p>
+                          </div>
+                          {canJoin ? (
+                            <a
+                              href={`/classroom/${b.id}`}
+                              className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#FFDE59] transition"
+                            >
+                              Rejoindre →
+                            </a>
+                          ) : (
+                            <span className="flex-shrink-0 text-xs text-[#9B8A6B] bg-[#FAF8F0] px-3 py-1.5 rounded-xl border border-[#E8E0D4]">
+                              {dateStr}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Find tutor CTA */}
               <div className="bg-[#1C1008] rounded-2xl p-6 flex items-center justify-between gap-6">
