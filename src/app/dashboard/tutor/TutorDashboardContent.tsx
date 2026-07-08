@@ -179,7 +179,7 @@ export default function TutorDashboardContent({
                       {(() => {
                         const now = Date.now();
                         const sessionMs = new Date(s.scheduledAt).getTime();
-                        const canJoin = sessionMs - now <= 15 * 60 * 1000 && sessionMs - now > -s.durationMins * 60 * 1000;
+                        const canJoin = sessionMs - now <= 30 * 60 * 1000 && sessionMs - now > -s.durationMins * 60 * 1000;
                         return canJoin ? (
                           <a
                             href={`/classroom/${s.id}`}

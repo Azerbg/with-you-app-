@@ -22,7 +22,7 @@
     "livekit-client": "^2.20.0",
     "livekit-server-sdk": "^2.16.0",
     "next": "^16.2.4",
-    "next-auth": "^1.12.1",
+    "next-auth": "^5.0.0-beta.30",
     "nodemailer": "^7.0.13",
     "otplib": "^13.4.0",
     "prisma": "^6.19.2",

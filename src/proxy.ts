@@ -15,7 +15,7 @@ const roleProtectedRoutes: Record<string, string[]> = {
 
 const authRequiredPrefixes = ["/dashboard", "/console", "/onboarding", "/booking", "/classroom", "/messages"];
 
-export async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const isSecure = process.env.NODE_ENV === "production";
   const token = await getToken({
     req,
@@ -58,11 +58,10 @@ export async function middleware(req: NextRequest) {
       }
     }
   }
-       
+
   return NextResponse.next();
 }
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
 };
- 

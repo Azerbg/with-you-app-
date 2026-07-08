@@ -285,7 +285,7 @@ export default function DashboardContent(p: Props) {
                       const initials = b.tutorName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
                       const now = Date.now();
                       const sessionMs = date.getTime();
-                      const canJoin = sessionMs - now <= 15 * 60 * 1000 && sessionMs - now > -b.durationMins * 60 * 1000;
+                      const canJoin = sessionMs - now <= 30 * 60 * 1000 && sessionMs - now > -b.durationMins * 60 * 1000;
                       return (
                         <div key={b.id} className="flex items-center gap-4 px-6 py-4">
                           {b.tutorPhoto ? (
