@@ -8,6 +8,7 @@ import {
   useLocalParticipant,
   useParticipants,
   VideoTrack,
+  isTrackReference,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import Link from "next/link";
@@ -147,7 +148,7 @@ function ClassroomView({
       <div className="flex-1 relative overflow-hidden">
 
         {/* Remote video or waiting */}
-        {hasRemoteVideo && remoteCameraTrack ? (
+        {hasRemoteVideo && remoteCameraTrack && isTrackReference(remoteCameraTrack) ? (
           <VideoTrack
             trackRef={remoteCameraTrack}
             className="absolute inset-0 w-full h-full object-cover"
@@ -196,7 +197,7 @@ function ClassroomView({
 
         {/* ── Self-view PiP ── */}
         <div className="absolute bottom-4 right-4 w-48 h-32 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.6)] border-2 border-[#F5C400]/30 bg-[#1A1209]">
-          {localCameraTrack && isCameraEnabled ? (
+          {localCameraTrack && isCameraEnabled && isTrackReference(localCameraTrack) ? (
             <VideoTrack
               trackRef={localCameraTrack}
               className="w-full h-full object-cover"
