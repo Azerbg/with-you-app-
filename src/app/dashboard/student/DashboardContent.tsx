@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import ProfileEditPanel from "@/components/ProfileEditPanel";
+import PaymentMethodsCard from "./PaymentMethodsCard";
 
 interface UpcomingBooking {
   id: string;
@@ -365,6 +366,9 @@ export default function DashboardContent(p: Props) {
                   ))}
                 </div>
               </div>
+
+              {/* Payment methods */}
+              <PaymentMethodsCard />
 
               {/* Discovery session */}
               <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">
