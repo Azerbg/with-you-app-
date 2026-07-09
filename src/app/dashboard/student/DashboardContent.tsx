@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
@@ -368,7 +368,9 @@ export default function DashboardContent(p: Props) {
               </div>
 
               {/* Payment methods */}
-              <PaymentMethodsCard />
+              <Suspense fallback={null}>
+                <PaymentMethodsCard />
+              </Suspense>
 
               {/* Discovery session */}
               <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">

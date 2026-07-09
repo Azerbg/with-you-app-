@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useSearchParams } from "next/navigation";
 
 interface SavedCard {
   id: string;
@@ -17,102 +16,13 @@ const BRAND_ICONS: Record<string, string> = {
   discover: "DISC", jcb: "JCB", unionpay: "UP",
 };
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-// ── Add card form (inside Elements context) ───────────────────────────────────
-
-function AddCardForm({ clientSecret, onSuccess, onCancel }: {
-  clientSecret: string;
-  onSuccess: () => void;
-  onCancel: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setLoading(true);
-    setError(null);
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      setError("Erreur: formulaire non chargé");
-      setLoading(false);
-      return;
-    }
-
-    const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
-      payment_method: { card: cardElement },
-    });
-
-    if (stripeError) {
-      setError(stripeError.message ?? "Erreur Stripe");
-      setLoading(false);
-      return;
-    }
-
-    onSuccess();
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="border border-[#D9D0C3] rounded-xl px-4 py-3 bg-white">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: "14px",
-                color: "#2D1A00",
-                fontFamily: "inherit",
-                "::placeholder": { color: "#C4BAA8" },
-              },
-              invalid: { color: "#dc2626" },
-            },
-            hidePostalCode: true,
-          }}
-        />
-      </div>
-
-      {error && (
-        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-      )}
-
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={loading || !stripe}
-          className="flex-1 bg-[#F5C400] text-[#5C3D00] font-bold text-xs py-2.5 rounded-xl hover:bg-[#FFDE59] transition disabled:opacity-50"
-        >
-          {loading ? "Enregistrement..." : "Enregistrer la carte"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 text-xs text-[#9B8A6B] hover:text-[#5C3D00] border border-[#D9D0C3] rounded-xl transition"
-        >
-          Annuler
-        </button>
-      </div>
-
-      <p className="text-[10px] text-[#9B8A6B] text-center">
-        Sécurisé par Stripe — vos données ne sont jamais stockées sur nos serveurs
-      </p>
-    </form>
-  );
-}
-
-// ── Main card component ───────────────────────────────────────────────────────
-
 export default function PaymentMethodsCard() {
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [setupError, setSetupError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   async function loadCards() {
     try {
@@ -126,18 +36,24 @@ export default function PaymentMethodsCard() {
     }
   }
 
-  useEffect(() => { loadCards(); }, []);
+  useEffect(() => {
+    loadCards();
+  }, []);
+
+  // Show success flash if redirected back from Stripe Checkout
+  const justAdded = searchParams.get("card") === "added";
 
   async function handleAddCard() {
-    setSetupError(null);
+    setError(null);
+    setAdding(true);
     try {
-      const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
+      const res = await fetch("/api/stripe/setup-checkout", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) { setSetupError(data.error ?? "Erreur"); return; }
-      setClientSecret(data.clientSecret);
-      setShowAddForm(true);
+      if (!res.ok || !data.url) { setError(data.error ?? "Erreur"); setAdding(false); return; }
+      window.location.href = data.url;
     } catch {
-      setSetupError("Impossible de contacter Stripe");
+      setError("Impossible de contacter Stripe");
+      setAdding(false);
     }
   }
 
@@ -155,50 +71,36 @@ export default function PaymentMethodsCard() {
     }
   }
 
-  function handleSuccess() {
-    setShowAddForm(false);
-    setClientSecret(null);
-    setLoading(true);
-    loadCards();
-  }
-
   return (
     <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
       <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
         <p className="font-bold text-[#5C3D00] text-sm">Moyens de paiement</p>
-        {!showAddForm && (
-          <button
-            onClick={handleAddCard}
-            className="text-xs font-bold text-[#5C3D00] bg-[#F5C400]/20 hover:bg-[#F5C400]/40 px-3 py-1 rounded-full transition"
-          >
-            + Ajouter
-          </button>
-        )}
+        <button
+          onClick={handleAddCard}
+          disabled={adding}
+          className="text-xs font-bold text-[#5C3D00] bg-[#F5C400]/20 hover:bg-[#F5C400]/40 px-3 py-1 rounded-full transition disabled:opacity-50"
+        >
+          {adding ? "Redirection..." : "+ Ajouter"}
+        </button>
       </div>
 
       <div className="p-4 space-y-3">
 
-        {/* Add card form */}
-        {showAddForm && clientSecret && (
-          <Elements stripe={stripePromise}>
-            <AddCardForm
-              clientSecret={clientSecret}
-              onSuccess={handleSuccess}
-              onCancel={() => { setShowAddForm(false); setClientSecret(null); }}
-            />
-          </Elements>
+        {justAdded && (
+          <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            ✓ Carte ajoutée avec succès
+          </p>
         )}
 
-        {setupError && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{setupError}</p>
+        {error && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
         )}
 
-        {/* Saved cards list */}
         {loading ? (
           <div className="flex items-center justify-center py-4">
             <div className="w-5 h-5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : cards.length === 0 && !showAddForm ? (
+        ) : cards.length === 0 ? (
           <div className="text-center py-4">
             <div className="w-10 h-10 bg-[#FAF8F0] rounded-xl flex items-center justify-center mx-auto mb-2">
               <svg className="w-5 h-5 text-[#C4BAA8]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -242,6 +144,9 @@ export default function PaymentMethodsCard() {
           </div>
         )}
 
+        <p className="text-[10px] text-[#9B8A6B] text-center">
+          Sécurisé par Stripe — vos données ne sont jamais stockées sur nos serveurs
+        </p>
       </div>
     </div>
   );
