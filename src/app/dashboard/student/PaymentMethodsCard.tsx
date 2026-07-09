@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 interface SavedCard {
   id: string;
@@ -37,11 +37,18 @@ function AddCardForm({ clientSecret, onSuccess, onCancel }: {
     setLoading(true);
     setError(null);
 
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
+    const { error: submitErr } = await elements.submit();
+    if (submitErr) {
+      setError(submitErr.message ?? "Erreur de validation");
+      setLoading(false);
+      return;
+    }
 
-    const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
-      payment_method: { card: cardElement },
+    const { error: stripeError } = await stripe.confirmSetup({
+      elements,
+      clientSecret,
+      redirect: "if_required",
+      confirmParams: { return_url: `${window.location.origin}/dashboard/student` },
     });
 
     if (stripeError) {
@@ -55,22 +62,12 @@ function AddCardForm({ clientSecret, onSuccess, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="border border-[#D9D0C3] rounded-xl px-3 py-3 bg-white focus-within:border-[#F5C400] focus-within:ring-2 focus-within:ring-[#F5C400]/30 transition">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: "14px",
-                color: "#2D1A00",
-                "::placeholder": { color: "#9B8A6B" },
-                fontFamily: "inherit",
-              },
-              invalid: { color: "#dc2626" },
-            },
-            hidePostalCode: true,
-          }}
-        />
-      </div>
+      <PaymentElement
+        options={{
+          layout: "tabs",
+          fields: { billingDetails: { name: "never", email: "never" } },
+        }}
+      />
 
       {error && (
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
@@ -176,7 +173,21 @@ export default function PaymentMethodsCard() {
 
         {/* Add card form */}
         {showAddForm && clientSecret && (
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret,
+              appearance: {
+                theme: "stripe",
+                variables: {
+                  colorPrimary: "#F5C400",
+                  colorText: "#2D1A00",
+                  borderRadius: "10px",
+                  fontFamily: "inherit",
+                },
+              },
+            }}
+          >
             <AddCardForm
               clientSecret={clientSecret}
               onSuccess={handleSuccess}
@@ -189,7 +200,7 @@ export default function PaymentMethodsCard() {
           <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{setupError}</p>
         )}
 
-        {/* Saved cards */}
+        {/* Saved cards list */}
         {loading ? (
           <div className="flex items-center justify-center py-4">
             <div className="w-5 h-5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
@@ -202,10 +213,7 @@ export default function PaymentMethodsCard() {
               </svg>
             </div>
             <p className="text-xs text-[#9B8A6B]">Aucune carte enregistrée</p>
-            <button
-              onClick={handleAddCard}
-              className="mt-2 text-xs font-semibold text-[#5C3D00] hover:underline"
-            >
+            <button onClick={handleAddCard} className="mt-2 text-xs font-semibold text-[#5C3D00] hover:underline">
               Ajouter une carte →
             </button>
           </div>
