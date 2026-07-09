@@ -143,13 +143,6 @@ function NewCardForm({
     setLoading(true);
     setError(null);
 
-    const { error: submitErr } = await elements.submit();
-    if (submitErr) {
-      setError(submitErr.message ?? "Erreur de validation");
-      setLoading(false);
-      return;
-    }
-
     const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
       elements,
       clientSecret,
@@ -644,9 +637,7 @@ export default function BookingFlowClient({
                     <Elements
                       stripe={stripePromise}
                       options={{
-                        mode: "payment",
-                        amount: Math.round(amountUsd * 100),
-                        currency: "usd",
+                        clientSecret,
                         appearance: {
                           theme: "stripe",
                           variables: { colorPrimary: "#F5C400", colorText: "#2D1A00", borderRadius: "10px" },

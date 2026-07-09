@@ -1,12 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "");
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SavedCard {
   id: string;
@@ -17,90 +11,9 @@ interface SavedCard {
 }
 
 const BRAND_LABELS: Record<string, string> = {
-  visa: "Visa",
-  mastercard: "Mastercard",
-  amex: "Amex",
-  discover: "Discover",
-  jcb: "JCB",
-  unionpay: "UnionPay",
-  card: "Card",
+  visa: "Visa", mastercard: "Mastercard", amex: "Amex",
+  discover: "Discover", jcb: "JCB", unionpay: "UnionPay", card: "Card",
 };
-
-// ─── Inner form — EWCS approach: clientSecret fetched at submit time ──────────
-
-function SetupForm({ onSuccess, lang }: { onSuccess: () => void; lang: string }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const isFr = lang === "fr";
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setLoading(true);
-    setError(null);
-
-    // Step 1 — validate the form fields
-    const { error: submitErr } = await elements.submit();
-    if (submitErr) {
-      setError(submitErr.message ?? "Erreur de validation");
-      setLoading(false);
-      return;
-    }
-
-    // Step 2 — create SetupIntent on the server
-    let clientSecret: string;
-    try {
-      const res = await fetch("/api/stripe/setup-intent", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.clientSecret) {
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-      clientSecret = data.clientSecret;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur serveur";
-      setError(isFr ? `Erreur : ${msg}` : `Error: ${msg}`);
-      setLoading(false);
-      return;
-    }
-
-    // Step 3 — confirm the setup
-    const { error: confirmErr } = await stripe.confirmSetup({
-      elements,
-      clientSecret,
-      confirmParams: {
-        return_url: `${window.location.origin}/dashboard/student/billing?setup_complete=true`,
-      },
-    });
-
-    if (confirmErr) {
-      setError(confirmErr.message ?? "Paiement refusé");
-      setLoading(false);
-    }
-    // On success Stripe redirects to return_url
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement options={{ layout: "tabs" }} />
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{error}</p>
-      )}
-      <button
-        type="submit"
-        disabled={!stripe || loading}
-        className="w-full bg-[#F5C400] text-[#5C3D00] font-bold py-3 rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition"
-      >
-        {loading
-          ? (isFr ? "Enregistrement…" : "Saving…")
-          : (isFr ? "Enregistrer la carte" : "Save card")}
-      </button>
-    </form>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
   lang: string;
@@ -111,8 +24,9 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
   const isFr = lang === "fr";
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [banner, setBanner] = useState(setupComplete);
 
   useEffect(() => {
@@ -130,6 +44,20 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
       setCards(data.paymentMethods ?? []);
     } finally {
       setLoadingCards(false);
+    }
+  }
+
+  async function handleAddCard() {
+    setAddError(null);
+    setAdding(true);
+    try {
+      const res = await fetch("/api/stripe/setup-checkout", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.url) { setAddError(data.error ?? "Erreur"); setAdding(false); return; }
+      window.location.href = data.url;
+    } catch {
+      setAddError(isFr ? "Impossible de contacter Stripe" : "Could not reach Stripe");
+      setAdding(false);
     }
   }
 
@@ -194,22 +122,14 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
           </div>
 
           {loadingCards ? (
-            <div className="px-6 py-8 text-center text-sm text-[#9B8A6B]">
-              {isFr ? "Chargement…" : "Loading…"}
+            <div className="px-6 py-8 flex justify-center">
+              <div className="w-5 h-5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : cards.length === 0 ? (
             <div className="px-6 py-8 text-center">
               <p className="text-sm text-[#9B8A6B] mb-4">
                 {isFr ? "Aucune carte enregistrée." : "No card saved yet."}
               </p>
-              {!showForm && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="bg-[#F5C400] text-[#5C3D00] font-bold px-6 py-2.5 rounded-full hover:bg-[#FFDE59] transition text-sm"
-                >
-                  {isFr ? "+ Ajouter une carte" : "+ Add a card"}
-                </button>
-              )}
             </div>
           ) : (
             <div className="divide-y divide-black/4">
@@ -241,48 +161,19 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
           )}
         </div>
 
-        {/* Add card button (when cards exist) */}
-        {cards.length > 0 && !showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full border-2 border-dashed border-[#F5C400]/40 text-[#C49200] font-semibold py-3 rounded-2xl hover:bg-[#FFFBEA] hover:border-[#F5C400] transition text-sm mb-4"
-          >
-            {isFr ? "+ Ajouter une autre carte" : "+ Add another card"}
-          </button>
+        {/* Add card button */}
+        {addError && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{addError}</p>
         )}
-
-        {/* Stripe Elements form — EWCS: mode="setup", no clientSecret here */}
-        {showForm && (
-          <div className="bg-white border border-black/5 rounded-2xl p-6">
-            <h2 className="font-bold text-[#5C3D00] mb-5">
-              {isFr ? "Nouvelle carte" : "New card"}
-            </h2>
-            <Elements
-              stripe={stripePromise}
-              options={{
-                mode: "setup",
-                currency: "eur",
-                appearance: {
-                  theme: "stripe",
-                  variables: {
-                    colorPrimary: "#F5C400",
-                    colorText: "#5C3D00",
-                    borderRadius: "12px",
-                    fontFamily: "inherit",
-                  },
-                },
-              }}
-            >
-              <SetupForm onSuccess={fetchCards} lang={lang} />
-            </Elements>
-            <button
-              onClick={() => setShowForm(false)}
-              className="mt-3 w-full text-sm text-[#9B8A6B] hover:text-[#5C3D00] transition"
-            >
-              {isFr ? "Annuler" : "Cancel"}
-            </button>
-          </div>
-        )}
+        <button
+          onClick={handleAddCard}
+          disabled={adding}
+          className="w-full border-2 border-dashed border-[#F5C400]/40 text-[#C49200] font-semibold py-3 rounded-2xl hover:bg-[#FFFBEA] hover:border-[#F5C400] transition text-sm mb-4 disabled:opacity-50"
+        >
+          {adding
+            ? (isFr ? "Redirection vers Stripe…" : "Redirecting to Stripe…")
+            : (isFr ? "+ Ajouter une carte" : "+ Add a card")}
+        </button>
 
         {/* Security note */}
         <p className="text-xs text-center text-[#9B8A6B] mt-6 flex items-center justify-center gap-1.5">
