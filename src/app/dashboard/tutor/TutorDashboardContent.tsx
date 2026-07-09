@@ -188,11 +188,12 @@ export default function TutorDashboardContent({
                             Rejoindre →
                           </a>
                         ) : (
-                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
-                            s.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
-                          }`}>
-                            {s.status === "CONFIRMED" ? "Confirmé" : "En attente"}
-                          </span>
+                          <a
+                            href={`/classroom/${s.id}`}
+                            className="flex-shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-[#E8E0D4] text-[#9B8A6B] bg-[#FAF8F0] hover:bg-[#F0EAD8] transition"
+                          >
+                            Salle de classe →
+                          </a>
                         );
                       })()}
                     </div>

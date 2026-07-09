@@ -130,10 +130,16 @@ export default async function BookingConfirmationPage({ params }: Props) {
               {/* CTAs */}
               <div className="flex flex-col gap-3">
                 <Link
-                  href="/dashboard/student/sessions"
+                  href={`/classroom/${bookingId}`}
+                  className="block w-full text-center bg-[#5C3D00] text-[#F5C400] py-3 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition"
+                >
+                  Rejoindre la salle de classe →
+                </Link>
+                <Link
+                  href="/dashboard/student"
                   className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition"
                 >
-                  Voir mes séances →
+                  Voir mon tableau de bord →
                 </Link>
                 <a
                   href={`/api/bookings/${bookingId}/ical`}

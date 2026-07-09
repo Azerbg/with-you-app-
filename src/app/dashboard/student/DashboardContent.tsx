@@ -307,9 +307,12 @@ export default function DashboardContent(p: Props) {
                               Rejoindre →
                             </a>
                           ) : (
-                            <span className="flex-shrink-0 text-xs text-[#9B8A6B] bg-[#FAF8F0] px-3 py-1.5 rounded-xl border border-[#E8E0D4]">
-                              {dateStr}
-                            </span>
+                            <a
+                              href={`/classroom/${b.id}`}
+                              className="flex-shrink-0 text-xs text-[#9B8A6B] bg-[#FAF8F0] px-3 py-1.5 rounded-xl border border-[#E8E0D4] hover:bg-[#F0EAD8] transition"
+                            >
+                              Salle de classe →
+                            </a>
                           )}
                         </div>
                       );
