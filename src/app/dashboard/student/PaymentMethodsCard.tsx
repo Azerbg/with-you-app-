@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 interface SavedCard {
   id: string;
@@ -37,18 +37,15 @@ function AddCardForm({ clientSecret, onSuccess, onCancel }: {
     setLoading(true);
     setError(null);
 
-    const { error: submitErr } = await elements.submit();
-    if (submitErr) {
-      setError(submitErr.message ?? "Erreur de validation");
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setError("Erreur: formulaire non chargé");
       setLoading(false);
       return;
     }
 
-    const { error: stripeError } = await stripe.confirmSetup({
-      elements,
-      clientSecret,
-      redirect: "if_required",
-      confirmParams: { return_url: `${window.location.origin}/dashboard/student` },
+    const { error: stripeError } = await stripe.confirmCardSetup(clientSecret, {
+      payment_method: { card: cardElement },
     });
 
     if (stripeError) {
@@ -62,12 +59,22 @@ function AddCardForm({ clientSecret, onSuccess, onCancel }: {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <PaymentElement
-        options={{
-          layout: "tabs",
-          fields: { billingDetails: { name: "never", email: "never" } },
-        }}
-      />
+      <div className="border border-[#D9D0C3] rounded-xl px-4 py-3 bg-white">
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: "14px",
+                color: "#2D1A00",
+                fontFamily: "inherit",
+                "::placeholder": { color: "#C4BAA8" },
+              },
+              invalid: { color: "#dc2626" },
+            },
+            hidePostalCode: true,
+          }}
+        />
+      </div>
 
       {error && (
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
@@ -173,21 +180,7 @@ export default function PaymentMethodsCard() {
 
         {/* Add card form */}
         {showAddForm && clientSecret && (
-          <Elements
-            stripe={stripePromise}
-            options={{
-              clientSecret,
-              appearance: {
-                theme: "stripe",
-                variables: {
-                  colorPrimary: "#F5C400",
-                  colorText: "#2D1A00",
-                  borderRadius: "10px",
-                  fontFamily: "inherit",
-                },
-              },
-            }}
-          >
+          <Elements stripe={stripePromise}>
             <AddCardForm
               clientSecret={clientSecret}
               onSuccess={handleSuccess}
