@@ -12,7 +12,12 @@ export async function POST() {
 
   try {
     const headersList = await headers();
-    const origin = headersList.get("origin") ?? headersList.get("referer")?.replace(/\/[^/]*$/, "") ?? "https://with-you-app-red.vercel.app";
+    const referer = headersList.get("referer") ?? "";
+    let origin = headersList.get("origin") ?? "";
+    if (!origin && referer) {
+      try { origin = new URL(referer).origin; } catch { /* ignore */ }
+    }
+    if (!origin) origin = "https://with-you-app-red.vercel.app";
 
     const user = await db.user.findUnique({ where: { id: session.user.id } });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
