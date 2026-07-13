@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { generateAvailableSlots } from "@/lib/slots";
 import type { Metadata } from "next";
 import Link from "next/link";
 import TutorProfileClient from "./TutorProfileClient";
-import WeeklyCalendar from "./WeeklyCalendar";
 import ContactTutorButton from "./ContactTutorButton";
-import PricingCard from "./PricingCard";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -54,7 +51,7 @@ function RatingBar({ label, value }: { label: string; value: number }) {
   const pct = (value / 5) * 100;
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-[#7A6B55] w-36 shrink-0">{label}</span>
+      <span className="text-xs text-[#7A6B55] w-40 shrink-0">{label}</span>
       <div className="flex-1 h-1.5 bg-[#F0EBE0] rounded-full overflow-hidden">
         <div className="h-full bg-[#F5C400] rounded-full" style={{ width: `${pct}%` }} />
       </div>
@@ -76,37 +73,27 @@ export default async function TutorProfilePage({ params }: Props) {
           hrApplication: { select: { fullName: true, status: true } },
         },
       },
-      availability: true,
     },
   });
 
   if (!profile || profile.user.hrApplication?.status !== "ACTIVE") notFound();
 
-  const [bookingsRaw, reviewsRaw] = await Promise.all([
-    db.booking.findMany({
-      where: { tutorId: id, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: new Date() } },
-      select: { scheduledAt: true },
-    }),
-    db.review.findMany({
-      where: { tutorId: id, isPublished: true },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      select: {
-        id: true,
-        ratingComposite: true,
-        ratingCommunication: true,
-        ratingStructure: true,
-        ratingAccuracy: true,
-        ratingValue: true,
-        text: true,
-        createdAt: true,
-        student: { select: { firstName: true, lastName: true } },
-      },
-    }),
-  ]);
-
-  // Generate 3 weeks of slots (21 days) for the weekly calendar
-  const slots = generateAvailableSlots(profile.availability, bookingsRaw.map(b => b.scheduledAt), 21);
+  const reviewsRaw = await db.review.findMany({
+    where: { tutorId: id, isPublished: true },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      ratingComposite: true,
+      ratingCommunication: true,
+      ratingStructure: true,
+      ratingAccuracy: true,
+      ratingValue: true,
+      text: true,
+      createdAt: true,
+      student: { select: { firstName: true, lastName: true } },
+    },
+  });
 
   const displayName =
     profile.user.firstName && profile.user.lastName
@@ -116,21 +103,18 @@ export default async function TutorProfilePage({ params }: Props) {
   const initials = displayName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
   const photoUrl = profile.user.image ?? profile.profilePhotoUrl;
 
-  // Bio split: tagline = first paragraph, bioBody = rest
   const bioParagraphs = (profile.bio ?? "").split(/\n\n+/).map(p => p.trim()).filter(Boolean);
   const tagline = bioParagraphs[0] ?? null;
   const bioBody = bioParagraphs.slice(1).join("\n\n") || null;
 
-  // Rating dimension averages
   const hasReviews = reviewsRaw.length > 0;
   const avg = (key: "ratingCommunication" | "ratingStructure" | "ratingAccuracy" | "ratingValue") =>
     hasReviews ? reviewsRaw.reduce((s, r) => s + r[key], 0) / reviewsRaw.length : 0;
   const avgComm    = avg("ratingCommunication");
   const avgStruct  = avg("ratingStructure");
-  const avgSupport = avg("ratingAccuracy");   // Soutien & Motivation
-  const avgClarity = avg("ratingValue");      // Clarté des explications
+  const avgSupport = avg("ratingAccuracy");
+  const avgClarity = avg("ratingValue");
 
-  // Serialize reviews for client component — only pass first page; rest loaded on demand
   const serializedReviews = reviewsRaw.slice(0, 8).map(r => ({
     id: r.id,
     ratingComposite: r.ratingComposite,
@@ -139,7 +123,6 @@ export default async function TutorProfilePage({ params }: Props) {
     student: r.student,
   }));
 
-  // Video embed
   let videoEmbed: { type: "youtube" | "loom"; id: string } | null = null;
   if (profile.videoIntroUrl) {
     const yt   = profile.videoIntroUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
@@ -151,196 +134,159 @@ export default async function TutorProfilePage({ params }: Props) {
   const isStudent  = session?.user?.role === "STUDENT";
   const isLoggedIn = !!session?.user;
 
-  // Serialize slots as UTC ISO strings for the client WeeklyCalendar component
-  const slotsUtc = slots.map(s => s.utc.toISOString());
-
   const bookingHref = isStudent
     ? `/booking/${id}`
     : `/auth/login?callbackUrl=/booking/${id}`;
+
+  const showBookingCta = isStudent || !isLoggedIn;
 
   return (
     <div className="min-h-screen bg-[#FAF8F0]">
 
       {/* Nav */}
-      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
-        <div className="flex items-center gap-3">
-          <Link href="/find-tutors" className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition">
-            &larr; Tous les tuteurs
-          </Link>
-          {(isStudent || !isLoggedIn) && (
-            <Link href={bookingHref}
-              className="hidden sm:block px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] transition">
-              Réserver
-            </Link>
-          )}
-        </div>
+        <Link href="/find-tutors" className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition flex items-center gap-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Tous les tuteurs
+        </Link>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-4xl mx-auto px-6 py-10 space-y-6">
 
-        {/* A — Hero */}
-        <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6 mb-6">
-          <div className="flex gap-5 items-start">
+        {/* ── A: Hero ── */}
+        <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6 sm:p-8">
+          <div className="flex gap-6 items-start">
             {photoUrl ? (
               <img src={photoUrl} alt={displayName}
-                className="w-24 h-24 rounded-2xl object-cover flex-shrink-0 shadow-sm" />
+                className="w-28 h-28 rounded-2xl object-cover flex-shrink-0 shadow-sm" />
             ) : (
-              <div className="w-24 h-24 rounded-2xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-3xl flex-shrink-0">
+              <div className="w-28 h-28 rounded-2xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-4xl flex-shrink-0">
                 {initials}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 <h1 className="text-2xl font-bold text-[#2D1A00]">{displayName}</h1>
                 {profile.verificationTier === "TOP_TUTOR" && (
-                  <span className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-2 py-0.5 rounded-full">Top Tuteur</span>
+                  <span className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-2.5 py-0.5 rounded-full">Top Tuteur</span>
                 )}
                 {profile.verificationTier === "VERIFIED" && (
-                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">Vérifié</span>
+                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-0.5 rounded-full">Vérifié</span>
                 )}
               </div>
 
               {tagline && (
-                <p className="text-sm text-[#5C3D00] italic leading-relaxed mb-2">{tagline}</p>
+                <p className="text-sm text-[#5C3D00] leading-relaxed mb-3">{tagline}</p>
               )}
 
-              <div className="flex flex-wrap gap-1.5 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {profile.languagesTaught.map(l => (
-                  <span key={l} className="text-xs bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full">
+                  <span key={l} className="text-xs bg-[#F5C400]/20 text-[#5C3D00] font-semibold px-2.5 py-0.5 rounded-full">
                     {l === "French" ? "Français" : l === "Arabic" ? "Arabe" : "English"}
                   </span>
                 ))}
               </div>
 
-              {profile.totalReviews > 0 ? (
+              {hasReviews ? (
                 <div className="flex items-center gap-2">
                   <StarFull rating={profile.averageRating} size="sm" />
                   <span className="text-sm font-bold text-[#5C3D00]">{profile.averageRating.toFixed(1)}</span>
                   <span className="text-xs text-[#9B8A6B]">({profile.totalReviews} avis)</span>
+                  {profile.yearsExperience != null && (
+                    <>
+                      <span className="text-[#D9D0C3]">·</span>
+                      <span className="text-xs text-[#9B8A6B]">{profile.yearsExperience} ans d&apos;expérience</span>
+                    </>
+                  )}
                 </div>
               ) : (
-                <p className="text-xs text-[#9B8A6B]">Nouveau tuteur</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-[#9B8A6B]">Nouveau tuteur</p>
+                  {profile.yearsExperience != null && (
+                    <span className="text-xs text-[#9B8A6B]">· {profile.yearsExperience} ans d&apos;expérience</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* B — Main 2-col: content left (3/5) + sidebar right (2/5) */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
+        {/* ── B: Video intro ── */}
+        {videoEmbed ? (
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#D9D0C3]">
+              <p className="font-bold text-[#2D1A00] text-sm">Vidéo d&apos;introduction</p>
+            </div>
+            <div className="aspect-video">
+              <iframe
+                src={videoEmbed.type === "youtube"
+                  ? `https://www.youtube.com/embed/${videoEmbed.id}`
+                  : `https://www.loom.com/embed/${videoEmbed.id}`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        ) : null}
 
-          {/* Left: video + bio */}
-          <div className="lg:col-span-3 space-y-5">
+        {/* ── C: About ── */}
+        {(bioBody || tagline) && (
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
+            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-4">
+              À propos de {displayName.split(" ")[0]}
+            </p>
+            <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">
+              {bioBody ?? tagline}
+            </p>
+          </div>
+        )}
 
-            {/* Video */}
-            {videoEmbed ? (
-              <div className="bg-white border border-[#C4BAA8] rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-[#D9D0C3]">
-                  <p className="font-bold text-[#2D1A00] text-sm">Video d&apos;introduction</p>
-                </div>
-                <div className="aspect-video">
-                  <iframe
-                    src={videoEmbed.type === "youtube"
-                      ? `https://www.youtube.com/embed/${videoEmbed.id}`
-                      : `https://www.loom.com/embed/${videoEmbed.id}`}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+        {/* ── D: Specs / Levels / Certs ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
+            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">Spécialisations</p>
+            <div className="flex flex-wrap gap-1.5">
+              {profile.specializations.map(s => (
+                <span key={s} className="text-xs bg-[#FFF3B0] text-[#C49200] font-semibold px-2 py-0.5 rounded-full">
+                  {SPEC_LABELS[s] ?? s}
+                </span>
+              ))}
+              {profile.specializations.length === 0 && (
+                <span className="text-xs text-[#C4BAA8]">—</span>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
+            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">Niveaux enseignés</p>
+            <p className="text-sm font-bold text-[#5C3D00]">{profile.cefrTeachingMin} → {profile.cefrTeachingMax}</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">Tous les niveaux du CECR</p>
+          </div>
+
+          <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
+            <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">Certifications</p>
+            {profile.certifications.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {profile.certifications.map(c => (
+                  <span key={c} className="text-xs bg-[#FAF8F0] text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full border border-[#D9D0C3]">
+                    {CERT_LABELS[c] ?? c}
+                  </span>
+                ))}
               </div>
             ) : (
-              <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 flex items-center gap-4 text-[#9B8A6B]">
-                <div className="w-12 h-12 rounded-xl bg-[#F0EBE0] flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#5C3D00]">Vidéo à venir</p>
-                  <p className="text-xs">Ce tuteur n&apos;a pas encore ajouté de vidéo d&apos;introduction.</p>
-                </div>
-              </div>
+              <span className="text-xs text-[#C4BAA8]">—</span>
             )}
-
-            {/* Bio */}
-            {(bioBody || (!hasReviews && tagline)) && (
-              <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
-                <p className="text-xs font-bold text-[#7A6B55] uppercase tracking-widest mb-4">À propos de {displayName.split(" ")[0]}</p>
-                <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">
-                  {bioBody ?? tagline}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Right: CTA + quick info */}
-          <div className="lg:col-span-2 space-y-4">
-
-            {/* CTA card */}
-            <div className="bg-[#5C3D00] rounded-2xl p-5 text-white">
-              <PricingCard />
-              <div className="border-t border-white/10 pt-4 mt-4 space-y-2">
-                {(isStudent || !isLoggedIn) && (
-                  <Link href={bookingHref}
-                    className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-2.5 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
-                    Réserver maintenant
-                  </Link>
-                )}
-                <ContactTutorButton
-                  tutorId={id}
-                  tutorName={displayName}
-                  isStudent={isStudent}
-                  loginUrl={`/auth/login?callbackUrl=/tutors/${id}`}
-                />
-              </div>
-            </div>
-
-            {/* Quick info */}
-            <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 space-y-4">
-              <div>
-                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Spécialisations</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.specializations.map(s => (
-                    <span key={s} className="text-xs bg-[#FFF3B0] text-[#C49200] font-semibold px-2 py-0.5 rounded-full">
-                      {SPEC_LABELS[s] ?? s}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="border-t border-[#F0EBE0] pt-4">
-                <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Niveaux enseignés</p>
-                <p className="text-sm font-bold text-[#5C3D00]">{profile.cefrTeachingMin} → {profile.cefrTeachingMax}</p>
-                {profile.yearsExperience != null && (
-                  <p className="text-xs text-[#9B8A6B] mt-0.5">{profile.yearsExperience} ans d&apos;expérience</p>
-                )}
-              </div>
-              {profile.certifications.length > 0 && (
-                <div className="border-t border-[#F0EBE0] pt-4">
-                  <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Certifications</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {profile.certifications.map(c => (
-                      <span key={c} className="text-xs bg-[#FAF8F0] text-[#5C3D00] font-semibold px-2 py-0.5 rounded-full border border-[#D9D0C3]">
-                        {CERT_LABELS[c] ?? c}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
-        {/* C — Calendar — full width */}
-        <div className="mb-6">
-          <WeeklyCalendar slotsUtc={slotsUtc} bookingHref={bookingHref} />
-        </div>
-
-        {/* D — Ratings & avis — full width */}
+        {/* ── E: Ratings & Reviews ── */}
         {hasReviews && (
           <div className="bg-white border border-[#C4BAA8] rounded-2xl p-6">
-
-            {/* Score + bars side by side */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-[#F0EBE0] mb-6">
               <div className="flex items-center gap-5">
                 <div className="text-center">
@@ -362,15 +308,6 @@ export default async function TutorProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* AI summary placeholder */}
-            <div className="border border-dashed border-[#C4BAA8] rounded-xl p-4 mb-6 bg-[#FAF8F0]">
-              <p className="text-[11px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">Résumé IA des avis</p>
-              <p className="text-xs text-[#9B8A6B] italic">
-                Bientôt disponible — un résumé intelligent des points forts mentionnés par les étudiants.
-              </p>
-            </div>
-
-            {/* Reviews in 2-col grid */}
             <TutorProfileClient
               reviews={serializedReviews}
               tutorId={id}
@@ -379,15 +316,37 @@ export default async function TutorProfilePage({ params }: Props) {
           </div>
         )}
 
-        {/* Mobile CTA */}
-        {(isStudent || !isLoggedIn) && (
-          <div className="mt-6 sm:hidden">
-            <Link href={bookingHref}
-              className="block w-full text-center bg-[#F5C400] text-[#5C3D00] py-3 rounded-2xl font-bold text-sm hover:bg-[#FFDE59] transition">
-              Réserver une séance
+        {/* ── F: Contact ── */}
+        <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="font-semibold text-[#2D1A00] text-sm">Une question avant de réserver ?</p>
+            <p className="text-xs text-[#9B8A6B] mt-0.5">Envoyez un message à {displayName.split(" ")[0]} directement.</p>
+          </div>
+          <ContactTutorButton
+            tutorId={id}
+            tutorName={displayName}
+            isStudent={isStudent}
+            loginUrl={`/auth/login?callbackUrl=/tutors/${id}`}
+          />
+        </div>
+
+        {/* ── G: Big bottom CTA ── */}
+        {showBookingCta && (
+          <div className="bg-[#1C1008] rounded-2xl p-8 text-center">
+            <p className="text-[#F5C400] font-bold text-xl mb-1">Prêt à commencer avec {displayName.split(" ")[0]} ?</p>
+            <p className="text-white/40 text-sm mb-6">Séance de découverte · 30 min · Tarif réduit</p>
+            <Link
+              href={bookingHref}
+              className="inline-flex items-center gap-2 bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-2xl font-bold text-base hover:bg-[#FFDE59] transition shadow-[0_4px_20px_rgba(245,196,0,0.3)]"
+            >
+              Voir disponibilité et réserver
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
             </Link>
           </div>
         )}
+
       </div>
     </div>
   );
