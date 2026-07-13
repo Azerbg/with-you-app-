@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -20,7 +20,6 @@ interface Props {
   studentName: string;
   scheduledAt: string;
   durationMins: number;
-  status: string;
 }
 
 // ─── Post-session screen ──────────────────────────────────────────────────────
@@ -305,14 +304,26 @@ function ControlButton({ active, onClick, label, activeIcon, inactiveIcon }: {
 // ─── Root component ───────────────────────────────────────────────────────────
 
 export default function ClassroomClient({
-  bookingId, role, tutorName, studentName, scheduledAt, durationMins, status,
+  bookingId, role, tutorName, studentName, scheduledAt, durationMins,
 }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [left, setLeft] = useState(false);
+  const leavingRef = useRef(false);
 
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
+
+  const handleLeave = useCallback(async () => {
+    if (leavingRef.current) return; // prevent double-call from button + onDisconnected
+    leavingRef.current = true;
+    try {
+      await fetch(`/api/bookings/${bookingId}/complete`, { method: "PATCH" });
+    } catch {
+      // best-effort
+    }
+    setLeft(true);
+  }, [bookingId]);
 
   const fetchToken = useCallback(async () => {
     try {
@@ -367,7 +378,7 @@ export default function ClassroomClient({
       audio={true}
       token={token!}
       serverUrl={serverUrl}
-      onDisconnected={() => setLeft(true)}
+      onDisconnected={handleLeave}
       style={{ height: "100vh" }}
     >
       <ClassroomView
@@ -376,7 +387,7 @@ export default function ClassroomClient({
         studentName={studentName}
         durationMins={durationMins}
         scheduledAt={scheduledAt}
-        onLeave={() => setLeft(true)}
+        onLeave={handleLeave}
         bookingId={bookingId}
       />
       <RoomAudioRenderer />

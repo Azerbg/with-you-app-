@@ -12,7 +12,12 @@ const TIER_BADGE: Record<ProgramTier, { cls: string }> = {
   INTENSIVE: { cls: "bg-[#5C3D00]/10 text-[#5C3D00]" },
 };
 
-export default async function StudentDashboardPage() {
+export default async function StudentDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ card?: string; reviewed?: string }>;
+}) {
+  const sp = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/auth/login");
   if (session.user.role !== "STUDENT") redirect("/dashboard");
@@ -96,6 +101,7 @@ export default async function StudentDashboardPage() {
       country={profile.country ?? null}
       targetLanguageCode={profile.targetLanguage ?? null}
       upcomingBookings={serializedBookings}
+      showReviewedBanner={sp.reviewed === "1"}
     />
   );
 }
