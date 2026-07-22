@@ -59,6 +59,9 @@ export default function DashboardContent(p: Props) {
   const freqLabel = p.sessionFrequency ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
   const durLabel  = p.programDuration  ? (t.durations  as Record<string,string>)[p.programDuration]  ?? p.programDuration  : "";
   const cefrDesc  = p.cefrLevel        ? (t.cefr       as Record<string,string>)[p.cefrLevel]        ?? "" : "";
+  const langNames = t.languageNames as Record<string, string>;
+  const targetLangDisplay = p.targetLanguage ? (langNames[p.targetLanguage] ?? p.targetLanguage) : "—";
+  const nativeLangDisplay = p.nativeLanguage ? (langNames[p.nativeLanguage] ?? p.nativeLanguage) : "—";
 
   return (
     <>
@@ -111,7 +114,7 @@ export default function DashboardContent(p: Props) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-[#5C3D00]">Complétez votre test de niveau</p>
                 <p className="text-xs text-[#7A6B55] mt-0.5">
-                  Votre niveau CECR n&apos;a pas encore été défini. Passez le test de positionnement pour personnaliser votre programme.
+                  Votre niveau de langue n&apos;a pas encore été défini. Passez le test de positionnement pour personnaliser votre programme.
                 </p>
               </div>
               <a href="/placement-test"
@@ -176,7 +179,7 @@ export default function DashboardContent(p: Props) {
                 color: "text-[#5C3D00]", bg: "bg-[#F5C400]/20",
               },
               {
-                label: t.language, value: p.targetLanguage ?? "—", sub: `${t.from} ${p.nativeLanguage ?? "—"}`,
+                label: t.language, value: targetLangDisplay, sub: `${t.from} ${nativeLangDisplay}`,
                 icon: <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.87 18.87 0 01-1.724 4.78c.29.354.596.696.914 1.026a1 1 0 11-1.44 1.389c-.188-.196-.373-.396-.554-.6a19.098 19.098 0 01-3.107 3.567 1 1 0 01-1.334-1.49 17.087 17.087 0 003.13-3.733 18.992 18.992 0 01-1.487-3.754 1 1 0 111.93-.525c.11.41.237.805.38 1.187A17.165 17.165 0 006.5 7.81V3a1 1 0 011-1zm6 6a1 1 0 01.894.553l2.991 5.992a.869.869 0 01.02.037l.99 1.98a1 1 0 11-1.79.895L15.383 16h-4.764l-.724 1.447a1 1 0 11-1.788-.894l.99-1.98.019-.038 2.99-5.992A1 1 0 0113 8zm-1.382 6h2.764L13 11.236 11.618 14z" clipRule="evenodd" /></svg>,
                 color: "text-emerald-700", bg: "bg-emerald-50",
               },
@@ -211,8 +214,8 @@ export default function DashboardContent(p: Props) {
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-6">
                   {[
-                    { label: t.nativeLang,     value: p.nativeLanguage ?? "—" },
-                    { label: t.learning,        value: p.targetLanguage ?? "—" },
+                    { label: t.nativeLang,     value: nativeLangDisplay },
+                    { label: t.learning,        value: targetLangDisplay },
                   ].map((r) => (
                     <div key={r.label} className="space-y-1">
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{r.label}</p>
@@ -395,7 +398,7 @@ export default function DashboardContent(p: Props) {
                   <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
                 </div>
                 <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">
-                  {t.discoverySub} <span className="font-bold text-[#5C3D00]">15 $</span>.
+                  {t.discoverySub.replace(/\.$/, "")} <span className="font-bold text-[#5C3D00]">à petit prix</span>.
                 </p>
                 <Link href="/find-tutors" className="block w-full text-center bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition">
                   {t.bookNow}

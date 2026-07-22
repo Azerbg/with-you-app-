@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
+
+const TIER_LABELS: Record<string, { fr: string; en: string }> = {
+  STARTER:   { fr: "Débutant",  en: "Starter"   },
+  CORE:      { fr: "Essentiel", en: "Core"       },
+  INTENSIVE: { fr: "Intensif",  en: "Intensive"  },
+};
 
 type ActivePage = "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile";
 
@@ -22,6 +29,12 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
   const pathname = usePathname();
+  const [tz, setTz] = useState<string>("");
+  useEffect(() => {
+    setTz(Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " "));
+  }, []);
+
+  const tierLabel = TIER_LABELS[tier]?.[lang] ?? tier;
 
   const detectedPage: ActivePage =
     pathname === "/dashboard/student" ? "overview" :
@@ -119,8 +132,13 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-white/80 truncate leading-tight">{name || email}</p>
             <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
-              {cefrLevel ? `${cefrLevel} · ${tier}` : tier || "—"}
+              {cefrLevel ? `${cefrLevel} · ${tierLabel}` : tierLabel || "—"}
             </p>
+            {tz && (
+              <p className="text-[10px] leading-tight mt-0.5 text-white/35 truncate">
+                🕐 {tz}
+              </p>
+            )}
           </div>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-white/20 flex-shrink-0">
             <path d="M6 9l6 6 6-6" />

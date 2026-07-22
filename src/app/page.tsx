@@ -201,7 +201,7 @@ export default function HomePage() {
         const roleCards: Record<string, { icon: string; label: string; desc: string; href: string; primary?: boolean }[]> = {
           STUDENT: [
             { icon: "📚", label: lang === "fr" ? "Mon tableau de bord" : "My dashboard",   desc: lang === "fr" ? "Reprendre là où vous vous étiez arrêté" : "Pick up where you left off", href: "/dashboard/student", primary: true },
-            { icon: "🎯", label: lang === "fr" ? "Test de niveau gratuit" : "Free level test", desc: lang === "fr" ? "Évaluer votre niveau actuel" : "Assess your current level",          href: "/onboarding" },
+            { icon: "🎯", label: lang === "fr" ? "Test de niveau gratuit" : "Free level test", desc: lang === "fr" ? "Évaluer votre niveau actuel" : "Assess your current level",          href: "/placement-test" },
             { icon: "🧑‍🏫", label: lang === "fr" ? "Trouver un tuteur" : "Find a tutor",   desc: lang === "fr" ? "Parcourir les tuteurs vérifiés" : "Browse verified tutors",            href: "#tutors" },
           ],
           TUTOR: [

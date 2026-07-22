@@ -146,7 +146,7 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
   const pwStrong = Object.values(checks).every(Boolean);
   const pwMatch  = data.password === data.confirmPassword && data.confirmPassword !== "";
 
-  const isValid = data.firstName && data.lastName && localPhone && data.birthday && data.gender && data.country &&
+  const isValid = data.firstName && data.lastName && localPhone && phoneVerified && data.birthday && data.gender && data.country &&
     (isLoggedIn || (data.email && pwStrong && pwMatch && emailVerified));
 
   async function sendEmailOtp() {
@@ -521,8 +521,8 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           </div>
         </div>
 
-        {/* Phone OTP verification — optional */}
-        <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#6B5E44]/20 bg-[#FAFAF8]"}`}>
+        {/* Phone OTP verification — required */}
+        <div className={`rounded-xl border-2 p-4 transition ${phoneVerified ? "border-green-400 bg-green-50" : "border-[#F5C400] bg-[#FFFBEA]"}`}>
           {phoneVerified ? (
             <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path d="M20 6L9 17l-5-5"/></svg>
@@ -531,10 +531,10 @@ function StepPersonal({ data, onChange, onNext, phoneVerified, onPhoneVerified, 
           ) : (
             <>
               <p className="text-xs font-semibold text-[#5C3D00] mb-0.5">
-                {fr ? "Vérification du numéro" : "Phone verification"}
+                {fr ? "Vérification du numéro" : "Phone verification"} <span className="text-red-500">*</span>
               </p>
-              <p className="text-[11px] text-[#9B8A6B] mb-3">
-                {fr ? "Optionnel — vous pouvez continuer sans vérifier." : "Optional — you can continue without verifying."}
+              <p className="text-[11px] text-[#7A6B55] mb-3">
+                {fr ? "Obligatoire — vérifiez votre numéro pour continuer." : "Required — verify your phone number to continue."}
               </p>
               {!otpSent ? (
                 <button
@@ -954,7 +954,7 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
-  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0 && data.motivationLetterUrl.trim().length > 0;
+  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0 && data.motivationLetterUrl.trim().length > 0 && data.certificateFiles.length > 0;
 
   return (
     <div>
@@ -1117,8 +1117,9 @@ function CertificateUploadList({ files, onChange, fr }: {
       <div className="flex items-center justify-between mb-2">
         <label className="text-sm font-semibold text-[#5C3D00]">
           {fr ? "Documents justificatifs" : "Supporting documents"}
-          <span className="ml-1.5 text-xs text-[#9B8A6B] font-normal">
-            ({fr ? "PDF uniquement · optionnel" : "PDF only · optional"})
+          <span className="ml-1.5 text-xs font-normal text-red-500">*</span>
+          <span className="ml-1 text-xs text-[#9B8A6B] font-normal">
+            ({fr ? "PDF uniquement · obligatoire" : "PDF only · required"})
           </span>
         </label>
         {files.length < 8 && (
@@ -1263,18 +1264,17 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
     ? { MON: "Lun", TUE: "Mar", WED: "Mer", THU: "Jeu", FRI: "Ven", SAT: "Sam", SUN: "Dim" }
     : { MON: "Mon", TUE: "Tue", WED: "Wed", THU: "Thu", FRI: "Fri", SAT: "Sat", SUN: "Sun" };
 
-  // Tunisia reference times; converted to local for display
-  const TUNIS_WINDOWS = [
-    { val: "MORNING",   labelFr: "Matin",       labelEn: "Morning",   startT: 6,  endT: 12 },
-    { val: "AFTERNOON", labelFr: "Après-midi",  labelEn: "Afternoon", startT: 12, endT: 18 },
-    { val: "EVENING",   labelFr: "Soir",        labelEn: "Evening",   startT: 18, endT: 23 },
+  // Time windows in tutor's own local timezone
+  const WINDOWS = [
+    { val: "MORNING",   labelFr: "Matin",       labelEn: "Morning",   startH: 6,  endH: 12 },
+    { val: "AFTERNOON", labelFr: "Après-midi",  labelEn: "Afternoon", startH: 12, endH: 18 },
+    { val: "EVENING",   labelFr: "Soir",        labelEn: "Evening",   startH: 18, endH: 23 },
   ];
 
-  const windows = TUNIS_WINDOWS.map(w => ({
+  const windows = WINDOWS.map(w => ({
     val: w.val,
     label: fr ? w.labelFr : w.labelEn,
-    localTime: `${fmtH(tunisToLocal(w.startT))}–${fmtH(tunisToLocal(w.endT))}`,
-    tunisTime: `${fmtH(w.startT)}–${fmtH(w.endT)}`,
+    localTime: `${fmtH(w.startH)}–${fmtH(w.endH)}`,
   }));
 
   function toggleDay(d: string) {
@@ -1335,13 +1335,9 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
         <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
           {fr ? "Créneaux horaires" : "Time windows"}
         </label>
-        {!isTunisTz && (
-          <p className="text-[11px] text-[#9B8A6B] mb-2">
-            {fr
-              ? `Heure locale · Entre parenthèses : heure de Tunis (UTC+1)`
-              : `Local time · In parentheses: Tunisia time (UTC+1)`}
-          </p>
-        )}
+        <p className="text-[11px] text-[#9B8A6B] mb-2">
+          {fr ? "Horaires dans votre fuseau horaire local." : "Times in your local timezone."}
+        </p>
         <div className="flex gap-3">
           {windows.map(w => (
             <button key={w.val} type="button" onClick={() => toggleWindow(w.val)}
@@ -1350,9 +1346,6 @@ function StepAvailability({ data, onChange, onNext, onBack }: {
               }`}>
               <span className="font-bold">{w.label}</span>
               <span className="text-xs mt-0.5 text-[#6B5E44] font-semibold">{w.localTime}</span>
-              {!isTunisTz && (
-                <span className="text-[10px] mt-0.5 text-[#9B8A6B]">({w.tunisTime} Tunis)</span>
-              )}
             </button>
           ))}
         </div>
@@ -1657,15 +1650,17 @@ export default function TutorApplyWizard() {
           <div className="space-y-2">
             {(fr ? [
               { q: "Comment suis-je payé ?", a: "Par virement bancaire (RIB) ou D17 en dinars tunisiens, mensuellement." },
-              { q: "Quels horaires ?", a: "Vous choisissez vos disponibilités. Les créneaux les plus demandés sont les soirs et week-ends." },
-              { q: "Faut-il un diplôme ?", a: "Une certification linguistique (DELF, IELTS, CELTA…) ou un niveau très avancé est requis." },
-              { q: "Combien de temps dure le recrutement ?", a: "En moyenne 2 à 3 semaines selon vos disponibilités." },
+              { q: "Quels horaires ?", a: "C'est 100 % flexible. Vous choisissez librement vos créneaux selon vos disponibilités. Des conseils sur les heures de forte demande selon les régions vous seront partagés plus tard." },
+              { q: "Quel sera mon tarif horaire ?", a: "Vous fixerez votre tarif horaire avec un responsable RH pendant votre entretien, une fois votre candidature acceptée. Le montant dépendra de votre profil et de votre expérience." },
+              { q: "Faut-il un diplôme ?", a: "Oui. Une certification linguistique reconnue (comme le DELF/DALF, le TEF, l'IELTS ou le TOEFL) ou un diplôme universitaire lié à la langue enseignée (licence, master, doctorat, etc.) est obligatoire." },
+              { q: "Combien de temps dure le recrutement ?", a: "En moyenne de 2 à 3 semaines, selon vos disponibilités." },
               { q: "Une question ?", a: "Ecrivez-nous : recrutement@withyou.com" },
             ] : [
               { q: "How am I paid?", a: "By bank transfer or D17 in Tunisian dinars, monthly." },
-              { q: "What hours do I work?", a: "You choose your availability. Evenings and weekends are the most in demand." },
-              { q: "Is a degree required?", a: "A language certification (DELF, IELTS, CELTA…) or near-native level is required." },
-              { q: "How long does recruitment take?", a: "Around 2–3 weeks depending on your availability." },
+              { q: "What hours do I work?", a: "100% flexible. You freely choose your slots based on your availability. Tips on peak demand hours by region will be shared later." },
+              { q: "What will my hourly rate be?", a: "Your hourly rate will be set with an HR manager during your interview, once your application is accepted. The amount will depend on your profile and experience." },
+              { q: "Is a degree required?", a: "Yes. A recognized language certification (DELF/DALF, TEF, IELTS, TOEFL) or a university degree related to the language taught (bachelor's, master's, doctorate, etc.) is required." },
+              { q: "How long does recruitment take?", a: "Around 2 to 3 weeks, depending on your availability." },
               { q: "Questions?", a: "Email us: recrutement@withyou.com" },
             ]).map((item, i) => (
               <div key={i} className="border border-white/10 rounded-xl overflow-hidden">

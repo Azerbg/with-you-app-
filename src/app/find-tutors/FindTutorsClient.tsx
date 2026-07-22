@@ -180,8 +180,17 @@ function PriceRangeSlider({
   priceMin: number; priceMax: number;
   onPriceChange: (min: number, max: number) => void;
 }) {
+  const minPct = (priceMin / 200) * 100;
+  const maxPct = (priceMax / 200) * 100;
   return (
     <div className="space-y-3 pt-1">
+      {/* Yellow range track */}
+      <div className="relative h-1.5 bg-[#E8E0D4] rounded-full">
+        <div
+          className="absolute h-full bg-[#F5C400] rounded-full"
+          style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
+        />
+      </div>
       <div>
         <div className="flex justify-between mb-1.5">
           <span className="text-[11px] text-[#9B8A6B]">Min</span>
