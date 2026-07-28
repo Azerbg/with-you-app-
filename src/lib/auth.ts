@@ -26,7 +26,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         const { email, password } = parsed.data;
 
-        const user = await db.user.findUnique({ where: { email } });
+        const user = await db.user.findUnique({
+          where: { email },
+          include: { hrApplication: { select: { fullName: true } } },
+        });
         if (!user || !user.password) return null;
 
         const isValid = await bcrypt.compare(password, user.password);
@@ -36,10 +39,14 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         if (process.env.NODE_ENV === "production" && !user.emailVerified) return null;
 
+        const displayName =
+          user.hrApplication?.fullName ||
+          (user.firstName ? [user.firstName, user.lastName].filter(Boolean).join(" ") : null);
+
         return {
           id: user.id,
           email: user.email,
-          name: null,
+          name: displayName,
           image: null,
           role: user.role,
           totpEnabled: user.totpEnabled,

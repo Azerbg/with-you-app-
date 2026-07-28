@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
@@ -53,12 +53,21 @@ export default function DashboardContent(p: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [firstName, setFirstName] = useState(p.firstName ?? null);
   const [lastName,  setLastName]  = useState(p.lastName  ?? null);
+  const [displayTz, setDisplayTz] = useState(p.timezone);
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) setDisplayTz(tz.replace(/_/g, " "));
+  }, []);
   const displayName = firstName && lastName ? `${firstName} ${lastName}` : firstName ?? p.email;
 
   const objLabel = p.learningObjective ? (t.objectives as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
   const freqLabel = p.sessionFrequency ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
   const durLabel  = p.programDuration  ? (t.durations  as Record<string,string>)[p.programDuration]  ?? p.programDuration  : "";
   const cefrDesc  = p.cefrLevel        ? (t.cefr       as Record<string,string>)[p.cefrLevel]        ?? "" : "";
+  const tierInfo  = p.tierKey ? (t.tiers as Record<string, { label: string; sessions: string; desc: string }>)[p.tierKey] : null;
+  const tierLabel = tierInfo?.label ?? p.tierLabel ?? "—";
+  const tierSessions = tierInfo?.sessions ?? p.tierSessions ?? "";
+  const tierDesc  = tierInfo?.desc ?? p.tierDesc ?? "";
   const langNames = t.languageNames as Record<string, string>;
   const targetLangDisplay = p.targetLanguage ? (langNames[p.targetLanguage] ?? p.targetLanguage) : "—";
   const nativeLangDisplay = p.nativeLanguage ? (langNames[p.nativeLanguage] ?? p.nativeLanguage) : "—";
@@ -174,7 +183,7 @@ export default function DashboardContent(p: Props) {
                 color: "text-[#C49200]", bg: "bg-[#FFF3B0]",
               },
               {
-                label: t.program, value: p.tierLabel, sub: p.tierSessions,
+                label: t.program, value: tierLabel, sub: tierSessions,
                 icon: <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" /></svg>,
                 color: "text-[#5C3D00]", bg: "bg-[#F5C400]/20",
               },
@@ -210,7 +219,7 @@ export default function DashboardContent(p: Props) {
               <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
                   <p className="font-bold text-[#5C3D00]">{t.profile}</p>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.tierCls}`}>{p.tierLabel}</span>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.tierCls}`}>{tierLabel}</span>
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-6">
                   {[
@@ -246,7 +255,7 @@ export default function DashboardContent(p: Props) {
                     {[
                       { label: t.freqLabel,  val: freqLabel },
                       { label: t.commitment, val: durLabel || "—" },
-                      { label: t.timezone,   val: p.timezone },
+                      { label: t.timezone,   val: displayTz },
                     ].map((r) => (
                       <div key={r.label} className="space-y-1">
                         <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{r.label}</p>
@@ -259,11 +268,14 @@ export default function DashboardContent(p: Props) {
                     <div>
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium mb-2">{t.timeWindows}</p>
                       <div className="flex gap-2">
-                        {p.timeWindowPreference.map((w) => (
-                          <span key={w} className="px-3 py-1.5 bg-[#FFF3B0] text-[#C49200] text-xs font-bold rounded-lg border border-[#F5C400]/30">
-                            {w.charAt(0) + w.slice(1).toLowerCase()}
-                          </span>
-                        ))}
+                        {p.timeWindowPreference.map((w) => {
+                          const TW_FR: Record<string, string> = { MORNING: "Matin", AFTERNOON: "Après-midi", EVENING: "Soirée" };
+                          return (
+                            <span key={w} className="px-3 py-1.5 bg-[#FFF3B0] text-[#C49200] text-xs font-bold rounded-lg border border-[#F5C400]/30">
+                              {TW_FR[w] ?? (w.charAt(0) + w.slice(1).toLowerCase())}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -359,9 +371,9 @@ export default function DashboardContent(p: Props) {
               <div className="bg-[#5C3D00] rounded-2xl p-5 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-[#F5C400]/10 -translate-y-8 translate-x-8" />
                 <p className="text-[10px] font-bold text-[#F5C400]/50 uppercase tracking-widest mb-1">{t.yourProgram}</p>
-                <p className="text-2xl font-bold text-white">{p.tierLabel}</p>
-                <p className="text-sm text-white/50 mt-1 mb-4">{p.tierSessions}</p>
-                <div className="bg-white/8 rounded-xl p-3 text-xs text-white/60 leading-relaxed">{p.tierDesc}</div>
+                <p className="text-2xl font-bold text-white">{tierLabel}</p>
+                <p className="text-sm text-white/50 mt-1 mb-4">{tierSessions}</p>
+                <div className="bg-white/8 rounded-xl p-3 text-xs text-white/60 leading-relaxed">{tierDesc}</div>
               </div>
 
               {/* Activity */}

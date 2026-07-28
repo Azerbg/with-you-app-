@@ -68,6 +68,15 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    href: "/dashboard/tutor/settings",
+    label: "Paramètres",
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
 ];
 
 export default function TutorSidebar({ fullName, initials, photo, profileComplete }: Props) {
@@ -97,19 +106,19 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
 
       {/* Avatar */}
       <div className="px-5 py-5 border-b border-[#F0EAD8]">
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard/tutor/complete-profile" className="flex items-center gap-3 group">
           {photo ? (
-            <img src={photo} alt={fullName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+            <img src={photo} alt={fullName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0 ring-2 ring-transparent group-hover:ring-[#F5C400] transition" />
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0 group-hover:bg-[#FFDE59] transition">
               {initials}
             </div>
           )}
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[#2D1A00] truncate">{firstName}</p>
-            <p className="text-xs text-[#9B8A6B]">Tuteur</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#2D1A00] truncate group-hover:text-[#5C3D00] transition">{firstName}</p>
+            <p className="text-xs text-[#9B8A6B] group-hover:text-[#C49200] transition">Modifier le profil →</p>
           </div>
-        </div>
+        </Link>
 
         {!profileComplete && (
           <Link href="/dashboard/tutor/complete-profile" className="mt-3 flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400] rounded-xl px-3 py-2">

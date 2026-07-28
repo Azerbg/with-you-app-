@@ -353,7 +353,7 @@ function FilterSidebar({
           {[
             { value: "morning",   label: "Matin",      sub: "6h – 12h" },
             { value: "afternoon", label: "Après-midi", sub: "12h – 18h" },
-            { value: "evening",   label: "Soirée",     sub: "18h – 24h" },
+            { value: "evening",   label: "Soirée",     sub: "18h – 00h" },
           ].map((opt) => {
             const checked = avSlots.includes(opt.value);
             return (
@@ -508,8 +508,10 @@ export default function FindTutorsClient({
     }
 
     if (avSlots.length) {
-      result = result.filter(t =>
-        avSlots.some(slot =>
+      result = result.filter(t => {
+        // Tutors with no availability set are treated as potentially available at all times
+        if (t.availability.length === 0) return true;
+        return avSlots.some(slot =>
           t.availability.some(a => {
             if (!a.startTime) return false;
             const h = tutorTimeToStudentHour(a.startTime);
@@ -518,8 +520,8 @@ export default function FindTutorsClient({
             if (slot === "evening")   return h >= 18 && h < 24;
             return false;
           })
-        )
-      );
+        );
+      });
     }
 
     if (tutorType === "professional") result = result.filter(t => t.certifications.length > 0);

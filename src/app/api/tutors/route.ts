@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const profiles = await db.tutorProfile.findMany({
     where: {
       verificationStatus: "VERIFIED",
+      isHidden: false,
       ...(langs.length ? { languagesTaught: { hasSome: langs } } : {}),
       ...(spec ? { specializations: { has: spec } } : {}),
     },

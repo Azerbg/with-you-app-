@@ -325,6 +325,9 @@ model TutorProfile {
   cefrTeachingMin  String?    // Lowest CEFR level tutor can teach (e.g. "A1")
   cefrTeachingMax  String?    // Highest CEFR level tutor can teach (e.g. "C2")
 
+  // Visibility — tutor can hide themselves from student search
+  isHidden        Boolean @default(false)
+
   // Availability settings (detail managed in TutorAvailability model)
   bufferMinutes   Int @default(30)  // 15 | 30 | 60 — between sessions
   maxWeeklyHours  Int @default(20)  // Agreed with HR at hiring

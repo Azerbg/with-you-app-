@@ -29,7 +29,7 @@ export default async function CompleteProfilePage() {
     db.pendingProfileChange.findFirst({
       where: { tutorId: session.user.id, status: { in: ["PENDING", "REJECTED"] } },
       orderBy: { createdAt: "desc" },
-    }),
+    }).catch(() => null),
   ]);
 
   return (

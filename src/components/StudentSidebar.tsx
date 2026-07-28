@@ -121,16 +121,16 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
 
       {/* User */}
       <div className="px-3 pb-4 mb-2">
-        <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/5 transition cursor-pointer">
+        <Link href="/dashboard/student/profile" className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-white/5 transition group">
           {image ? (
-            <img src={image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+            <img src={image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0 ring-2 ring-transparent group-hover:ring-[#F5C400] transition" />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs flex-shrink-0 group-hover:bg-[#FFDE59] transition">
               {initials}
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white/80 truncate leading-tight">{name || email}</p>
+            <p className="text-xs font-semibold text-white/80 truncate leading-tight group-hover:text-white transition">{name || email}</p>
             <p className="text-[11px] leading-tight mt-0.5" style={{ color: "#F5C400" }}>
               {cefrLevel ? `${cefrLevel} · ${tierLabel}` : tierLabel || "—"}
             </p>
@@ -140,10 +140,10 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
               </p>
             )}
           </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-white/20 flex-shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 text-white/20 flex-shrink-0 group-hover:text-white/40 transition">
             <path d="M6 9l6 6 6-6" />
           </svg>
-        </div>
+        </Link>
       </div>
 
       <div className="mx-4 h-px bg-white/6 mb-3" />
@@ -189,13 +189,13 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
       {/* Bottom */}
       <div className="px-3 pb-5 pt-3 space-y-0.5">
         <div className="mx-1 h-px bg-white/6 mb-3" />
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/60 hover:bg-white/10 hover:text-white transition">
+        <a href="mailto:support@withyou.com" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/60 hover:bg-white/10 hover:text-white transition">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
             <circle cx="12" cy="12" r="10" />
             <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
           </svg>
           {s.help}
-        </button>
+        </a>
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
