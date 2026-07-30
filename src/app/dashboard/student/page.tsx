@@ -44,7 +44,8 @@ export default async function StudentDashboardPage({
     where: {
       studentId: session.user.id,
       status: { in: ["CONFIRMED", "PENDING"] },
-      scheduledAt: { gte: new Date() },
+      // Include sessions currently in progress (started up to 24h ago) + upcoming
+      scheduledAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     },
     orderBy: { scheduledAt: "asc" },
     take: 3,
