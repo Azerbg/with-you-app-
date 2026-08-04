@@ -1,20 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import {
-  LiveKitRoom,
-  RoomAudioRenderer,
-  useTracks,
-  useLocalParticipant,
-  useParticipants,
-  useRoomContext,
-  VideoTrack,
-  isTrackReference,
-} from "@livekit/components-react";
-import { Track, RoomEvent } from "livekit-client";
+import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import Link from "next/link";
+import { ClassroomView } from "../ClassroomCore";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   bookingId: string;
@@ -25,47 +16,13 @@ interface Props {
   durationMins: number;
 }
 
-interface ChatMessage {
-  id: string;
-  sender: string;
-  text: string;
-  time: number;
-  isLocal: boolean;
-}
-
-interface FloatingReaction {
-  id: string;
-  emoji: string;
-  sender: string;
-  x: number; // % from left
-}
-
-const REACTIONS = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
-
-// ─── Utility: render text with clickable links ────────────────────────────────
-
-function renderWithLinks(text: string) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-  return parts.map((part, i) =>
-    urlRegex.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-        className="text-[#F5C400] underline underline-offset-2 break-all hover:text-[#FFDE59]">
-        {part}
-      </a>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  );
-}
-
 // ─── Post-session screen ──────────────────────────────────────────────────────
 
 function LeftScreen({ role, bookingId }: { role: string; bookingId: string }) {
   return (
     <div className="h-screen bg-[#0F0A04] flex items-center justify-center px-6">
       <div className="bg-[#1A1209] rounded-2xl border border-[#3A2A0E] p-10 max-w-sm w-full text-center">
-        <div className="w-14 h-14 bg-[#F5C400]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-14 h-14 bg-[#F5C400]/10 rounded-full flex items-center justify-center mx-auto mb-5">
           <svg className="w-7 h-7 text-[#F5C400]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
@@ -81,493 +38,21 @@ function LeftScreen({ role, bookingId }: { role: string; bookingId: string }) {
           )}
           <Link href={role === "student" ? "/dashboard/student" : "/dashboard/tutor"}
             className="block w-full bg-[#2A1F0E] text-[#C4BAA8] py-3 rounded-xl font-semibold text-sm hover:bg-[#3A2A0E] transition border border-[#3A2A0E]">
-            Retour au tableau de bord
+            Tableau de bord
           </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href={role === "student" ? "/dashboard/student/settings" : "/dashboard/tutor/settings"}
+              className="block bg-[#1A1209] text-white/50 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#2A1F0E] hover:text-white/70 transition border border-[#3A2A0E] text-center">
+              Paramètres
+            </Link>
+            <Link href="/help"
+              className="block bg-[#1A1209] text-white/50 py-2.5 rounded-xl text-xs font-semibold hover:bg-[#2A1F0E] hover:text-white/70 transition border border-[#3A2A0E] text-center">
+              Assistance
+            </Link>
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-// ─── Main classroom view ──────────────────────────────────────────────────────
-
-function ClassroomView({
-  role, tutorName, studentName, durationMins, scheduledAt, onLeave, bookingId,
-}: {
-  role: "student" | "tutor";
-  tutorName: string;
-  studentName: string;
-  durationMins: number;
-  scheduledAt: string;
-  onLeave: () => void;
-  bookingId: string;
-}) {
-  const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
-  const participants = useParticipants();
-  const room = useRoomContext();
-
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false },
-    ],
-    { onlySubscribed: false }
-  );
-
-  // ── Timer ──
-  const [elapsed, setElapsed] = useState(0);
-  const sessionStart = new Date(scheduledAt).getTime();
-  useEffect(() => {
-    const id = setInterval(() => {
-      setElapsed(Math.max(0, Math.floor((Date.now() - sessionStart) / 1000)));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [sessionStart]);
-
-  const formatTimer = (s: number) => {
-    const m = Math.floor(s / 60);
-    return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-  };
-
-  // ── Video tracks ──
-  const remoteCameraTrack = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.Camera);
-  const localCameraTrack  = tracks.find(t =>  t.participant.isLocal && t.source === Track.Source.Camera);
-  const remoteParticipant = participants.find(p => !p.isLocal);
-  const hasRemoteVideo = !!(remoteCameraTrack?.publication && !remoteCameraTrack.publication.isMuted);
-
-  const otherName = role === "student" ? tutorName   : studentName;
-  const myName    = role === "student" ? studentName : tutorName;
-  const otherInit = otherName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
-  const myInit    = myName.split(" ").map((w: string)    => w[0]).slice(0, 2).join("").toUpperCase();
-
-  // ── Data channel (chat + reactions) ──
-  const encoder = useRef(new TextEncoder());
-  const decoder = useRef(new TextDecoder());
-
-  // ── Chat ──
-  const [chatOpen, setChatOpen]   = useState(false);
-  const [messages, setMessages]   = useState<ChatMessage[]>([]);
-  const [input, setInput]         = useState("");
-  const [unread, setUnread]       = useState(0);
-  const messagesEndRef            = useRef<HTMLDivElement>(null);
-  const inputRef                  = useRef<HTMLInputElement>(null);
-
-  // ── Reactions ──
-  const [showPicker, setShowPicker]         = useState(false);
-  const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
-
-  // Listen for incoming data messages
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleData = (payload: Uint8Array, _participant: any) => {
-      try {
-        const msg = JSON.parse(decoder.current.decode(payload));
-        if (msg.type === "chat") {
-          setMessages(prev => [...prev, {
-            id: crypto.randomUUID(),
-            sender: msg.sender,
-            text: msg.text,
-            time: msg.time,
-            isLocal: false,
-          }]);
-          setChatOpen(prev => {
-            if (!prev) setUnread(n => n + 1);
-            return prev;
-          });
-        } else if (msg.type === "reaction") {
-          addFloating(msg.emoji, msg.sender);
-        }
-      } catch { /* ignore malformed */ }
-    };
-    room.on(RoomEvent.DataReceived, handleData);
-    return () => { room.off(RoomEvent.DataReceived, handleData); };
-  }, [room]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Clear unread & focus input when chat opens
-  useEffect(() => {
-    if (chatOpen) {
-      setUnread(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [chatOpen]);
-
-  function sendMessage() {
-    const text = input.trim();
-    if (!text) return;
-    const payload = { type: "chat", sender: myName, text, time: Date.now() };
-    localParticipant.publishData(encoder.current.encode(JSON.stringify(payload)), { reliable: true });
-    setMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      sender: myName,
-      text,
-      time: Date.now(),
-      isLocal: true,
-    }]);
-    setInput("");
-  }
-
-  function addFloating(emoji: string, sender: string) {
-    const id = crypto.randomUUID();
-    const x = 30 + Math.random() * 40; // 30–70% from left
-    setFloatingReactions(prev => [...prev, { id, emoji, sender, x }]);
-    setTimeout(() => {
-      setFloatingReactions(prev => prev.filter(r => r.id !== id));
-    }, 2500);
-  }
-
-  function sendReaction(emoji: string) {
-    const payload = { type: "reaction", sender: myName, emoji };
-    localParticipant.publishData(encoder.current.encode(JSON.stringify(payload)), { reliable: true });
-    addFloating(emoji, myName);
-    setShowPicker(false);
-  }
-
-  return (
-    <div className="h-screen flex flex-col bg-[#0F0A04] overflow-hidden select-none">
-
-      {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-6 py-3 bg-[#0A0703] border-b border-white/5 flex-shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="WithYou" className="h-6 w-auto opacity-70" />
-          <div className="w-px h-5 bg-white/10" />
-          <div>
-            <p className="text-white/70 text-xs font-semibold leading-tight">
-              Séance avec <span className="text-[#F5C400]">{otherName}</span>
-            </p>
-            <p className="text-white/25 text-[10px] leading-tight capitalize">
-              {role === "student" ? "Étudiant" : "Tuteur"} · {durationMins} min
-            </p>
-          </div>
-        </div>
-
-        {/* Timer */}
-        <div className="flex items-center gap-2 bg-[#1A1209] border border-[#F5C400]/20 px-4 py-1.5 rounded-full">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse" />
-          <span className="text-[#F5C400] font-mono text-sm font-bold tracking-widest">
-            {formatTimer(elapsed)}
-          </span>
-        </div>
-
-        {/* Leave */}
-        <button
-          onClick={onLeave}
-          className="flex items-center gap-1.5 bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Quitter
-        </button>
-      </div>
-
-      {/* ── Main area (video + chat sidebar) ─────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
-
-        {/* Video area */}
-        <div className="flex-1 relative overflow-hidden">
-
-          {/* Remote video or waiting state */}
-          {hasRemoteVideo && remoteCameraTrack && isTrackReference(remoteCameraTrack) ? (
-            <VideoTrack trackRef={remoteCameraTrack} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#1C1308] to-[#0A0703]">
-              {remoteParticipant ? (
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-5xl mx-auto mb-5 shadow-[0_0_60px_rgba(245,196,0,0.15)]">
-                    {otherInit}
-                  </div>
-                  <p className="text-white/70 text-sm font-semibold">{otherName}</p>
-                  <p className="text-white/30 text-xs mt-1">Caméra désactivée</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="relative w-24 h-24 mx-auto mb-6">
-                    <div className="absolute inset-0 rounded-full border-2 border-[#F5C400]/10 animate-ping" />
-                    <div className="absolute inset-2 rounded-full border-2 border-[#F5C400]/20 animate-ping [animation-delay:0.3s]" />
-                    <div className="absolute inset-4 rounded-full border-2 border-[#F5C400]/30 animate-ping [animation-delay:0.6s]" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full bg-[#F5C400]/20 flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-full bg-[#F5C400]/60" />
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-white/60 text-sm font-semibold">En attente de {otherName}…</p>
-                  <p className="text-white/20 text-xs mt-1.5">Le lien de la salle a été partagé</p>
-                  <div className="mt-4 bg-[#1A1209] border border-[#3A2A0E] rounded-xl px-4 py-2 inline-block">
-                    <p className="text-[#9B8A6B] text-xs font-mono">/classroom/{bookingId.slice(0, 8)}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Remote name tag */}
-          {remoteParticipant && (
-            <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <p className="text-white/90 text-xs font-semibold">{otherName}</p>
-            </div>
-          )}
-
-          {/* Self-view PiP */}
-          <div className="absolute bottom-4 right-4 w-44 h-28 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.6)] border-2 border-[#F5C400]/30 bg-[#1A1209]">
-            {localCameraTrack && isCameraEnabled && isTrackReference(localCameraTrack) ? (
-              <VideoTrack trackRef={localCameraTrack} className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#2A1F0E]">
-                <div className="w-12 h-12 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold">
-                  {myInit}
-                </div>
-              </div>
-            )}
-            <div className="absolute bottom-1.5 left-2.5">
-              <span className="text-white/60 text-[10px] font-semibold bg-black/40 px-1.5 py-0.5 rounded-md">Vous</span>
-            </div>
-            {!isMicrophoneEnabled && (
-              <div className="absolute top-1.5 right-1.5 bg-red-600 rounded-full p-1">
-                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
-          </div>
-
-          {/* ── Floating reactions ── */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {floatingReactions.map(r => (
-              <div
-                key={r.id}
-                className="absolute bottom-24 flex flex-col items-center"
-                style={{
-                  left: `${r.x}%`,
-                  animation: "floatUp 2.5s ease-out forwards",
-                }}
-              >
-                <span className="text-4xl drop-shadow-lg">{r.emoji}</span>
-                <span className="text-white/50 text-[10px] mt-1 font-medium">{r.sender.split(" ")[0]}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Reaction picker popup */}
-          {showPicker && (
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
-              <div className="bg-[#1A1209] border border-[#3A2A0E] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
-                {REACTIONS.map(emoji => (
-                  <button
-                    key={emoji}
-                    onClick={() => sendReaction(emoji)}
-                    className="text-2xl hover:scale-125 transition-transform active:scale-110"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              <div className="w-3 h-3 bg-[#1A1209] border-r border-b border-[#3A2A0E] rotate-45 mx-auto -mt-1.5" />
-            </div>
-          )}
-        </div>
-
-        {/* ── Chat sidebar ─────────────────────────────────────────── */}
-        {chatOpen && (
-          <div className="w-72 flex flex-col bg-[#0D0904] border-l border-white/5 flex-shrink-0">
-            {/* Chat header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
-              <p className="text-white/80 text-sm font-bold">Chat</p>
-              <button
-                onClick={() => setChatOpen(false)}
-                className="text-white/30 hover:text-white/70 transition p-1"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Messages list */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <p className="text-3xl mb-2">💬</p>
-                  <p className="text-white/30 text-xs">Commencez la conversation…</p>
-                </div>
-              ) : (
-                messages.map(msg => (
-                  <div key={msg.id} className={`flex flex-col ${msg.isLocal ? "items-end" : "items-start"}`}>
-                    <span className="text-[10px] font-semibold mb-1" style={{ color: msg.isLocal ? "#F5C400" : "#9B8A6B" }}>
-                      {msg.sender.split(" ")[0]}
-                    </span>
-                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      msg.isLocal
-                        ? "bg-[#F5C400] text-[#2D1A00] rounded-tr-sm"
-                        : "bg-[#2A1F0E] text-white/85 rounded-tl-sm"
-                    }`}>
-                      {renderWithLinks(msg.text)}
-                    </div>
-                    <span className="text-[9px] text-white/20 mt-1">
-                      {new Date(msg.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="px-3 py-3 border-t border-white/5 flex-shrink-0">
-              <div className="flex items-end gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                  placeholder="Écrire un message…"
-                  className="flex-1 bg-[#1A1209] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/85 placeholder-white/20 focus:outline-none focus:border-[#F5C400]/40 resize-none"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim()}
-                  className="w-9 h-9 flex-shrink-0 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] hover:bg-[#FFDE59] transition disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Control bar ──────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 bg-[#0A0703] border-t border-white/5 px-8 py-4">
-        <div className="flex items-center justify-center gap-3">
-
-          {/* Mic */}
-          <ControlButton
-            active={isMicrophoneEnabled}
-            onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)}
-            label={isMicrophoneEnabled ? "Micro" : "Muet"}
-            activeIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
-            }
-            inactiveIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3zM3 3l18 18" />
-              </svg>
-            }
-          />
-
-          {/* Camera */}
-          <ControlButton
-            active={isCameraEnabled}
-            onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
-            label={isCameraEnabled ? "Caméra" : "Arrêtée"}
-            activeIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-            }
-            inactiveIcon={
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2zM3 3l18 18" />
-              </svg>
-            }
-          />
-
-          <div className="w-px h-10 bg-white/10 mx-1" />
-
-          {/* Reactions */}
-          <button
-            onClick={() => setShowPicker(v => !v)}
-            className={`flex flex-col items-center gap-1 group`}
-          >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition border ${
-              showPicker
-                ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]"
-                : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"
-            }`}>
-              😊
-            </div>
-            <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">Réagir</span>
-          </button>
-
-          {/* Chat toggle */}
-          <button
-            onClick={() => setChatOpen(v => !v)}
-            className="flex flex-col items-center gap-1 group relative"
-          >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${
-              chatOpen
-                ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]"
-                : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"
-            }`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              {unread > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#F5C400] text-[#5C3D00] text-[9px] font-black rounded-full flex items-center justify-center">
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">Chat</span>
-          </button>
-
-          <div className="w-px h-10 bg-white/10 mx-1" />
-
-          {/* End call */}
-          <button onClick={onLeave} className="flex flex-col items-center gap-1 group">
-            <div className="w-14 h-12 rounded-2xl bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-[0_4px_20px_rgba(239,68,68,0.35)]">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-              </svg>
-            </div>
-            <span className="text-[10px] text-red-400/60">Terminer</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Float-up animation */}
-      <style>{`
-        @keyframes floatUp {
-          0%   { opacity: 1; transform: translateY(0) scale(1); }
-          20%  { opacity: 1; transform: translateY(-20px) scale(1.2); }
-          100% { opacity: 0; transform: translateY(-120px) scale(0.8); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-// ─── Reusable control button ──────────────────────────────────────────────────
-
-function ControlButton({ active, onClick, label, activeIcon, inactiveIcon }: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  activeIcon: React.ReactNode;
-  inactiveIcon: React.ReactNode;
-}) {
-  return (
-    <button onClick={onClick} className="flex flex-col items-center gap-1 group">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${
-        active
-          ? "bg-[#2A1F0E] hover:bg-[#3A2A0E] border-[#3A2A0E] text-white"
-          : "bg-red-600/90 hover:bg-red-600 border-transparent text-white"
-      }`}>
-        {active ? activeIcon : inactiveIcon}
-      </div>
-      <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">{label}</span>
-    </button>
   );
 }
 
@@ -576,10 +61,11 @@ function ControlButton({ active, onClick, label, activeIcon, inactiveIcon }: {
 export default function ClassroomClient({
   bookingId, role, tutorName, studentName, scheduledAt, durationMins,
 }: Props) {
-  const [token, setToken]     = useState<string | null>(null);
-  const [error, setError]     = useState<string | null>(null);
+  const [token,   setToken]   = useState<string | null>(null);
+  const [myName,  setMyName]  = useState(role === "student" ? studentName : tutorName);
+  const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [left, setLeft]       = useState(false);
+  const [left,    setLeft]    = useState(false);
   const leavingRef            = useRef(false);
 
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -587,22 +73,17 @@ export default function ClassroomClient({
   const handleLeave = useCallback(async () => {
     if (leavingRef.current) return;
     leavingRef.current = true;
-    try {
-      await fetch(`/api/bookings/${bookingId}/complete`, { method: "PATCH" });
-    } catch { /* best-effort */ }
+    try { await fetch(`/api/bookings/${bookingId}/complete`, { method: "PATCH" }); } catch { /* best-effort */ }
     setLeft(true);
   }, [bookingId]);
 
   const fetchToken = useCallback(async () => {
     try {
-      const res = await fetch(`/api/livekit/token?bookingId=${bookingId}`);
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Impossible de rejoindre la salle.");
-        return;
-      }
+      const res  = await fetch(`/api/livekit/token?bookingId=${bookingId}`);
       const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Impossible de rejoindre la salle."); return; }
       setToken(data.token);
+      if (data.displayName) setMyName(data.displayName);
     } catch {
       setError("Erreur réseau. Veuillez réessayer.");
     } finally {
@@ -612,33 +93,29 @@ export default function ClassroomClient({
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
-  if (left) return <LeftScreen role={role} bookingId={bookingId} />;
+  if (left)    return <LeftScreen role={role} bookingId={bookingId} />;
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-[#0F0A04] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[#C4BAA8] text-sm">Connexion à la salle…</p>
-        </div>
+  if (loading) return (
+    <div className="h-screen bg-[#0F0A04] flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-[#C4BAA8] text-sm">Connexion à la salle…</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="h-screen bg-[#0F0A04] flex items-center justify-center px-6">
-        <div className="bg-[#1A1209] rounded-2xl border border-[#3A2A0E] p-8 max-w-sm w-full text-center">
-          <p className="text-red-400 font-semibold mb-2">Erreur de connexion</p>
-          <p className="text-sm text-[#9B8A6B] mb-6">{error}</p>
-          <Link href={role === "student" ? "/dashboard/student" : "/dashboard/tutor"}
-            className="block w-full bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
-            Retour au tableau de bord
-          </Link>
-        </div>
+  if (error) return (
+    <div className="h-screen bg-[#0F0A04] flex items-center justify-center px-6">
+      <div className="bg-[#1A1209] rounded-2xl border border-[#3A2A0E] p-8 max-w-sm w-full text-center">
+        <p className="text-red-400 font-semibold mb-2">Erreur de connexion</p>
+        <p className="text-sm text-[#9B8A6B] mb-6">{error}</p>
+        <Link href={role === "student" ? "/dashboard/student" : "/dashboard/tutor"}
+          className="block w-full bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition">
+          Retour au tableau de bord
+        </Link>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <LiveKitRoom
@@ -651,12 +128,12 @@ export default function ClassroomClient({
     >
       <ClassroomView
         role={role}
-        tutorName={tutorName}
-        studentName={studentName}
+        myName={myName}
+        otherName={role === "student" ? tutorName : studentName}
         durationMins={durationMins}
         scheduledAt={scheduledAt}
-        onLeave={handleLeave}
         bookingId={bookingId}
+        onLeave={handleLeave}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>
