@@ -14,30 +14,38 @@ import { Track, RoomEvent, ConnectionQuality, ParticipantEvent } from "livekit-c
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ChatMessage {
-  id: string;
-  sender: string;
-  text: string;
-  time: number;
-  isLocal: boolean;
+  id: string; sender: string; text: string; time: number; isLocal: boolean;
 }
-
 interface FloatingReaction {
-  id: string;
-  emoji: string;
-  sender: string;
-  x: number;
+  id: string; emoji: string; sender: string; x: number;
+}
+interface WbStroke {
+  color: string; width: number; points: [number, number][];
 }
 
-interface WbStroke {
-  color: string;
-  width: number;
+type DrawTool = "pen" | "highlight" | "eraser" | "text" | "line" | "arrow" | "rect" | "circle" | "triangle";
+
+interface StrokeObj {
+  kind: "stroke"; tool: "pen" | "highlight";
+  color: string; width: number; opacity: number;
   points: [number, number][];
 }
+interface ShapeObj {
+  kind: "shape"; shape: "line" | "arrow" | "rect" | "circle" | "triangle";
+  color: string; width: number; filled: boolean;
+  x1: number; y1: number; x2: number; y2: number;
+}
+interface TextObj {
+  kind: "text"; content: string; x: number; y: number; color: string; size: number;
+}
+type CanvasObj = StrokeObj | ShapeObj | TextObj;
 
 type ActivePanel = "chat" | "whiteboard" | "info" | null;
-type Dropdown = "micro" | "camera" | "outils" | "plus" | null;
+type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
 
-const REACTIONS = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
+const REACTIONS      = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
+const CANVAS_COLORS  = ["#1a1a1a","#dc2626","#ea580c","#ca8a04","#16a34a","#0891b2","#2563eb","#9333ea","#db2777","#6b7280","#ffffff","#92400e"];
+const STROKE_WIDTHS  = [2, 4, 8, 16];
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -45,12 +53,9 @@ function renderWithLinks(text: string) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
   return parts.map((part, i) =>
-    urlRegex.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer"
-        className="text-[#F5C400] underline underline-offset-2 break-all hover:text-[#FFDE59]">
-        {part}
-      </a>
-    ) : <span key={i}>{part}</span>
+    urlRegex.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-[#F5C400] underline underline-offset-2 break-all hover:text-[#FFDE59]">{part}</a>
+      : <span key={i}>{part}</span>
   );
 }
 
@@ -76,14 +81,13 @@ function QualityBars({ quality }: { quality: ConnectionQuality }) {
 // ─── Bar Button ───────────────────────────────────────────────────────────────
 
 function BarBtn({ active, label, onClick, icon, blue = false }: {
-  active: boolean; label: string; onClick: () => void;
-  icon: React.ReactNode; blue?: boolean;
+  active: boolean; label: string; onClick: () => void; icon: React.ReactNode; blue?: boolean;
 }) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1 group">
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${
         active && !blue ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]"
-        : active && blue  ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+        : active && blue ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
         : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"
       }`}>{icon}</div>
       <span className={`text-[10px] transition ${
@@ -93,91 +97,309 @@ function BarBtn({ active, label, onClick, icon, blue = false }: {
   );
 }
 
+// ─── Canvas draw helper (top-level, stable) ───────────────────────────────────
+
+function drawObj(ctx: CanvasRenderingContext2D, obj: CanvasObj) {
+  ctx.save();
+  if (obj.kind === "stroke") {
+    if (obj.points.length < 2) { ctx.restore(); return; }
+    ctx.globalAlpha  = obj.opacity;
+    ctx.strokeStyle  = obj.color;
+    ctx.lineWidth    = obj.width;
+    ctx.lineCap      = "round";
+    ctx.lineJoin     = "round";
+    ctx.beginPath();
+    ctx.moveTo(obj.points[0][0], obj.points[0][1]);
+    for (let i = 1; i < obj.points.length; i++) ctx.lineTo(obj.points[i][0], obj.points[i][1]);
+    ctx.stroke();
+  } else if (obj.kind === "shape") {
+    ctx.strokeStyle = obj.color;
+    ctx.lineWidth   = obj.width;
+    ctx.lineCap     = "round";
+    ctx.lineJoin    = "round";
+    if (obj.filled) ctx.fillStyle = obj.color + "33";
+    const dx = obj.x2 - obj.x1, dy = obj.y2 - obj.y1;
+    if (obj.shape === "line") {
+      ctx.beginPath(); ctx.moveTo(obj.x1, obj.y1); ctx.lineTo(obj.x2, obj.y2); ctx.stroke();
+    } else if (obj.shape === "arrow") {
+      const angle   = Math.atan2(dy, dx);
+      const len     = Math.sqrt(dx * dx + dy * dy);
+      const headLen = Math.min(20, len * 0.35);
+      ctx.beginPath(); ctx.moveTo(obj.x1, obj.y1); ctx.lineTo(obj.x2, obj.y2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(obj.x2, obj.y2);
+      ctx.lineTo(obj.x2 - headLen * Math.cos(angle - Math.PI / 6), obj.y2 - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(obj.x2, obj.y2);
+      ctx.lineTo(obj.x2 - headLen * Math.cos(angle + Math.PI / 6), obj.y2 - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    } else if (obj.shape === "rect") {
+      const x = Math.min(obj.x1, obj.x2), y = Math.min(obj.y1, obj.y2);
+      const w = Math.abs(dx), h = Math.abs(dy);
+      if (obj.filled) ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+    } else if (obj.shape === "circle") {
+      const cx = (obj.x1 + obj.x2) / 2, cy = (obj.y1 + obj.y2) / 2;
+      ctx.beginPath(); ctx.ellipse(cx, cy, Math.abs(dx) / 2, Math.abs(dy) / 2, 0, 0, Math.PI * 2);
+      if (obj.filled) ctx.fill(); ctx.stroke();
+    } else if (obj.shape === "triangle") {
+      const mx = (obj.x1 + obj.x2) / 2;
+      ctx.beginPath(); ctx.moveTo(mx, obj.y1); ctx.lineTo(obj.x2, obj.y2); ctx.lineTo(obj.x1, obj.y2); ctx.closePath();
+      if (obj.filled) ctx.fill(); ctx.stroke();
+    }
+  } else if (obj.kind === "text") {
+    ctx.fillStyle = obj.color;
+    ctx.font      = `${obj.size}px sans-serif`;
+    obj.content.split("\n").forEach((line, i) => ctx.fillText(line, obj.x, obj.y + i * obj.size * 1.35));
+  }
+  ctx.restore();
+}
+
 // ─── Canvas Modal (Toile) ─────────────────────────────────────────────────────
 
-const TEXT_COLORS = [
-  { label: "Noir",    v: "#1a1a1a" }, { label: "Gris",   v: "#64748b" },
-  { label: "Bleu",   v: "#2563eb" }, { label: "Bleu c", v: "#0891b2" },
-  { label: "Vert",   v: "#16a34a" }, { label: "Émer",   v: "#059669" },
-  { label: "Rouge",  v: "#dc2626" }, { label: "Rose",   v: "#db2777" },
-  { label: "Violet", v: "#9333ea" }, { label: "Indigo", v: "#4f46e5" },
-  { label: "Orange", v: "#ea580c" }, { label: "Or",     v: "#ca8a04" },
-];
-const HILITE_COLORS = [
-  { label: "Jaune",  v: "#fef08a" }, { label: "Vert",   v: "#bbf7d0" },
-  { label: "Bleu",   v: "#bfdbfe" }, { label: "Rose",   v: "#fecdd3" },
-  { label: "Orange", v: "#fed7aa" }, { label: "Lilas",  v: "#e9d5ff" },
-  { label: "Aucun",  v: "transparent" },
+const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
+  { id: "pen",      label: "Stylo",      hint: "Dessinez librement. Supporte le tactile.",          d: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" },
+  { id: "highlight",label: "Surligneur", hint: "Surlignez des zones (transparence 40%).",           d: "M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" },
+  { id: "eraser",   label: "Gomme",      hint: "Effacez en peignant par-dessus.",                   d: "M20 20H7L3 16l13-13 7 7-3 10zm-7 0l-4-4" },
+  { id: "text",     label: "Texte",      hint: "Cliquez pour placer du texte. Entrée pour valider.",d: "M9 12h6M12 9v6M4 7V4h16v3M9 20h6M12 4v16" },
+  { id: "line",     label: "Ligne",      hint: "Tracez une ligne droite.",                          d: "M5 19L19 5" },
+  { id: "arrow",    label: "Flèche",     hint: "Tracez une flèche avec pointe.",                    d: "M5 19L19 5m0 0H9m10 0v10" },
+  { id: "rect",     label: "Rectangle",  hint: "Dessinez un rectangle.",                            d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" },
+  { id: "circle",   label: "Cercle",     hint: "Dessinez une ellipse.",                             d: "M12 22a10 10 0 110-20 10 10 0 010 20z" },
+  { id: "triangle", label: "Triangle",   hint: "Dessinez un triangle isocèle.",                     d: "M3 21l9-16 9 16H3z" },
 ];
 
-function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingHtml }: {
+function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount }: {
   isOpen: boolean; isFull: boolean;
   onClose: () => void; onToggleFull: () => void;
-  onSendData: (d: object) => void; incomingHtml: string | null;
+  onSendData: (d: object) => void;
+  incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
 }) {
-  const editorRef      = useRef<HTMLDivElement>(null);
-  const focusedRef     = useRef(false);
-  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [colorOpen,  setColorOpen]  = useState(false);
-  const [hiliteOpen, setHiliteOpen] = useState(false);
+  const mainRef      = useRef<HTMLCanvasElement>(null);
+  const previewRef   = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const objectsRef   = useRef<CanvasObj[]>([]);
+  const redoRef      = useRef<CanvasObj[]>([]);
+  const drawingRef   = useRef(false);
+  const startPos     = useRef<[number,number]>([0,0]);
+  const curPts       = useRef<[number,number][]>([]);
 
-  // Sync incoming content when not focused
-  useEffect(() => {
-    if (!isOpen || !incomingHtml || !editorRef.current || focusedRef.current) return;
-    editorRef.current.innerHTML = incomingHtml;
-  }, [incomingHtml, isOpen]);
+  const [tool,   setTool]   = useState<DrawTool>("pen");
+  const [color,  setColor]  = useState("#1a1a1a");
+  const [width,  setWidth]  = useState(4);
+  const [filled, setFilled] = useState(false);
+  const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
+  const textVal = useRef("");
 
-  // Escape key handler
+  const isShape = ["line","arrow","rect","circle","triangle"].includes(tool);
+
+  const getMain    = () => mainRef.current?.getContext("2d") ?? null;
+  const getPreview = () => previewRef.current?.getContext("2d") ?? null;
+
+  function redraw() {
+    const c = mainRef.current; const ctx = getMain();
+    if (!c || !ctx) return;
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+    objectsRef.current.forEach(o => drawObj(ctx, o));
+  }
+  function clearPreview() {
+    const c = previewRef.current; const ctx = getPreview();
+    if (!c || !ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+  }
+
+  // Resize observer
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
+    const obs = new ResizeObserver(() => {
+      const el = containerRef.current;
+      const m  = mainRef.current;
+      const p  = previewRef.current;
+      if (!el || !m || !p) return;
+      const { width: w, height: h } = el.getBoundingClientRect();
+      m.width = w; m.height = h; p.width = w; p.height = h;
+      redraw();
+    });
+    if (containerRef.current) obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Incoming remote object
+  useEffect(() => {
+    if (!incomingObj) return;
+    objectsRef.current.push(incomingObj);
+    const ctx = getMain(); if (ctx) drawObj(ctx, incomingObj);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingObj]);
+
+  // Remote clear
+  useEffect(() => {
+    if (!clearCount) return;
+    objectsRef.current = []; redoRef.current = []; redraw();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearCount]);
+
+  // Remote undo
+  useEffect(() => {
+    if (!undoCount) return;
+    if (objectsRef.current.length) objectsRef.current.pop();
+    redraw();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoCount]);
+
+  // Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const fn = (e: KeyboardEvent) => {
       if (e.key === "Escape") { if (isFull) onToggleFull(); else onClose(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [isOpen, isFull, onClose, onToggleFull]);
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isFull]);
 
-  function exec(cmd: string, val?: string) {
-    document.execCommand(cmd, false, val);
-    editorRef.current?.focus();
-    broadcast();
+  function getPos(e: React.PointerEvent<HTMLCanvasElement>): [number, number] {
+    const r = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
   }
 
-  function broadcast() {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      onSendData({ type: "canvas", html: editorRef.current?.innerHTML ?? "" });
-    }, 400);
+  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const p = getPos(e);
+    if (tool === "text") { setTextPos({ x: p[0], y: p[1] }); textVal.current = ""; return; }
+    drawingRef.current = true;
+    startPos.current   = p;
+    curPts.current     = [p];
   }
+
+  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    const p = getPos(e);
+    curPts.current.push(p);
+
+    if (tool === "pen" || tool === "highlight" || tool === "eraser") {
+      const ctx = getMain(); const pts = curPts.current;
+      if (!ctx || pts.length < 2) return;
+      ctx.save();
+      ctx.globalAlpha  = (tool === "highlight") ? 0.4 : 1;
+      ctx.strokeStyle  = (tool === "eraser") ? "#ffffff" : color;
+      ctx.lineWidth    = (tool === "highlight") ? width * 3 : (tool === "eraser") ? width * 4 : width;
+      ctx.lineCap      = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      ctx.stroke(); ctx.restore();
+    } else {
+      clearPreview();
+      const ctx = getPreview(); if (!ctx) return;
+      drawObj(ctx, {
+        kind: "shape", shape: tool as ShapeObj["shape"],
+        color, width, filled,
+        x1: startPos.current[0], y1: startPos.current[1], x2: p[0], y2: p[1],
+      });
+    }
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    clearPreview();
+    const p = getPos(e);
+
+    if (tool === "pen" || tool === "highlight" || tool === "eraser") {
+      if (curPts.current.length < 2) { curPts.current = []; return; }
+      const obj: StrokeObj = {
+        kind:    "stroke",
+        tool:    tool === "eraser" ? "pen" : tool,
+        color:   tool === "eraser" ? "#ffffff" : color,
+        width:   tool === "highlight" ? width * 3 : tool === "eraser" ? width * 4 : width,
+        opacity: tool === "highlight" ? 0.4 : 1,
+        points:  [...curPts.current],
+      };
+      objectsRef.current.push(obj);
+      redoRef.current = [];
+      if (tool === "eraser") redraw(); // re-render cleanly after erasing
+      onSendData({ type: "canvas-obj", obj });
+    } else {
+      const obj: ShapeObj = {
+        kind: "shape", shape: tool as ShapeObj["shape"],
+        color, width, filled,
+        x1: startPos.current[0], y1: startPos.current[1], x2: p[0], y2: p[1],
+      };
+      objectsRef.current.push(obj);
+      redoRef.current = [];
+      const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+      onSendData({ type: "canvas-obj", obj });
+    }
+    curPts.current = [];
+  }
+
+  function handleUndo() {
+    if (!objectsRef.current.length) return;
+    redoRef.current.push(objectsRef.current.pop()!);
+    redraw();
+    onSendData({ type: "canvas-undo" });
+  }
+  function handleRedo() {
+    if (!redoRef.current.length) return;
+    const obj = redoRef.current.pop()!;
+    objectsRef.current.push(obj);
+    const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+  }
+  function handleClear() {
+    objectsRef.current = []; redoRef.current = []; redraw();
+    onSendData({ type: "canvas-clear" });
+  }
+  function handleExport() {
+    const c = mainRef.current; if (!c) return;
+    const a = document.createElement("a");
+    a.href = c.toDataURL("image/png"); a.download = "toile.png"; a.click();
+  }
+  function commitText() {
+    if (!textPos || !textVal.current.trim()) { setTextPos(null); textVal.current = ""; return; }
+    const sz = Math.max(14, width * 5);
+    const obj: TextObj = { kind: "text", content: textVal.current, x: textPos.x, y: textPos.y, color, size: sz };
+    objectsRef.current.push(obj); redoRef.current = [];
+    const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+    onSendData({ type: "canvas-obj", obj });
+    setTextPos(null); textVal.current = "";
+  }
+
+  const cursors: Record<DrawTool, string> = {
+    pen:"crosshair", highlight:"crosshair", eraser:"cell", text:"text",
+    line:"crosshair", arrow:"crosshair", rect:"crosshair", circle:"crosshair", triangle:"crosshair",
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`flex flex-col bg-white shadow-2xl overflow-hidden transition-all duration-200 ${
-        isFull ? "w-full h-full rounded-none" : "w-[90vw] h-[88vh] rounded-2xl"
+      <div className={`flex flex-col bg-[#0D0904] shadow-2xl overflow-hidden transition-all duration-200 border border-[#3A2A0E] ${
+        isFull ? "w-full h-full rounded-none" : "w-[92vw] h-[90vh] rounded-2xl"
       }`}>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-2.5 bg-[#0D0904] border-b border-white/5 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-            <span className="text-white/85 text-sm font-bold">Toile collaborative</span>
-          </div>
-          <span className="text-white/25 text-xs hidden sm:block">Modifications visibles en temps réel par les deux participants</span>
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0703] border-b border-white/5 flex-shrink-0">
+          <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
+          <span className="text-white/85 text-sm font-bold">Toile collaborative</span>
+          <span className="text-white/25 text-xs hidden sm:block">Modifications visibles en temps réel</span>
           <div className="ml-auto flex items-center gap-1">
+            <button onClick={handleExport} title="Exporter PNG"
+              className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span className="hidden sm:block">Exporter</span>
+            </button>
             <button onClick={onToggleFull} title={isFull ? "Réduire" : "Plein écran"}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
-              {isFull ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M15 9h4.5M15 9V4.5M9 15v4.5M9 15H4.5M15 15h4.5M15 15v4.5" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                </svg>
-              )}
+              {isFull
+                ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M15 9h4.5M15 9V4.5M9 15v4.5M9 15H4.5M15 15h4.5M15 15v4.5" /></svg>
+                : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
+              }
             </button>
             <button onClick={onClose} title="Fermer"
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
@@ -188,182 +410,132 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-0.5 px-3 py-1.5 bg-gray-50 border-b border-gray-200 flex-shrink-0 flex-wrap"
-          onMouseDown={e => e.preventDefault()}>
+        {/* Options toolbar */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0F0B05] border-b border-white/5 flex-shrink-0 flex-wrap">
 
-          {/* Format block */}
-          <select onChange={e => exec("formatBlock", e.target.value)} defaultValue="p"
-            className="h-7 text-xs text-gray-700 bg-white border border-gray-200 rounded px-1.5 mr-1 cursor-pointer focus:outline-none hover:border-gray-400 transition">
-            <option value="p">Normal</option>
-            <option value="h1">Titre 1</option>
-            <option value="h2">Titre 2</option>
-            <option value="h3">Titre 3</option>
-          </select>
-
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-
-          {/* B I U S */}
-          {[
-            { cmd: "bold",          ch: "B", cls: "font-bold"    },
-            { cmd: "italic",        ch: "I", cls: "italic"       },
-            { cmd: "underline",     ch: "U", cls: "underline"    },
-            { cmd: "strikeThrough", ch: "S", cls: "line-through" },
-          ].map(b => (
-            <button key={b.cmd} onClick={() => exec(b.cmd)}
-              className={`w-7 h-7 rounded text-sm text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition flex items-center justify-center ${b.cls}`}>
-              {b.ch}
-            </button>
-          ))}
-
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-
-          {/* Align */}
-          {[
-            { cmd: "justifyLeft",   d: "M4 6h16M4 10h10M4 14h16M4 18h10" },
-            { cmd: "justifyCenter", d: "M4 6h16M7 10h10M4 14h16M7 18h10" },
-            { cmd: "justifyRight",  d: "M4 6h16M10 10h10M4 14h16M10 18h10" },
-          ].map(a => (
-            <button key={a.cmd} onClick={() => exec(a.cmd)}
-              className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition flex items-center justify-center">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d={a.d} />
-              </svg>
-            </button>
-          ))}
-
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-
-          {/* Lists */}
-          <button onClick={() => exec("insertUnorderedList")} title="Liste à puces"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <button onClick={() => exec("insertOrderedList")} title="Liste numérotée"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-            </svg>
-          </button>
-
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-
-          {/* Indent */}
-          <button onClick={() => exec("indent")} title="Indenter"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M3 12h12M3 18h18M8 9l4 3-4 3" />
-            </svg>
-          </button>
-          <button onClick={() => exec("outdent")} title="Désindenter"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M9 12h12M3 18h18M8 9L4 12l4 3" />
-            </svg>
-          </button>
-
-          <div className="w-px h-5 bg-gray-200 mx-1" />
-
-          {/* Text color */}
-          <div className="relative">
-            <button onClick={() => { setColorOpen(v => !v); setHiliteOpen(false); }}
-              className="flex items-center gap-0.5 h-7 px-1.5 rounded text-gray-600 hover:bg-gray-200 transition">
-              <span className="text-sm font-bold" style={{ color: "#2563eb", textDecoration: "underline", textDecorationColor: "#2563eb" }}>A</span>
-              <svg className="w-2.5 h-2.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {colorOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2.5 z-20"
-                onMouseDown={e => e.preventDefault()}>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase mb-2">Couleur du texte</p>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {TEXT_COLORS.map(c => (
-                    <button key={c.v} onClick={() => { exec("foreColor", c.v); setColorOpen(false); }}
-                      title={c.label}
-                      className="w-6 h-6 rounded-full border-2 border-gray-100 hover:scale-110 transition-transform shadow-sm"
-                      style={{ backgroundColor: c.v }} />
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* Tools */}
+          <div className="flex items-center gap-0.5">
+            {TOOL_DEFS.map(t => (
+              <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                  tool === t.id ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
+                }`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d={t.d} />
+                </svg>
+              </button>
+            ))}
           </div>
 
-          {/* Highlight */}
-          <div className="relative">
-            <button onClick={() => { setHiliteOpen(v => !v); setColorOpen(false); }}
-              className="flex items-center gap-0.5 h-7 px-1.5 rounded text-gray-600 hover:bg-gray-200 transition">
-              <span className="text-sm font-bold px-0.5 rounded-sm" style={{ backgroundColor: "#fef08a" }}>ab</span>
-              <svg className="w-2.5 h-2.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {hiliteOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2.5 z-20"
-                onMouseDown={e => e.preventDefault()}>
-                <p className="text-[10px] text-gray-400 font-semibold uppercase mb-2">Surlignage</p>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {HILITE_COLORS.map(c => (
-                    <button key={c.v} onClick={() => { exec("hiliteColor", c.v); setHiliteOpen(false); }}
-                      title={c.label}
-                      className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform shadow-sm"
-                      style={{ backgroundColor: c.v === "transparent" ? "#f8f8f8" : c.v }} />
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
+
+          {/* Colors */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {CANVAS_COLORS.map(c => (
+              <button key={c} onClick={() => setColor(c)} title={c}
+                className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0 ${
+                  color === c ? "border-[#F5C400] scale-110" : "border-white/20"
+                }`}
+                style={{ backgroundColor: c }} />
+            ))}
+            <input type="color" value={color} onChange={e => setColor(e.target.value)} title="Couleur personnalisée"
+              className="w-5 h-5 rounded-full cursor-pointer border-2 border-white/20 bg-transparent p-0 flex-shrink-0" />
           </div>
 
-          <div className="w-px h-5 bg-gray-200 mx-1" />
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
 
-          {/* Undo / Redo */}
-          <button onClick={() => exec("undo")} title="Annuler"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" />
-            </svg>
-          </button>
-          <button onClick={() => exec("redo")} title="Rétablir"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 14l5-5-5-5M19 9H8.5a5.5 5.5 0 100 11H13" />
-            </svg>
-          </button>
+          {/* Stroke widths */}
+          <div className="flex items-center gap-1">
+            {STROKE_WIDTHS.map(w => (
+              <button key={w} onClick={() => setWidth(w)} title={`${w}px`}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                  width === w ? "bg-[#F5C400]/20 border border-[#F5C400]/40" : "hover:bg-white/10"
+                }`}>
+                <div className="rounded-full" style={{ width: Math.min(w * 2.5, 20), height: Math.min(w * 2.5, 20), backgroundColor: color }} />
+              </button>
+            ))}
+          </div>
 
-          <div className="w-px h-5 bg-gray-200 mx-1" />
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
 
-          {/* Clear format */}
-          <button onClick={() => exec("removeFormat")} title="Effacer le formatage"
-            className="w-7 h-7 rounded text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L17.94 6M3 3l18 18" />
-            </svg>
-          </button>
+          {/* Fill toggle (shapes only) */}
+          {isShape && (
+            <button onClick={() => setFilled(v => !v)} title={filled ? "Mode contour" : "Mode rempli"}
+              className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition border ${
+                filled ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
+              }`}>
+              <svg className="w-3.5 h-3.5" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+              </svg>
+              {filled ? "Rempli" : "Contour"}
+            </button>
+          )}
+
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
+
+          {/* Undo / Redo / Clear */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={handleUndo} title="Annuler (Ctrl+Z)"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" />
+              </svg>
+            </button>
+            <button onClick={handleRedo} title="Rétablir"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 14l5-5-5-5M19 9H8.5a5.5 5.5 0 100 11H13" />
+              </svg>
+            </button>
+            <button onClick={handleClear} title="Tout effacer"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:bg-red-500/20 hover:text-red-400 transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Tool hint */}
+          <span className="ml-2 text-white/25 text-[10px] hidden md:block truncate">
+            {TOOL_DEFS.find(t => t.id === tool)?.hint}
+          </span>
         </div>
 
-        {/* Document area */}
-        <div className="flex-1 overflow-y-auto bg-gray-100 py-6 px-4">
-          <div className="max-w-3xl mx-auto bg-white shadow rounded-sm px-14 py-12 min-h-full">
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onFocus={() => { focusedRef.current = true; }}
-              onBlur={() => { focusedRef.current = false; broadcast(); }}
-              onInput={broadcast}
-              data-placeholder="Commencez à écrire…"
-              className="min-h-[500px] text-gray-900 text-[15px] leading-7 focus:outline-none"
-              style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
+        {/* Canvas area */}
+        <div ref={containerRef} className="flex-1 relative overflow-hidden bg-white">
+          <canvas ref={mainRef}
+            className="absolute inset-0"
+            style={{ cursor: cursors[tool], touchAction: "none" }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          />
+          <canvas ref={previewRef}
+            className="absolute inset-0 pointer-events-none"
+          />
+          {textPos && (
+            <textarea
+              autoFocus
+              className="absolute bg-transparent border border-dashed border-blue-500 resize-none focus:outline-none"
+              style={{
+                left: textPos.x, top: textPos.y - Math.max(14, width * 5),
+                fontSize: Math.max(14, width * 5), color, fontFamily: "sans-serif",
+                minWidth: 120, minHeight: 40, lineHeight: 1.35,
+              }}
+              onChange={e => { textVal.current = e.target.value; }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
+                if (e.key === "Escape") { setTextPos(null); textVal.current = ""; }
+              }}
+              onBlur={commitText}
             />
-          </div>
+          )}
         </div>
 
-        {/* Footer status */}
-        <div className="flex items-center justify-between px-5 py-1.5 bg-gray-50 border-t border-gray-200 flex-shrink-0">
-          <span className="text-[11px] text-gray-400">Toile partagée · Modifications synchronisées</span>
-          <span className="text-[11px] text-gray-400">Échap pour fermer</span>
+        {/* Footer */}
+        <div className="flex items-center justify-between px-4 py-1 bg-[#0A0703] border-t border-white/5 flex-shrink-0">
+          <span className="text-[10px] text-white/25">Toile partagée · Tactile supporté</span>
+          <span className="text-[10px] text-white/25">Ctrl+Z annuler · Échap fermer</span>
         </div>
       </div>
     </div>
@@ -426,14 +598,14 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
   onSendData: (d: object) => void;
   incomingStroke: WbStroke | null; incomingClear: number;
 }) {
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const canvasRef     = useRef<HTMLCanvasElement>(null);
-  const strokesRef    = useRef<WbStroke[]>([]);
-  const curPoints     = useRef<[number, number][]>([]);
-  const drawing       = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const strokesRef   = useRef<WbStroke[]>([]);
+  const curPoints    = useRef<[number, number][]>([]);
+  const drawing      = useRef(false);
   const [color, setColor] = useState("#1a1a1a");
-  const [tool,  setTool]  = useState<"pen" | "eraser">("pen");
-  const WB_COLORS = ["#1a1a1a", "#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#F5C400"];
+  const [wbTool, setWbTool] = useState<"pen" | "eraser">("pen");
+  const WB_COLORS = ["#1a1a1a","#2563eb","#dc2626","#16a34a","#9333ea","#ea580c","#F5C400"];
 
   const getCtx = () => canvasRef.current?.getContext("2d") ?? null;
 
@@ -445,7 +617,6 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
     s.points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
     ctx.stroke();
   }
-
   function redraw() {
     const c = canvasRef.current; const ctx = getCtx();
     if (!c || !ctx) return;
@@ -482,7 +653,6 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
     const r = canvasRef.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   }
-
   function onDown(e: React.MouseEvent<HTMLCanvasElement>) { drawing.current = true; curPoints.current = [pos(e)]; }
   function onMove(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!drawing.current) return;
@@ -490,8 +660,8 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
     const ctx = getCtx(); const pts = curPoints.current;
     if (!ctx || pts.length < 2) return;
     ctx.beginPath();
-    ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
-    ctx.lineWidth = tool === "eraser" ? 24 : 3;
+    ctx.strokeStyle = wbTool === "eraser" ? "#ffffff" : color;
+    ctx.lineWidth   = wbTool === "eraser" ? 24 : 3;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
     ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
@@ -500,7 +670,7 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
   function onUp() {
     if (!drawing.current) return; drawing.current = false;
     if (curPoints.current.length > 1) {
-      const s: WbStroke = { color: tool === "eraser" ? "#ffffff" : color, width: tool === "eraser" ? 24 : 3, points: [...curPoints.current] };
+      const s: WbStroke = { color: wbTool === "eraser" ? "#ffffff" : color, width: wbTool === "eraser" ? 24 : 3, points: [...curPoints.current] };
       strokesRef.current.push(s); onSendData({ type: "wb-stroke", ...s });
     }
     curPoints.current = [];
@@ -509,16 +679,16 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 flex-shrink-0 bg-[#0D0904]">
-        <button onClick={() => setTool("pen")} className={`w-7 h-7 rounded flex items-center justify-center transition ${tool === "pen" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
+        <button onClick={() => setWbTool("pen")} className={`w-7 h-7 rounded flex items-center justify-center transition ${wbTool === "pen" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
         </button>
-        <button onClick={() => setTool("eraser")} className={`w-7 h-7 rounded flex items-center justify-center transition ${tool === "eraser" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
+        <button onClick={() => setWbTool("eraser")} className={`w-7 h-7 rounded flex items-center justify-center transition ${wbTool === "eraser" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L17.94 6M3 3l18 18" /></svg>
         </button>
         <div className="w-px h-5 bg-white/10" />
         {WB_COLORS.map(c => (
-          <button key={c} onClick={() => { setColor(c); setTool("pen"); }}
-            className={`w-4 h-4 rounded-full border-2 transition-transform hover:scale-125 flex-shrink-0 ${color === c && tool === "pen" ? "border-[#F5C400]" : "border-transparent"}`}
+          <button key={c} onClick={() => { setColor(c); setWbTool("pen"); }}
+            className={`w-4 h-4 rounded-full border-2 transition-transform hover:scale-125 flex-shrink-0 ${color === c && wbTool === "pen" ? "border-[#F5C400]" : "border-transparent"}`}
             style={{ backgroundColor: c }} />
         ))}
         <button onClick={() => { strokesRef.current = []; redraw(); onSendData({ type: "wb-clear" }); }}
@@ -538,7 +708,7 @@ function InfoPanel({ myName, otherName, elapsed, msgCount, quality, remoteQualit
   myName: string; otherName: string; elapsed: number; msgCount: number;
   quality: ConnectionQuality; remoteQuality: ConnectionQuality; isSandbox?: boolean;
 }) {
-  const [tab, setTab]     = useState<"info" | "reseau" | "cles">("info");
+  const [tab, setTab]       = useState<"info" | "reseau" | "cles">("info");
   const [copied, setCopied] = useState(false);
   const roomLink = typeof window !== "undefined" ? window.location.href : "";
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
@@ -632,7 +802,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 }) {
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const participants = useParticipants();
-  const room = useRoomContext();
+  const room         = useRoomContext();
 
   const tracks = useTracks(
     [{ source: Track.Source.Camera, withPlaceholder: true }, { source: Track.Source.ScreenShare, withPlaceholder: false }],
@@ -649,17 +819,17 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
 
   // Tracks
-  const remoteCamTrack   = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.Camera);
-  const localCamTrack    = tracks.find(t =>  t.participant.isLocal && t.source === Track.Source.Camera);
-  const remoteScrnTrack  = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.ScreenShare);
-  const localScrnTrack   = tracks.find(t =>  t.participant.isLocal && t.source === Track.Source.ScreenShare);
-  const remotePart       = participants.find(p => !p.isLocal);
-  const hasRemoteVideo   = !!(remoteCamTrack?.publication && !remoteCamTrack.publication.isMuted);
-  const hasRemoteScreen  = !!(remoteScrnTrack && isTrackReference(remoteScrnTrack) && remoteScrnTrack.publication && !remoteScrnTrack.publication.isMuted);
-  const isSharing        = !!(localScrnTrack?.publication && !localScrnTrack.publication.isMuted);
-  const displayOther     = remotePart?.name ?? otherName;
-  const myInit           = myName.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
-  const otherInit        = displayOther.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
+  const remoteCamTrack  = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.Camera);
+  const localCamTrack   = tracks.find(t =>  t.participant.isLocal && t.source === Track.Source.Camera);
+  const remoteScrnTrack = tracks.find(t => !t.participant.isLocal && t.source === Track.Source.ScreenShare);
+  const localScrnTrack  = tracks.find(t =>  t.participant.isLocal && t.source === Track.Source.ScreenShare);
+  const remotePart      = participants.find(p => !p.isLocal);
+  const hasRemoteVideo  = !!(remoteCamTrack?.publication && !remoteCamTrack.publication.isMuted);
+  const hasRemoteScreen = !!(remoteScrnTrack && isTrackReference(remoteScrnTrack) && remoteScrnTrack.publication && !remoteScrnTrack.publication.isMuted);
+  const isSharing       = !!(localScrnTrack?.publication && !localScrnTrack.publication.isMuted);
+  const displayOther    = remotePart?.name ?? otherName;
+  const myInit          = myName.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
+  const otherInit       = displayOther.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
 
   // Connection quality
   const [quality,       setQuality]       = useState<ConnectionQuality>(ConnectionQuality.Unknown);
@@ -724,7 +894,9 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [floatingReactions, setFloatReactions] = useState<FloatingReaction[]>([]);
 
   // Canvas
-  const [incomingCanvasHtml, setIncomingCanvasHtml] = useState<string | null>(null);
+  const [incomingCanvasObj, setIncomingCanvasObj] = useState<CanvasObj | null>(null);
+  const [canvasClearCount,  setCanvasClearCount]  = useState(0);
+  const [canvasUndoCount,   setCanvasUndoCount]   = useState(0);
 
   // Whiteboard
   const [incomingWbStroke, setIncomingWbStroke] = useState<WbStroke | null>(null);
@@ -741,10 +913,12 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             setMessages(prev => [...prev, { id: crypto.randomUUID(), sender: msg.sender, text: msg.text, time: msg.time, isLocal: false }]);
             setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
             break;
-          case "reaction": addFloat(msg.emoji, msg.sender); break;
-          case "canvas":   setIncomingCanvasHtml(msg.html); break;
-          case "wb-stroke": setIncomingWbStroke({ color: msg.color, width: msg.width, points: msg.points }); break;
-          case "wb-clear":  setWbClearCount(n => n + 1); break;
+          case "reaction":    addFloat(msg.emoji, msg.sender); break;
+          case "canvas-obj":  setIncomingCanvasObj(msg.obj); break;
+          case "canvas-clear":setCanvasClearCount(n => n + 1); break;
+          case "canvas-undo": setCanvasUndoCount(n => n + 1); break;
+          case "wb-stroke":   setIncomingWbStroke({ color: msg.color, width: msg.width, points: msg.points }); break;
+          case "wb-clear":    setWbClearCount(n => n + 1); break;
         }
       } catch { /* ignore */ }
     };
@@ -780,7 +954,9 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         onClose={() => setCanvasOpen(false)}
         onToggleFull={() => setCanvasFull(v => !v)}
         onSendData={sendData}
-        incomingHtml={incomingCanvasHtml}
+        incomingObj={incomingCanvasObj}
+        clearCount={canvasClearCount}
+        undoCount={canvasUndoCount}
       />
 
       {/* Top bar */}
@@ -1002,7 +1178,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           {/* Toile */}
           <BarBtn active={canvasOpen} label="Toile" onClick={() => setCanvasOpen(v => !v)}
-            icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+            icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
           />
 
           {/* Outils */}
@@ -1101,11 +1277,6 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           0%   { opacity:1; transform:translateY(0) scale(1); }
           20%  { opacity:1; transform:translateY(-20px) scale(1.2); }
           100% { opacity:0; transform:translateY(-120px) scale(0.8); }
-        }
-        [contenteditable][data-placeholder]:empty::before {
-          content: attr(data-placeholder);
-          color: rgba(0,0,0,0.25);
-          pointer-events: none;
         }
       `}</style>
     </div>
