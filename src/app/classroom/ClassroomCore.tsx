@@ -23,7 +23,7 @@ interface WbStroke {
   color: string; width: number; points: [number, number][];
 }
 
-type DrawTool = "pen" | "highlight" | "eraser" | "text" | "line" | "arrow" | "rect" | "circle" | "triangle";
+type DrawTool = "pen" | "highlight" | "eraser" | "text" | "line" | "arrow" | "rect" | "circle" | "triangle" | "hand";
 
 interface StrokeObj {
   kind: "stroke"; tool: "pen" | "highlight";
@@ -166,6 +166,7 @@ const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
   { id: "rect",     label: "Rectangle",  hint: "Dessinez un rectangle.",                            d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" },
   { id: "circle",   label: "Cercle",     hint: "Dessinez une ellipse.",                             d: "M12 22a10 10 0 110-20 10 10 0 010 20z" },
   { id: "triangle", label: "Triangle",   hint: "Dessinez un triangle isocèle.",                     d: "M3 21l9-16 9 16H3z" },
+  { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
 ];
 
 function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount }: {
@@ -188,18 +189,45 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
   const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
-  const textVal = useRef("");
+  const textVal       = useRef("");
+  const textareaRef   = useRef<HTMLTextAreaElement>(null);
+  const committingRef = useRef(false);
+
+  // Zoom & pan
+  const zoomRef          = useRef(1);
+  const panRef           = useRef({ x: 0, y: 0 });
+  const [zoomPct, setZoomPct] = useState(100);
+  const activePtrsRef    = useRef(new Map<number, { x: number; y: number }>());
+  const lastPinchDistRef = useRef<number | null>(null);
+  const isPanningRef     = useRef(false);
+  const panStartRef      = useRef({ sx: 0, sy: 0, px: 0, py: 0 });
 
   const isShape = ["line","arrow","rect","circle","triangle"].includes(tool);
 
   const getMain    = () => mainRef.current?.getContext("2d") ?? null;
   const getPreview = () => previewRef.current?.getContext("2d") ?? null;
 
+  function applyZoom(factor: number, cx: number, cy: number) {
+    const z = Math.max(0.15, Math.min(8, zoomRef.current * factor));
+    panRef.current.x = cx - (cx - panRef.current.x) * (z / zoomRef.current);
+    panRef.current.y = cy - (cy - panRef.current.y) * (z / zoomRef.current);
+    zoomRef.current  = z;
+    setZoomPct(Math.round(z * 100));
+    redraw();
+  }
+  function resetZoom() {
+    zoomRef.current = 1; panRef.current = { x: 0, y: 0 };
+    setZoomPct(100); redraw();
+  }
+
   function redraw() {
     const c = mainRef.current; const ctx = getMain();
     if (!c || !ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.setTransform(zoomRef.current, 0, 0, zoomRef.current, panRef.current.x, panRef.current.y);
     objectsRef.current.forEach(o => drawObj(ctx, o));
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
   function clearPreview() {
     const c = previewRef.current; const ctx = getPreview();
@@ -247,7 +275,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [undoCount]);
 
-  // Escape key
+  // Escape key + Ctrl+Z
   useEffect(() => {
     if (!isOpen) return;
     const fn = (e: KeyboardEvent) => {
@@ -259,22 +287,94 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isFull]);
 
+  // Wheel zoom (must be non-passive to preventDefault)
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const fn = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      if (e.ctrlKey || e.metaKey) {
+        // trackpad pinch sends ctrl+wheel
+        applyZoom(e.deltaY < 0 ? 1.1 : 0.9, cx, cy);
+      } else {
+        // regular scroll = zoom
+        applyZoom(e.deltaY < 0 ? 1.12 : 0.88, cx, cy);
+      }
+    };
+    el.addEventListener("wheel", fn, { passive: false });
+    return () => el.removeEventListener("wheel", fn);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   function getPos(e: React.PointerEvent<HTMLCanvasElement>): [number, number] {
-    const r = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
-    return [e.clientX - r.left, e.clientY - r.top];
+    const r = mainRef.current!.getBoundingClientRect();
+    return [
+      (e.clientX - r.left - panRef.current.x) / zoomRef.current,
+      (e.clientY - r.top  - panRef.current.y) / zoomRef.current,
+    ];
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    activePtrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = getPos(e);
-    if (tool === "text") { setTextPos({ x: p[0], y: p[1] }); textVal.current = ""; return; }
+
+    // Text tool: no capture, just place textarea
+    if (tool === "text") {
+      committingRef.current = false; textVal.current = "";
+      setTextPos({ x: p[0], y: p[1] });
+      setTimeout(() => textareaRef.current?.focus(), 30);
+      return;
+    }
+
+    // Pinch: 2+ fingers → zoom instead of draw
+    if (activePtrsRef.current.size >= 2) {
+      drawingRef.current = false;
+      const pts = [...activePtrsRef.current.values()];
+      lastPinchDistRef.current = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      return;
+    }
+
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    // Hand tool: pan
+    if (tool === "hand") {
+      isPanningRef.current = true;
+      panStartRef.current  = { sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y };
+      return;
+    }
+
     drawingRef.current = true;
     startPos.current   = p;
     curPts.current     = [p];
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    activePtrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // Pinch zoom
+    if (activePtrsRef.current.size >= 2 && lastPinchDistRef.current !== null) {
+      const pts = [...activePtrsRef.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const r = containerRef.current!.getBoundingClientRect();
+      const cx = (pts[0].x + pts[1].x) / 2 - r.left;
+      const cy = (pts[0].y + pts[1].y) / 2 - r.top;
+      applyZoom(dist / lastPinchDistRef.current, cx, cy);
+      lastPinchDistRef.current = dist;
+      return;
+    }
+
+    // Hand tool pan
+    if (isPanningRef.current) {
+      panRef.current.x = panStartRef.current.px + (e.clientX - panStartRef.current.sx);
+      panRef.current.y = panStartRef.current.py + (e.clientY - panStartRef.current.sy);
+      redraw(); return;
+    }
+
     if (!drawingRef.current) return;
     const p = getPos(e);
     curPts.current.push(p);
@@ -283,10 +383,11 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
       const ctx = getMain(); const pts = curPts.current;
       if (!ctx || pts.length < 2) return;
       ctx.save();
-      ctx.globalAlpha  = (tool === "highlight") ? 0.4 : 1;
-      ctx.strokeStyle  = (tool === "eraser") ? "#ffffff" : color;
-      ctx.lineWidth    = (tool === "highlight") ? width * 3 : (tool === "eraser") ? width * 4 : width;
-      ctx.lineCap      = "round"; ctx.lineJoin = "round";
+      ctx.setTransform(zoomRef.current, 0, 0, zoomRef.current, panRef.current.x, panRef.current.y);
+      ctx.globalAlpha = (tool === "highlight") ? 0.4 : 1;
+      ctx.strokeStyle = (tool === "eraser") ? "#ffffff" : color;
+      ctx.lineWidth   = (tool === "highlight") ? width * 3 : (tool === "eraser") ? width * 4 : width;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
       ctx.beginPath();
       ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
       ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
@@ -294,15 +395,17 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     } else {
       clearPreview();
       const ctx = getPreview(); if (!ctx) return;
-      drawObj(ctx, {
-        kind: "shape", shape: tool as ShapeObj["shape"],
-        color, width, filled,
-        x1: startPos.current[0], y1: startPos.current[1], x2: p[0], y2: p[1],
-      });
+      ctx.save();
+      ctx.setTransform(zoomRef.current, 0, 0, zoomRef.current, panRef.current.x, panRef.current.y);
+      drawObj(ctx, { kind:"shape", shape:tool as ShapeObj["shape"], color, width, filled, x1:startPos.current[0], y1:startPos.current[1], x2:p[0], y2:p[1] });
+      ctx.restore();
     }
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    activePtrsRef.current.delete(e.pointerId);
+    if (activePtrsRef.current.size < 2) lastPinchDistRef.current = null;
+    if (tool === "hand") { isPanningRef.current = false; return; }
     if (!drawingRef.current) return;
     drawingRef.current = false;
     clearPreview();
@@ -358,18 +461,23 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     a.href = c.toDataURL("image/png"); a.download = "toile.png"; a.click();
   }
   function commitText() {
-    if (!textPos || !textVal.current.trim()) { setTextPos(null); textVal.current = ""; return; }
+    if (committingRef.current) return;
+    committingRef.current = true;
+    const text = textVal.current.trim();
+    textVal.current = "";
+    setTextPos(null);
+    if (!text || !textPos) return;
     const sz = Math.max(14, width * 5);
-    const obj: TextObj = { kind: "text", content: textVal.current, x: textPos.x, y: textPos.y, color, size: sz };
+    const obj: TextObj = { kind: "text", content: text, x: textPos.x, y: textPos.y, color, size: sz };
     objectsRef.current.push(obj); redoRef.current = [];
     const ctx = getMain(); if (ctx) drawObj(ctx, obj);
     onSendData({ type: "canvas-obj", obj });
-    setTextPos(null); textVal.current = "";
   }
 
   const cursors: Record<DrawTool, string> = {
     pen:"crosshair", highlight:"crosshair", eraser:"cell", text:"text",
     line:"crosshair", arrow:"crosshair", rect:"crosshair", circle:"crosshair", triangle:"crosshair",
+    hand: isPanningRef.current ? "grabbing" : "grab",
   };
 
   if (!isOpen) return null;
@@ -495,6 +603,18 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             </button>
           </div>
 
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
+
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => { const r = containerRef.current?.getBoundingClientRect(); if (r) applyZoom(1.25, r.width/2, r.height/2); }}
+              title="Zoom +" className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition font-bold text-base">+</button>
+            <button onClick={resetZoom} title="Réinitialiser"
+              className="h-8 px-2 rounded-lg text-[11px] font-mono text-white/50 hover:bg-white/10 hover:text-white transition min-w-[3.2rem] text-center">{zoomPct}%</button>
+            <button onClick={() => { const r = containerRef.current?.getBoundingClientRect(); if (r) applyZoom(0.8, r.width/2, r.height/2); }}
+              title="Zoom -" className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition font-bold text-base">−</button>
+          </div>
+
           {/* Tool hint */}
           <span className="ml-2 text-white/25 text-[10px] hidden md:block truncate">
             {TOOL_DEFS.find(t => t.id === tool)?.hint}
@@ -515,17 +635,19 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           />
           {textPos && (
             <textarea
-              autoFocus
-              className="absolute bg-transparent border border-dashed border-blue-500 resize-none focus:outline-none"
+              ref={textareaRef}
+              className="absolute bg-white/90 border-2 border-dashed border-blue-500 rounded px-1 resize-none focus:outline-none shadow"
               style={{
-                left: textPos.x, top: textPos.y - Math.max(14, width * 5),
-                fontSize: Math.max(14, width * 5), color, fontFamily: "sans-serif",
-                minWidth: 120, minHeight: 40, lineHeight: 1.35,
+                left: textPos.x * zoomRef.current + panRef.current.x,
+                top:  textPos.y * zoomRef.current + panRef.current.y,
+                fontSize: Math.max(12, width * 5) * zoomRef.current,
+                color, fontFamily: "sans-serif",
+                minWidth: 140, minHeight: 44, lineHeight: 1.4,
               }}
               onChange={e => { textVal.current = e.target.value; }}
               onKeyDown={e => {
                 if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
-                if (e.key === "Escape") { setTextPos(null); textVal.current = ""; }
+                if (e.key === "Escape") { committingRef.current = true; textVal.current = ""; setTextPos(null); }
               }}
               onBlur={commitText}
             />
@@ -534,8 +656,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-1 bg-[#0A0703] border-t border-white/5 flex-shrink-0">
-          <span className="text-[10px] text-white/25">Toile partagée · Tactile supporté</span>
-          <span className="text-[10px] text-white/25">Ctrl+Z annuler · Échap fermer</span>
+          <span className="text-[10px] text-white/25">Toile partagée · Tactile · Molette = zoom · Outil Main = naviguer</span>
+          <span className="text-[10px] text-white/25">Ctrl+Z annuler · Échap fermer · {zoomPct}%</span>
         </div>
       </div>
     </div>
@@ -893,6 +1015,48 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   // Reactions
   const [floatingReactions, setFloatReactions] = useState<FloatingReaction[]>([]);
 
+  // Recording
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunks  = useRef<Blob[]>([]);
+  const recTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [recording,   setRecording]   = useState(false);
+  const [recSeconds,  setRecSeconds]  = useState(0);
+
+  async function startRecording() {
+    try {
+      const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      let finalStream = screen;
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const actx = new AudioContext();
+        const dest = actx.createMediaStreamDestination();
+        if (screen.getAudioTracks().length) actx.createMediaStreamSource(screen).connect(dest);
+        actx.createMediaStreamSource(mic).connect(dest);
+        finalStream = new MediaStream([...screen.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      } catch { /* mic unavailable, screen audio only */ }
+      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9"
+                 : MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : "";
+      const mr = new MediaRecorder(finalStream, mime ? { mimeType: mime } : {});
+      recordingChunks.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) recordingChunks.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(recordingChunks.current, { type: "video/webm" });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href = url; a.download = `seance-${new Date().toISOString().slice(0,19).replace(/:/g,"-")}.webm`; a.click();
+        URL.revokeObjectURL(url);
+        finalStream.getTracks().forEach(t => t.stop());
+        setRecording(false); setRecSeconds(0);
+        if (recTimerRef.current) clearInterval(recTimerRef.current);
+      };
+      mr.start(1000);
+      mediaRecorderRef.current = mr;
+      setRecording(true); setRecSeconds(0);
+      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+    } catch { /* user cancelled */ }
+  }
+  function stopRecording() { mediaRecorderRef.current?.stop(); }
+
   // Canvas
   const [incomingCanvasObj, setIncomingCanvasObj] = useState<CanvasObj | null>(null);
   const [canvasClearCount,  setCanvasClearCount]  = useState(0);
@@ -985,6 +1149,13 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {recording && (
+            <div className="flex items-center gap-2 bg-red-950/60 border border-red-700/50 px-3 py-1.5 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-red-400 text-[11px] font-bold font-mono">{fmt(recSeconds)}</span>
+              <button onClick={stopRecording} className="text-red-400/70 hover:text-red-300 text-[10px] ml-1 underline">Arrêter</button>
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-[#1A1209] border border-[#F5C400]/20 px-4 py-1.5 rounded-full">
             <div className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse" />
             <span className="text-[#F5C400] font-mono text-sm font-bold tracking-widest">{fmt(elapsed)}</span>
@@ -1243,6 +1414,16 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                 <button onClick={() => { togglePanel("info"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
                   <svg className="w-4 h-4 text-[#F5C400]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   Informations
+                </button>
+                <button onClick={() => { recording ? stopRecording() : startRecording(); setOpenDropdown(null); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/5 transition ${recording ? "text-red-400" : "text-white/70 hover:text-white"}`}>
+                  <svg className="w-4 h-4" fill={recording ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    {recording
+                      ? <><circle cx="12" cy="12" r="4" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /></>
+                      : <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                    }
+                  </svg>
+                  {recording ? "Arrêter l'enregistrement" : "Enregistrer la séance"}
                 </button>
                 <button onClick={() => { window.open("mailto:support@withyou.app?subject=Problème en classe","_blank"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
