@@ -44,7 +44,7 @@ type ActivePanel = "chat" | "whiteboard" | "info" | null;
 type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
 
 const REACTIONS      = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
-const CANVAS_COLORS  = ["#1a1a1a","#dc2626","#ea580c","#ca8a04","#16a34a","#0891b2","#2563eb","#9333ea","#db2777","#6b7280","#ffffff","#92400e"];
+const CANVAS_COLORS  = ["#1a1a1a","#dc2626","#ea580c","#f59e0b","#facc15","#16a34a","#0891b2","#2563eb","#9333ea","#db2777","#6b7280","#92400e"];
 const STROKE_WIDTHS  = [2, 4, 8, 16];
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -188,7 +188,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [color,  setColor]  = useState("#1a1a1a");
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
-  const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
+  const [textPos,    setTextPos]    = useState<{ x: number; y: number } | null>(null);
+  const [isPanning,  setIsPanning]  = useState(false);
   const textVal       = useRef("");
   const textareaRef   = useRef<HTMLTextAreaElement>(null);
   const committingRef = useRef(false);
@@ -202,7 +203,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const isPanningRef     = useRef(false);
   const panStartRef      = useRef({ sx: 0, sy: 0, px: 0, py: 0 });
 
-  const isShape = ["line","arrow","rect","circle","triangle"].includes(tool);
+  const isShape      = ["line","arrow","rect","circle","triangle"].includes(tool);
+  const isFillable   = ["rect","circle","triangle"].includes(tool);
 
   const getMain    = () => mainRef.current?.getContext("2d") ?? null;
   const getPreview = () => previewRef.current?.getContext("2d") ?? null;
@@ -234,6 +236,13 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     if (!c || !ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
   }
+  function drawObjOnMain(obj: CanvasObj) {
+    const ctx = getMain(); if (!ctx) return;
+    ctx.save();
+    ctx.setTransform(zoomRef.current, 0, 0, zoomRef.current, panRef.current.x, panRef.current.y);
+    drawObj(ctx, obj);
+    ctx.restore();
+  }
 
   // Resize observer
   useEffect(() => {
@@ -256,7 +265,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   useEffect(() => {
     if (!incomingObj) return;
     objectsRef.current.push(incomingObj);
-    const ctx = getMain(); if (ctx) drawObj(ctx, incomingObj);
+    drawObjOnMain(incomingObj);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingObj]);
 
@@ -344,6 +353,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     // Hand tool: pan
     if (tool === "hand") {
       isPanningRef.current = true;
+      setIsPanning(true);
       panStartRef.current  = { sx: e.clientX, sy: e.clientY, px: panRef.current.x, py: panRef.current.y };
       return;
     }
@@ -405,7 +415,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
     activePtrsRef.current.delete(e.pointerId);
     if (activePtrsRef.current.size < 2) lastPinchDistRef.current = null;
-    if (tool === "hand") { isPanningRef.current = false; return; }
+    if (tool === "hand") { isPanningRef.current = false; setIsPanning(false); return; }
     if (!drawingRef.current) return;
     drawingRef.current = false;
     clearPreview();
@@ -433,7 +443,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
       };
       objectsRef.current.push(obj);
       redoRef.current = [];
-      const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+      drawObjOnMain(obj);
       onSendData({ type: "canvas-obj", obj });
     }
     curPts.current = [];
@@ -449,7 +459,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     if (!redoRef.current.length) return;
     const obj = redoRef.current.pop()!;
     objectsRef.current.push(obj);
-    const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+    drawObjOnMain(obj);
   }
   function handleClear() {
     objectsRef.current = []; redoRef.current = []; redraw();
@@ -477,7 +487,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const cursors: Record<DrawTool, string> = {
     pen:"crosshair", highlight:"crosshair", eraser:"cell", text:"text",
     line:"crosshair", arrow:"crosshair", rect:"crosshair", circle:"crosshair", triangle:"crosshair",
-    hand: isPanningRef.current ? "grabbing" : "grab",
+    hand: isPanning ? "grabbing" : "grab",
   };
 
   if (!isOpen) return null;
@@ -559,15 +569,15 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
                   width === w ? "bg-[#F5C400]/20 border border-[#F5C400]/40" : "hover:bg-white/10"
                 }`}>
-                <div className="rounded-full" style={{ width: Math.min(w * 2.5, 20), height: Math.min(w * 2.5, 20), backgroundColor: color }} />
+                <div className="rounded-full" style={{ width: ({ 2: 4, 4: 8, 8: 14, 16: 22 } as Record<number,number>)[w], height: ({ 2: 4, 4: 8, 8: 14, 16: 22 } as Record<number,number>)[w], backgroundColor: color }} />
               </button>
             ))}
           </div>
 
           <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
 
-          {/* Fill toggle (shapes only) */}
-          {isShape && (
+          {/* Fill toggle (fillable shapes only) */}
+          {isFillable && (
             <button onClick={() => setFilled(v => !v)} title={filled ? "Mode contour" : "Mode rempli"}
               className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition border ${
                 filled ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
@@ -629,6 +639,14 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onPointerCancel={e => {
+              activePtrsRef.current.delete(e.pointerId);
+              lastPinchDistRef.current = null;
+              isPanningRef.current = false;
+              setIsPanning(false);
+              drawingRef.current = false;
+              clearPreview();
+            }}
           />
           <canvas ref={previewRef}
             className="absolute inset-0 pointer-events-none"
