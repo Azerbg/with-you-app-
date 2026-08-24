@@ -185,11 +185,17 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [color,  setColor]  = useState("#1a1a1a");
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
-  const [textPos,    setTextPos]    = useState<{ x: number; y: number } | null>(null);
   const [isPanning,  setIsPanning]  = useState(false);
-  const textVal       = useRef("");
-  const textareaRef   = useRef<HTMLTextAreaElement>(null);
-  const committingRef = useRef(false);
+  const pageTextRef   = useRef("");          // texte complet de la page
+  const pageTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-focus quand on entre en mode texte
+  useEffect(() => {
+    if (tool === "text" && isOpen) {
+      setTimeout(() => pageTextareaRef.current?.focus(), 30);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, isOpen]);
 
   // Zoom & pan
   const zoomRef          = useRef(1);
@@ -336,13 +342,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     activePtrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = getPos(e);
 
-    // Text tool: no capture, just place textarea
-    if (tool === "text") {
-      committingRef.current = false; textVal.current = "";
-      setTextPos({ x: p[0], y: p[1] });
-      setTimeout(() => textareaRef.current?.focus(), 30);
-      return;
-    }
+    // Text tool: full-page textarea — no canvas interaction
+    if (tool === "text") return;
 
     // Pinch: 2+ fingers → zoom instead of draw
     if (activePtrsRef.current.size >= 2) {
@@ -474,18 +475,17 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     const a = document.createElement("a");
     a.href = c.toDataURL("image/png"); a.download = "toile.png"; a.click();
   }
-  function commitText() {
-    if (committingRef.current) return;
-    committingRef.current = true;
-    const text = textVal.current.trim();
-    textVal.current = "";
-    setTextPos(null);
-    if (!text || !textPos) return;
-    const sz = Math.max(14, width * 5);
-    const obj: TextObj = { kind: "text", content: text, x: textPos.x, y: textPos.y, color, size: sz };
+  function commitPageText() {
+    const text = pageTextRef.current.trim();
+    if (!text) return;
+    const sz = 16;
+    const margin = 60;
+    const obj: TextObj = { kind:"text", content:text, x:margin, y:margin + sz, color, size:sz };
     objectsRef.current.push(obj); redoRef.current = [];
-    const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+    drawObjOnMain(obj);
     onSendData({ type: "canvas-obj", obj });
+    pageTextRef.current = "";
+    if (pageTextareaRef.current) pageTextareaRef.current.value = "";
   }
 
   const cursors: Record<DrawTool, string> = {
@@ -538,7 +538,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           {/* Tools (Word mode: stylo, texte, gomme, main) */}
           <div className="flex items-center gap-0.5">
             {TOOL_DEFS.filter(t => WORD_TOOL_IDS.includes(t.id)).map(t => (
-              <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
+              <button key={t.id} onClick={() => { if (tool === "text" && t.id !== "text") commitPageText(); setTool(t.id); }} title={t.label}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
                   tool === t.id ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
                 }`}>
@@ -655,37 +655,36 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           <canvas ref={previewRef}
             className="absolute inset-0 pointer-events-none"
           />
-          {textPos && (() => {
-            const screenX = textPos.x * zoomRef.current + panRef.current.x;
-            const screenY = textPos.y * zoomRef.current + panRef.current.y;
-            const availW  = (containerRef.current?.getBoundingClientRect().width  ?? 800) - screenX - 16;
-            const availH  = (containerRef.current?.getBoundingClientRect().height ?? 600) - screenY - 16;
-            const fs      = Math.max(12, width * 5) * zoomRef.current;
+          {/* Page texte complète — visible quand outil "texte" actif */}
+          {tool === "text" && (() => {
+            const z  = zoomRef.current;
+            const px = panRef.current.x;
+            const py = panRef.current.y;
+            const margin = 60 * z;
             return (
               <textarea
-                ref={textareaRef}
-                className="absolute bg-transparent border-l-2 border-blue-400 px-2 resize-none focus:outline-none"
+                ref={pageTextareaRef}
+                className="absolute bg-transparent resize-none focus:outline-none"
                 style={{
-                  left: screenX, top: screenY,
-                  fontSize: fs, lineHeight: 1.5,
-                  color, fontFamily: "sans-serif",
-                  width: Math.max(320, availW),
-                  minHeight: fs * 1.5 + 8,
-                  maxHeight: availH,
-                  overflow: "hidden",
+                  left:       px + margin,
+                  top:        py + margin,
+                  width:      794 * z - margin * 2,
+                  height:     1123 * z - margin * 2,
+                  fontSize:   16 * z,
+                  lineHeight: 1.65,
+                  fontFamily: "Georgia, serif",
+                  color,
                   caretColor: color,
+                  overflow:   "auto",
+                  cursor:     "text",
+                  whiteSpace: "pre-wrap",
+                  wordBreak:  "break-word",
                 }}
-                onChange={e => {
-                  textVal.current = e.target.value;
-                  const el = e.target;
-                  el.style.height = "auto";
-                  el.style.height = Math.min(el.scrollHeight, availH) + "px";
-                }}
+                defaultValue={pageTextRef.current}
+                onChange={e => { pageTextRef.current = e.target.value; }}
                 onKeyDown={e => {
-                  if (e.key === "Escape") { committingRef.current = true; textVal.current = ""; setTextPos(null); }
-                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); commitText(); }
+                  if (e.key === "Escape") { commitPageText(); setTool("pen"); }
                 }}
-                onBlur={commitText}
               />
             );
           })()}
