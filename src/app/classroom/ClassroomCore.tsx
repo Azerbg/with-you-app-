@@ -193,7 +193,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
 
   // Zoom & pan
   const zoomRef          = useRef(1);
-  const panRef           = useRef({ x: 0, y: 0 });
+  const panRef           = useRef({ x: 48, y: 48 }); // marge initiale comme Word
   const [zoomPct, setZoomPct] = useState(100);
   const activePtrsRef    = useRef(new Map<number, { x: number; y: number }>());
   const lastPinchDistRef = useRef<number | null>(null);
@@ -215,16 +215,23 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     redraw();
   }
   function resetZoom() {
-    zoomRef.current = 1; panRef.current = { x: 0, y: 0 };
+    zoomRef.current = 1; panRef.current = { x: 48, y: 48 };
     setZoomPct(100); redraw();
   }
 
   function redraw() {
     const c = mainRef.current; const ctx = getMain();
     if (!c || !ctx) return;
+    const z = zoomRef.current; const px = panRef.current.x; const py = panRef.current.y;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
-    ctx.setTransform(zoomRef.current, 0, 0, zoomRef.current, panRef.current.x, panRef.current.y);
+    // Fond gris document (comme Word)
+    ctx.fillStyle = "#d0d0d0"; ctx.fillRect(0, 0, c.width, c.height);
+    // Feuille blanche A4 avec ombre (page logique : 0,0 → 794,1123)
+    ctx.shadowColor = "rgba(0,0,0,0.22)"; ctx.shadowBlur = 14; ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(px, py, 794 * z, 1123 * z);
+    ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    // Dessiner les objets
+    ctx.setTransform(z, 0, 0, z, px, py);
     objectsRef.current.forEach(o => drawObj(ctx, o));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -628,8 +635,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           </span>
         </div>
 
-        {/* Canvas area */}
-        <div ref={containerRef} className="flex-1 relative overflow-hidden bg-white">
+        {/* Canvas area — fond gris document comme Word */}
+        <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#e8e8e8]">
           <canvas ref={mainRef}
             className="absolute inset-0"
             style={{ cursor: cursors[tool], touchAction: "none" }}
@@ -648,24 +655,40 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           <canvas ref={previewRef}
             className="absolute inset-0 pointer-events-none"
           />
-          {textPos && (
-            <textarea
-              ref={textareaRef}
-              className="absolute bg-white/90 border-2 border-dashed border-blue-500 rounded px-1 resize-none focus:outline-none shadow"
-              style={{
-                left: textPos.x * zoomRef.current + panRef.current.x,
-                top:  textPos.y * zoomRef.current + panRef.current.y,
-                fontSize: Math.max(12, width * 5) * zoomRef.current,
-                color, fontFamily: "sans-serif",
-                minWidth: 140, minHeight: 44, lineHeight: 1.4,
-              }}
-              onChange={e => { textVal.current = e.target.value; }}
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
-                if (e.key === "Escape") { committingRef.current = true; textVal.current = ""; setTextPos(null); }
-              }}
-              onBlur={commitText}
-            />
+          {textPos && (() => {
+            const screenX = textPos.x * zoomRef.current + panRef.current.x;
+            const screenY = textPos.y * zoomRef.current + panRef.current.y;
+            const availW  = (containerRef.current?.getBoundingClientRect().width  ?? 800) - screenX - 16;
+            const availH  = (containerRef.current?.getBoundingClientRect().height ?? 600) - screenY - 16;
+            const fs      = Math.max(12, width * 5) * zoomRef.current;
+            return (
+              <textarea
+                ref={textareaRef}
+                className="absolute bg-transparent border-l-2 border-blue-400 px-2 resize-none focus:outline-none"
+                style={{
+                  left: screenX, top: screenY,
+                  fontSize: fs, lineHeight: 1.5,
+                  color, fontFamily: "sans-serif",
+                  width: Math.max(320, availW),
+                  minHeight: fs * 1.5 + 8,
+                  maxHeight: availH,
+                  overflow: "hidden",
+                  caretColor: color,
+                }}
+                onChange={e => {
+                  textVal.current = e.target.value;
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = Math.min(el.scrollHeight, availH) + "px";
+                }}
+                onKeyDown={e => {
+                  if (e.key === "Escape") { committingRef.current = true; textVal.current = ""; setTextPos(null); }
+                  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); commitText(); }
+                }}
+                onBlur={commitText}
+              />
+            );
+          })()}
           )}
         </div>
 
@@ -1166,7 +1189,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [openDropdown, setOpenDropdown] = useState<Dropdown>(null);
   const [showPicker,   setShowPicker]   = useState(false);
   const [canvasOpen,   setCanvasOpen]   = useState(false);
-  const [canvasFull,   setCanvasFull]   = useState(false);
+  const [canvasFull,   setCanvasFull]   = useState(true);
 
   function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); }
   function toggleDd(dd: Exclude<Dropdown, null>) { setOpenDropdown(prev => prev === dd ? null : dd); }
