@@ -36,7 +36,7 @@ interface TextObj {
 }
 type CanvasObj = StrokeObj | ShapeObj | TextObj;
 
-type ActivePanel = "chat" | "whiteboard" | "info" | null;
+type ActivePanel = "chat" | "info" | null;
 type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
 
 const REACTIONS      = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
@@ -763,7 +763,8 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
 
 // ─── Whiteboard Panel (Paint) ─────────────────────────────────────────────────
 
-function WhiteboardPanel({ onSendData, incomingObj, clearCount, undoCount }: {
+function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, incomingObj, clearCount, undoCount }: {
+  isOpen: boolean; onClose: () => void; isFull: boolean; onToggleFull: () => void;
   onSendData: (d: object) => void;
   incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
 }) {
@@ -948,11 +949,51 @@ function WhiteboardPanel({ onSendData, incomingObj, clearCount, undoCount }: {
   };
   const DOT_SIZE: Record<number,number> = { 2:4, 4:8, 8:14, 16:22 };
 
+  // Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0D0904]">
+
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0703] border-b border-white/5 flex-shrink-0">
+        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-white/85 text-sm font-bold">Tableau blanc</span>
+        <span className="text-white/25 text-xs hidden sm:block">Dessinez, annotez, partagez en temps réel</span>
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={wbExport} title="Exporter PNG"
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span className="hidden sm:block">Exporter</span>
+          </button>
+          <button onClick={onToggleFull} title={isFull ? "Réduire" : "Plein écran"}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
+            {isFull
+              ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M15 9h4.5M15 9V4.5M9 15v4.5M9 15H4.5M15 15h4.5M15 15v4.5" /></svg>
+              : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
+            }
+          </button>
+          <button onClick={onClose} title="Fermer"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col gap-1.5 px-2 py-2 bg-[#0D0904] border-b border-white/5 flex-shrink-0">
+      <div className="flex flex-col gap-1.5 px-3 py-2 bg-[#0F0B05] border-b border-white/5 flex-shrink-0">
 
         {/* Tools + actions row */}
         <div className="flex items-center gap-0.5 flex-wrap">
@@ -1199,6 +1240,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [showPicker,   setShowPicker]   = useState(false);
   const [canvasOpen,   setCanvasOpen]   = useState(false);
   const [canvasFull,   setCanvasFull]   = useState(true);
+  const [wbOpen,       setWbOpen]       = useState(false);
+  const [wbFull,       setWbFull]       = useState(true);
 
   function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); }
   function toggleDd(dd: Exclude<Dropdown, null>) { setOpenDropdown(prev => prev === dd ? null : dd); }
@@ -1334,10 +1377,21 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   function sendReaction(emoji: string) { sendData({ type: "reaction", sender: myName, emoji }); addFloat(emoji, myName); setShowPicker(false); }
   async function toggleScreen() { try { await localParticipant.setScreenShareEnabled(!isSharing); } catch { /* cancelled */ } }
 
-  const panelTitles: Record<string, string> = { chat: "Chat", whiteboard: "Tableau blanc", info: "Informations" };
+  const panelTitles: Record<string, string> = { chat: "Chat", info: "Informations" };
 
   return (
     <div className="h-screen flex flex-col bg-[#0F0A04] overflow-hidden select-none">
+
+      {/* Whiteboard Modal */}
+      <WhiteboardModal
+        isOpen={wbOpen} isFull={wbFull}
+        onClose={() => setWbOpen(false)}
+        onToggleFull={() => setWbFull(v => !v)}
+        onSendData={sendData}
+        incomingObj={incomingWbObj}
+        clearCount={wbClearCount}
+        undoCount={wbUndoCount}
+      />
 
       {/* Canvas Modal */}
       <CanvasModal
@@ -1513,9 +1567,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
               </button>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
-              {activePanel === "chat"       && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} />}
-              {activePanel === "whiteboard" && <WhiteboardPanel onSendData={sendData} incomingObj={incomingWbObj} clearCount={wbClearCount} undoCount={wbUndoCount} />}
-              {activePanel === "info"       && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
+              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} />}
+              {activePanel === "info" && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
             </div>
           </div>
         )}
@@ -1583,14 +1636,14 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           {/* Outils */}
           <div className="relative">
             <button onClick={e => { e.stopPropagation(); toggleDd("outils"); }} className="flex flex-col items-center gap-1 group">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${activePanel === "whiteboard" || openDropdown === "outils" ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${wbOpen || openDropdown === "outils" ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
               </div>
-              <span className={`text-[10px] transition ${activePanel === "whiteboard" || openDropdown === "outils" ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>Outils</span>
+              <span className={`text-[10px] transition ${wbOpen || openDropdown === "outils" ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>Outils</span>
             </button>
             {openDropdown === "outils" && (
               <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#1A1209] border border-[#3A2A0E] rounded-2xl shadow-2xl py-2 min-w-[200px] z-50" onClick={e => e.stopPropagation()}>
-                <button onClick={() => { togglePanel("whiteboard"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
+                <button onClick={() => { setWbOpen(true); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
                   <svg className="w-4 h-4 text-[#F5C400]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   Tableau blanc
                 </button>
