@@ -166,11 +166,12 @@ const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
   { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
 ];
 
-function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount }: {
+function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText }: {
   isOpen: boolean; isFull: boolean;
   onClose: () => void; onToggleFull: () => void;
   onSendData: (d: object) => void;
   incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
+  incomingPageText: string | null;
 }) {
   const mainRef      = useRef<HTMLCanvasElement>(null);
   const previewRef   = useRef<HTMLCanvasElement>(null);
@@ -185,9 +186,10 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [color,  setColor]  = useState("#1a1a1a");
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
-  const [isPanning,  setIsPanning]  = useState(false);
-  const pageTextRef   = useRef("");          // texte complet de la page
+  const [isPanning,    setIsPanning]    = useState(false);
+  const [pageText,     setPageText]     = useState("");   // texte HTML persistant
   const pageTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const syncTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-focus quand on entre en mode texte
   useEffect(() => {
@@ -196,6 +198,12 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, isOpen]);
+
+  // Sync texte distant entrant
+  useEffect(() => {
+    if (incomingPageText === null) return;
+    setPageText(incomingPageText);
+  }, [incomingPageText]);
 
   // Zoom & pan
   const zoomRef          = useRef(1);
@@ -475,17 +483,11 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     const a = document.createElement("a");
     a.href = c.toDataURL("image/png"); a.download = "toile.png"; a.click();
   }
-  function commitPageText() {
-    const text = pageTextRef.current.trim();
-    if (!text) return;
-    const sz = 16;
-    const margin = 60;
-    const obj: TextObj = { kind:"text", content:text, x:margin, y:margin + sz, color, size:sz };
-    objectsRef.current.push(obj); redoRef.current = [];
-    drawObjOnMain(obj);
-    onSendData({ type: "canvas-obj", obj });
-    pageTextRef.current = "";
-    if (pageTextareaRef.current) pageTextareaRef.current.value = "";
+  function syncPageText(text: string) {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      onSendData({ type: "canvas-page-text", text });
+    }, 400);
   }
 
   const cursors: Record<DrawTool, string> = {
@@ -538,7 +540,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           {/* Tools (Word mode: stylo, texte, gomme, main) */}
           <div className="flex items-center gap-0.5">
             {TOOL_DEFS.filter(t => WORD_TOOL_IDS.includes(t.id)).map(t => (
-              <button key={t.id} onClick={() => { if (tool === "text" && t.id !== "text") commitPageText(); setTool(t.id); }} title={t.label}
+              <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
                   tool === t.id ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
                 }`}>
@@ -655,35 +657,44 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           <canvas ref={previewRef}
             className="absolute inset-0 pointer-events-none"
           />
-          {/* Page texte complète — visible quand outil "texte" actif */}
-          {tool === "text" && (() => {
-            const z  = zoomRef.current;
-            const px = panRef.current.x;
-            const py = panRef.current.y;
+          {/* Couche texte — TOUJOURS visible, éditable seulement en mode texte */}
+          {(() => {
+            const z      = zoomRef.current;
+            const px     = panRef.current.x;
+            const py     = panRef.current.y;
             const margin = 60 * z;
+            const active = tool === "text";
             return (
               <textarea
                 ref={pageTextareaRef}
-                className="absolute bg-transparent resize-none focus:outline-none"
+                readOnly={!active}
+                className="absolute resize-none focus:outline-none bg-transparent"
                 style={{
-                  left:       px + margin,
-                  top:        py + margin,
-                  width:      794 * z - margin * 2,
-                  height:     1123 * z - margin * 2,
-                  fontSize:   16 * z,
-                  lineHeight: 1.65,
-                  fontFamily: "Georgia, serif",
-                  color,
-                  caretColor: color,
-                  overflow:   "auto",
-                  cursor:     "text",
-                  whiteSpace: "pre-wrap",
-                  wordBreak:  "break-word",
+                  left:         px + margin,
+                  top:          py + margin,
+                  width:        794 * z - margin * 2,
+                  height:       1123 * z - margin * 2,
+                  fontSize:     16 * z,
+                  lineHeight:   1.65,
+                  fontFamily:   "Georgia, serif",
+                  color:        "#1a1a1a",
+                  caretColor:   "#1a1a1a",
+                  overflow:     "auto",
+                  whiteSpace:   "pre-wrap",
+                  wordBreak:    "break-word",
+                  pointerEvents: active ? "auto" : "none",
+                  cursor:        active ? "text" : "default",
+                  // Bordure subtile en mode édition seulement
+                  outline:      active ? "2px solid rgba(59,130,246,0.25)" : "none",
+                  outlineOffset: "2px",
                 }}
-                defaultValue={pageTextRef.current}
-                onChange={e => { pageTextRef.current = e.target.value; }}
+                value={pageText}
+                onChange={e => {
+                  setPageText(e.target.value);
+                  syncPageText(e.target.value);
+                }}
                 onKeyDown={e => {
-                  if (e.key === "Escape") { commitPageText(); setTool("pen"); }
+                  if (e.key === "Escape") setTool("pen");
                 }}
               />
             );
@@ -1270,9 +1281,10 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   function stopRecording() { mediaRecorderRef.current?.stop(); }
 
   // Canvas
-  const [incomingCanvasObj, setIncomingCanvasObj] = useState<CanvasObj | null>(null);
-  const [canvasClearCount,  setCanvasClearCount]  = useState(0);
-  const [canvasUndoCount,   setCanvasUndoCount]   = useState(0);
+  const [incomingCanvasObj,  setIncomingCanvasObj]  = useState<CanvasObj | null>(null);
+  const [canvasClearCount,   setCanvasClearCount]   = useState(0);
+  const [canvasUndoCount,    setCanvasUndoCount]    = useState(0);
+  const [incomingPageText,   setIncomingPageText]   = useState<string | null>(null);
 
   // Whiteboard (Paint)
   const [incomingWbObj, setIncomingWbObj] = useState<CanvasObj | null>(null);
@@ -1294,9 +1306,10 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           case "canvas-obj":  setIncomingCanvasObj(msg.obj); break;
           case "canvas-clear":setCanvasClearCount(n => n + 1); break;
           case "canvas-undo": setCanvasUndoCount(n => n + 1); break;
-          case "wb-obj":   setIncomingWbObj(msg.obj); break;
-          case "wb-clear": setWbClearCount(n => n + 1); break;
-          case "wb-undo":  setWbUndoCount(n => n + 1); break;
+          case "wb-obj":          setIncomingWbObj(msg.obj); break;
+          case "wb-clear":        setWbClearCount(n => n + 1); break;
+          case "wb-undo":         setWbUndoCount(n => n + 1); break;
+          case "canvas-page-text": setIncomingPageText(msg.text); break;
         }
       } catch { /* ignore */ }
     };
@@ -1335,6 +1348,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         incomingObj={incomingCanvasObj}
         clearCount={canvasClearCount}
         undoCount={canvasUndoCount}
+        incomingPageText={incomingPageText}
       />
 
       {/* Top bar */}
