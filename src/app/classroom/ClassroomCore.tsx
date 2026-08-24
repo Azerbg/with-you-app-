@@ -19,10 +19,6 @@ interface ChatMessage {
 interface FloatingReaction {
   id: string; emoji: string; sender: string; x: number;
 }
-interface WbStroke {
-  color: string; width: number; points: [number, number][];
-}
-
 type DrawTool = "pen" | "highlight" | "eraser" | "text" | "line" | "arrow" | "rect" | "circle" | "triangle" | "hand";
 
 interface StrokeObj {
@@ -46,6 +42,7 @@ type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
 const REACTIONS      = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
 const CANVAS_COLORS  = ["#1a1a1a","#dc2626","#ea580c","#f59e0b","#facc15","#16a34a","#0891b2","#2563eb","#9333ea","#db2777","#6b7280","#92400e"];
 const STROKE_WIDTHS  = [2, 4, 8, 16];
+const WORD_TOOL_IDS: DrawTool[] = ["pen", "text", "eraser", "hand"];
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -531,9 +528,9 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
         {/* Options toolbar */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0F0B05] border-b border-white/5 flex-shrink-0 flex-wrap">
 
-          {/* Tools */}
+          {/* Tools (Word mode: stylo, texte, gomme, main) */}
           <div className="flex items-center gap-0.5">
-            {TOOL_DEFS.map(t => (
+            {TOOL_DEFS.filter(t => WORD_TOOL_IDS.includes(t.id)).map(t => (
               <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
                   tool === t.id ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
@@ -732,44 +729,57 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
   );
 }
 
-// ─── Whiteboard Panel ─────────────────────────────────────────────────────────
+// ─── Whiteboard Panel (Paint) ─────────────────────────────────────────────────
 
-function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
+function WhiteboardPanel({ onSendData, incomingObj, clearCount, undoCount }: {
   onSendData: (d: object) => void;
-  incomingStroke: WbStroke | null; incomingClear: number;
+  incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
-  const strokesRef   = useRef<WbStroke[]>([]);
-  const curPoints    = useRef<[number, number][]>([]);
-  const drawing      = useRef(false);
-  const [color, setColor] = useState("#1a1a1a");
-  const [wbTool, setWbTool] = useState<"pen" | "eraser">("pen");
-  const WB_COLORS = ["#1a1a1a","#2563eb","#dc2626","#16a34a","#9333ea","#ea580c","#F5C400"];
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const mainRef       = useRef<HTMLCanvasElement>(null);
+  const previewRef    = useRef<HTMLCanvasElement>(null);
+  const objectsRef    = useRef<CanvasObj[]>([]);
+  const redoRef       = useRef<CanvasObj[]>([]);
+  const drawingRef    = useRef(false);
+  const startPos      = useRef<[number,number]>([0,0]);
+  const curPts        = useRef<[number,number][]>([]);
+  const textVal       = useRef("");
+  const textareaRef   = useRef<HTMLTextAreaElement>(null);
+  const committingRef = useRef(false);
 
-  const getCtx = () => canvasRef.current?.getContext("2d") ?? null;
+  const [tool,    setTool]    = useState<DrawTool>("pen");
+  const [color,   setColor]   = useState("#1a1a1a");
+  const [width,   setWidth]   = useState(4);
+  const [filled,  setFilled]  = useState(false);
+  const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
 
-  function drawStroke(ctx: CanvasRenderingContext2D, s: WbStroke) {
-    if (s.points.length < 2) return;
-    ctx.beginPath(); ctx.strokeStyle = s.color; ctx.lineWidth = s.width;
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.moveTo(s.points[0][0], s.points[0][1]);
-    s.points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
-    ctx.stroke();
-  }
-  function redraw() {
-    const c = canvasRef.current; const ctx = getCtx();
+  const isFillable = ["rect","circle","triangle"].includes(tool);
+  const getMain    = () => mainRef.current?.getContext("2d") ?? null;
+  const getPreview = () => previewRef.current?.getContext("2d") ?? null;
+
+  function wbRedraw() {
+    const c = mainRef.current; const ctx = getMain();
     if (!c || !ctx) return;
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);
-    strokesRef.current.forEach(s => drawStroke(ctx, s));
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,c.width,c.height);
+    objectsRef.current.forEach(o => drawObj(ctx, o));
+  }
+  function wbClearPreview() {
+    const c = previewRef.current; const ctx = getPreview();
+    if (!c || !ctx) return; ctx.clearRect(0,0,c.width,c.height);
+  }
+  function wbDrawOnMain(obj: CanvasObj) {
+    const ctx = getMain(); if (!ctx) return;
+    ctx.save(); drawObj(ctx, obj); ctx.restore();
   }
 
   useEffect(() => {
     const obs = new ResizeObserver(() => {
-      const el = containerRef.current; const c = canvasRef.current;
-      if (!el || !c) return;
-      const { width, height } = el.getBoundingClientRect();
-      c.width = width; c.height = height; redraw();
+      const el = containerRef.current; const m = mainRef.current; const p = previewRef.current;
+      if (!el || !m || !p) return;
+      const { width: w, height: h } = el.getBoundingClientRect();
+      m.width = w; m.height = h; p.width = w; p.height = h;
+      wbRedraw();
     });
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
@@ -777,66 +787,229 @@ function WhiteboardPanel({ onSendData, incomingStroke, incomingClear }: {
   }, []);
 
   useEffect(() => {
-    if (!incomingStroke) return;
-    strokesRef.current.push(incomingStroke);
-    const ctx = getCtx(); if (ctx) drawStroke(ctx, incomingStroke);
+    if (!incomingObj) return;
+    objectsRef.current.push(incomingObj);
+    wbDrawOnMain(incomingObj);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingStroke]);
+  }, [incomingObj]);
 
   useEffect(() => {
-    if (!incomingClear) return;
-    strokesRef.current = []; redraw();
+    if (!clearCount) return;
+    objectsRef.current = []; redoRef.current = []; wbRedraw();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingClear]);
+  }, [clearCount]);
 
-  function pos(e: React.MouseEvent<HTMLCanvasElement>): [number, number] {
-    const r = canvasRef.current!.getBoundingClientRect();
+  useEffect(() => {
+    if (!undoCount) return;
+    if (objectsRef.current.length) objectsRef.current.pop();
+    wbRedraw();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoCount]);
+
+  function getPos(e: React.PointerEvent<HTMLCanvasElement>): [number, number] {
+    const r = mainRef.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   }
-  function onDown(e: React.MouseEvent<HTMLCanvasElement>) { drawing.current = true; curPoints.current = [pos(e)]; }
-  function onMove(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const p = pos(e); curPoints.current.push(p);
-    const ctx = getCtx(); const pts = curPoints.current;
-    if (!ctx || pts.length < 2) return;
-    ctx.beginPath();
-    ctx.strokeStyle = wbTool === "eraser" ? "#ffffff" : color;
-    ctx.lineWidth   = wbTool === "eraser" ? 24 : 3;
-    ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.moveTo(pts[pts.length - 2][0], pts[pts.length - 2][1]);
-    ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-    ctx.stroke();
-  }
-  function onUp() {
-    if (!drawing.current) return; drawing.current = false;
-    if (curPoints.current.length > 1) {
-      const s: WbStroke = { color: wbTool === "eraser" ? "#ffffff" : color, width: wbTool === "eraser" ? 24 : 3, points: [...curPoints.current] };
-      strokesRef.current.push(s); onSendData({ type: "wb-stroke", ...s });
+
+  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const p = getPos(e);
+    if (tool === "text") {
+      committingRef.current = false; textVal.current = "";
+      setTextPos({ x: p[0], y: p[1] });
+      setTimeout(() => textareaRef.current?.focus(), 30);
+      return;
     }
-    curPoints.current = [];
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drawingRef.current = true; startPos.current = p; curPts.current = [p];
   }
+
+  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    const p = getPos(e);
+    curPts.current.push(p);
+    if (tool === "pen" || tool === "highlight" || tool === "eraser") {
+      const ctx = getMain(); const pts = curPts.current;
+      if (!ctx || pts.length < 2) return;
+      ctx.save();
+      ctx.globalAlpha  = tool === "highlight" ? 0.4 : 1;
+      ctx.strokeStyle  = tool === "eraser" ? "#ffffff" : color;
+      ctx.lineWidth    = tool === "highlight" ? width * 3 : tool === "eraser" ? width * 4 : width;
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(pts[pts.length-2][0], pts[pts.length-2][1]);
+      ctx.lineTo(pts[pts.length-1][0], pts[pts.length-1][1]);
+      ctx.stroke(); ctx.restore();
+    } else {
+      wbClearPreview();
+      const ctx = getPreview(); if (!ctx) return;
+      ctx.save();
+      drawObj(ctx, { kind:"shape", shape:tool as ShapeObj["shape"], color, width, filled, x1:startPos.current[0], y1:startPos.current[1], x2:p[0], y2:p[1] });
+      ctx.restore();
+    }
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    drawingRef.current = false; wbClearPreview();
+    const p = getPos(e);
+    if (tool === "pen" || tool === "highlight" || tool === "eraser") {
+      if (curPts.current.length < 2) { curPts.current = []; return; }
+      const obj: StrokeObj = {
+        kind: "stroke", tool: tool === "eraser" ? "pen" : tool,
+        color: tool === "eraser" ? "#ffffff" : color,
+        width: tool === "highlight" ? width * 3 : tool === "eraser" ? width * 4 : width,
+        opacity: tool === "highlight" ? 0.4 : 1,
+        points: [...curPts.current],
+      };
+      objectsRef.current.push(obj); redoRef.current = [];
+      if (tool === "eraser") wbRedraw();
+      onSendData({ type: "wb-obj", obj });
+    } else {
+      const obj: ShapeObj = {
+        kind:"shape", shape:tool as ShapeObj["shape"],
+        color, width, filled,
+        x1:startPos.current[0], y1:startPos.current[1], x2:p[0], y2:p[1],
+      };
+      objectsRef.current.push(obj); redoRef.current = [];
+      wbDrawOnMain(obj);
+      onSendData({ type: "wb-obj", obj });
+    }
+    curPts.current = [];
+  }
+
+  function wbUndo() {
+    if (!objectsRef.current.length) return;
+    redoRef.current.push(objectsRef.current.pop()!);
+    wbRedraw(); onSendData({ type: "wb-undo" });
+  }
+  function wbRedo() {
+    if (!redoRef.current.length) return;
+    const obj = redoRef.current.pop()!;
+    objectsRef.current.push(obj); wbDrawOnMain(obj);
+  }
+  function wbClear() {
+    objectsRef.current = []; redoRef.current = []; wbRedraw();
+    onSendData({ type: "wb-clear" });
+  }
+  function wbExport() {
+    const c = mainRef.current; if (!c) return;
+    const a = document.createElement("a");
+    a.href = c.toDataURL("image/png"); a.download = "tableau.png"; a.click();
+  }
+  function commitText() {
+    if (committingRef.current) return;
+    committingRef.current = true;
+    const text = textVal.current.trim(); textVal.current = ""; setTextPos(null);
+    if (!text || !textPos) return;
+    const sz = Math.max(14, width * 5);
+    const obj: TextObj = { kind:"text", content:text, x:textPos.x, y:textPos.y, color, size:sz };
+    objectsRef.current.push(obj); redoRef.current = [];
+    const ctx = getMain(); if (ctx) drawObj(ctx, obj);
+    onSendData({ type: "wb-obj", obj });
+  }
+
+  const WB_TOOLS = TOOL_DEFS.filter(t => t.id !== "hand");
+  const wbCursors: Partial<Record<DrawTool,string>> = {
+    pen:"crosshair", highlight:"crosshair", eraser:"cell", text:"text",
+    line:"crosshair", arrow:"crosshair", rect:"crosshair", circle:"crosshair", triangle:"crosshair",
+  };
+  const DOT_SIZE: Record<number,number> = { 2:4, 4:8, 8:14, 16:22 };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 flex-shrink-0 bg-[#0D0904]">
-        <button onClick={() => setWbTool("pen")} className={`w-7 h-7 rounded flex items-center justify-center transition ${wbTool === "pen" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-        </button>
-        <button onClick={() => setWbTool("eraser")} className={`w-7 h-7 rounded flex items-center justify-center transition ${wbTool === "eraser" ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/50 hover:bg-white/10"}`}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L17.94 6M3 3l18 18" /></svg>
-        </button>
-        <div className="w-px h-5 bg-white/10" />
-        {WB_COLORS.map(c => (
-          <button key={c} onClick={() => { setColor(c); setWbTool("pen"); }}
-            className={`w-4 h-4 rounded-full border-2 transition-transform hover:scale-125 flex-shrink-0 ${color === c && wbTool === "pen" ? "border-[#F5C400]" : "border-transparent"}`}
-            style={{ backgroundColor: c }} />
-        ))}
-        <button onClick={() => { strokesRef.current = []; redraw(); onSendData({ type: "wb-clear" }); }}
-          className="ml-auto text-white/40 hover:text-red-400 transition text-xs px-2 py-1 rounded hover:bg-red-400/10">Effacer</button>
+
+      {/* Toolbar */}
+      <div className="flex flex-col gap-1.5 px-2 py-2 bg-[#0D0904] border-b border-white/5 flex-shrink-0">
+
+        {/* Tools + actions row */}
+        <div className="flex items-center gap-0.5 flex-wrap">
+          {WB_TOOLS.map(t => (
+            <button key={t.id} onClick={() => setTool(t.id)} title={t.label}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                tool === t.id ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
+              }`}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={t.d} />
+              </svg>
+            </button>
+          ))}
+          <div className="w-px h-5 bg-white/10 mx-0.5 flex-shrink-0" />
+          <button onClick={wbUndo} title="Annuler"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" /></svg>
+          </button>
+          <button onClick={wbRedo} title="Rétablir"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 14l5-5-5-5M19 9H8.5a5.5 5.5 0 100 11H13" /></svg>
+          </button>
+          <button onClick={wbExport} title="Exporter PNG"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+          </button>
+          <button onClick={wbClear} title="Tout effacer"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:bg-red-500/20 hover:text-red-400 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+
+        {/* Colors + widths + fill row */}
+        <div className="flex items-center gap-0.5 flex-wrap">
+          {CANVAS_COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)}
+              className={`w-4 h-4 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0 ${color === c ? "border-[#F5C400] scale-110" : "border-white/20"}`}
+              style={{ backgroundColor: c }} />
+          ))}
+          <input type="color" value={color} onChange={e => setColor(e.target.value)}
+            className="w-4 h-4 rounded-full cursor-pointer border-2 border-white/20 bg-transparent p-0 flex-shrink-0" />
+          <div className="w-px h-5 bg-white/10 mx-1 flex-shrink-0" />
+          {STROKE_WIDTHS.map(w => (
+            <button key={w} onClick={() => setWidth(w)} title={`${w}px`}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition ${width === w ? "bg-[#F5C400]/20 border border-[#F5C400]/40" : "hover:bg-white/10"}`}>
+              <div className="rounded-full" style={{ width: DOT_SIZE[w], height: DOT_SIZE[w], backgroundColor: color }} />
+            </button>
+          ))}
+          {isFillable && (
+            <>
+              <div className="w-px h-5 bg-white/10 mx-1 flex-shrink-0" />
+              <button onClick={() => setFilled(v => !v)}
+                className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[10px] font-semibold transition border ${
+                  filled ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "border-white/10 text-white/50 hover:border-white/20 hover:text-white"
+                }`}>
+                <svg className="w-3 h-3" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                </svg>
+                {filled ? "Plein" : "Vide"}
+              </button>
+            </>
+          )}
+        </div>
+
+        <p className="text-[9px] text-white/25 truncate">{TOOL_DEFS.find(t => t.id === tool)?.hint}</p>
       </div>
+
+      {/* Canvas area */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden bg-white">
-        <canvas ref={canvasRef} className="absolute inset-0 cursor-crosshair"
-          onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} />
+        <canvas ref={mainRef} className="absolute inset-0"
+          style={{ cursor: wbCursors[tool] ?? "crosshair", touchAction: "none" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => { drawingRef.current = false; wbClearPreview(); }}
+        />
+        <canvas ref={previewRef} className="absolute inset-0 pointer-events-none" />
+        {textPos && (
+          <textarea ref={textareaRef}
+            className="absolute bg-white/90 border-2 border-dashed border-blue-500 rounded px-1 resize-none focus:outline-none shadow"
+            style={{ left: textPos.x, top: textPos.y, fontSize: Math.max(12, width * 5), color, fontFamily: "sans-serif", minWidth: 120, minHeight: 36, lineHeight: 1.4 }}
+            onChange={e => { textVal.current = e.target.value; }}
+            onKeyDown={e => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
+              if (e.key === "Escape") { committingRef.current = true; textVal.current = ""; setTextPos(null); }
+            }}
+            onBlur={commitText}
+          />
+        )}
       </div>
     </div>
   );
@@ -1080,9 +1253,10 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [canvasClearCount,  setCanvasClearCount]  = useState(0);
   const [canvasUndoCount,   setCanvasUndoCount]   = useState(0);
 
-  // Whiteboard
-  const [incomingWbStroke, setIncomingWbStroke] = useState<WbStroke | null>(null);
-  const [wbClearCount,     setWbClearCount]     = useState(0);
+  // Whiteboard (Paint)
+  const [incomingWbObj, setIncomingWbObj] = useState<CanvasObj | null>(null);
+  const [wbClearCount,  setWbClearCount]  = useState(0);
+  const [wbUndoCount,   setWbUndoCount]   = useState(0);
 
   // Data receiver
   useEffect(() => {
@@ -1099,8 +1273,9 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           case "canvas-obj":  setIncomingCanvasObj(msg.obj); break;
           case "canvas-clear":setCanvasClearCount(n => n + 1); break;
           case "canvas-undo": setCanvasUndoCount(n => n + 1); break;
-          case "wb-stroke":   setIncomingWbStroke({ color: msg.color, width: msg.width, points: msg.points }); break;
-          case "wb-clear":    setWbClearCount(n => n + 1); break;
+          case "wb-obj":   setIncomingWbObj(msg.obj); break;
+          case "wb-clear": setWbClearCount(n => n + 1); break;
+          case "wb-undo":  setWbUndoCount(n => n + 1); break;
         }
       } catch { /* ignore */ }
     };
@@ -1304,7 +1479,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
               {activePanel === "chat"       && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} />}
-              {activePanel === "whiteboard" && <WhiteboardPanel onSendData={sendData} incomingStroke={incomingWbStroke} incomingClear={wbClearCount} />}
+              {activePanel === "whiteboard" && <WhiteboardPanel onSendData={sendData} incomingObj={incomingWbObj} clearCount={wbClearCount} undoCount={wbUndoCount} />}
               {activePanel === "info"       && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
             </div>
           </div>
