@@ -688,7 +688,6 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
               />
             );
           })()}
-          )}
         </div>
 
         {/* Footer */}
