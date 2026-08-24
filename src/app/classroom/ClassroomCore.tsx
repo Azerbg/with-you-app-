@@ -1461,78 +1461,112 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           {/* Main display */}
           {hasRemoteScreen && remoteScrnTrack && isTrackReference(remoteScrnTrack) ? (
-            <VideoTrack trackRef={remoteScrnTrack} className="absolute inset-0 w-full h-full object-contain bg-black" />
-          ) : hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
-            <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#1C1308] to-[#0A0703]">
-              {remotePart ? (
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-5xl mx-auto mb-5 shadow-[0_0_60px_rgba(245,196,0,0.15)]">{otherInit}</div>
-                  <p className="text-white/70 text-sm font-semibold">{displayOther}</p>
-                  <p className="text-white/30 text-xs mt-1">Caméra désactivée</p>
+            // Screen share → plein écran
+            <div className="absolute inset-0 bg-black flex flex-col">
+              <VideoTrack trackRef={remoteScrnTrack} className="flex-1 w-full object-contain" />
+              {/* Self PiP over screen share */}
+              <div className="absolute bottom-4 right-4 w-36 rounded-xl overflow-hidden shadow-xl border border-white/20 bg-[#1A1209]" style={{ aspectRatio: "16/9" }}>
+                {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
+                  <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#2A1F0E]">
+                    <div className="w-8 h-8 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm">{myInit}</div>
+                  </div>
+                )}
+                <span className="absolute bottom-1 left-1.5 text-white/60 text-[9px] font-semibold bg-black/50 px-1 py-0.5 rounded">Vous</span>
+              </div>
+              {/* Banner */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-white/70 text-xs font-semibold">{displayOther} partage son écran</span>
+              </div>
+            </div>
+          ) : remotePart ? (
+            // En appel → grille côte-à-côte
+            <div className="absolute inset-0 bg-[#080503] flex items-center justify-center gap-3 p-5">
+
+              {/* Tile distant */}
+              <div className="relative min-w-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#111009]"
+                style={{ flex: "0 1 560px", aspectRatio: "16/9" }}>
+                {hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
+                  <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-3xl shadow-lg">{otherInit}</div>
+                    <p className="text-white/60 text-sm font-semibold">{displayOther}</p>
+                    <p className="text-white/30 text-xs">Caméra désactivée</p>
+                  </div>
+                )}
+                <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-white/80 text-[11px] font-semibold bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-md">{displayOther}</span>
                 </div>
-              ) : (
-                <div className="text-center">
-                  <div className="relative w-24 h-24 mx-auto mb-6">
-                    <div className="absolute inset-0 rounded-full border-2 border-[#F5C400]/10 animate-ping" />
-                    <div className="absolute inset-2 rounded-full border-2 border-[#F5C400]/20 animate-ping [animation-delay:0.3s]" />
-                    <div className="absolute inset-4 rounded-full border-2 border-[#F5C400]/30 animate-ping [animation-delay:0.6s]" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full bg-[#F5C400]/20 flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-full bg-[#F5C400]/60" />
-                      </div>
+              </div>
+
+              {/* Tile local */}
+              <div className="relative min-w-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#111009]"
+                style={{ flex: "0 1 560px", aspectRatio: "16/9" }}>
+                {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
+                  <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="w-20 h-20 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-3xl shadow-lg">{myInit}</div>
+                    <p className="text-white/60 text-sm font-semibold">Vous</p>
+                    {!isCameraEnabled && <p className="text-white/30 text-xs">Caméra désactivée</p>}
+                  </div>
+                )}
+                <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
+                  {!isMicrophoneEnabled && (
+                    <div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" /></svg>
                     </div>
-                  </div>
-                  <p className="text-white/60 text-sm font-semibold">En attente de {displayOther}…</p>
-                  <p className="text-white/20 text-xs mt-2">Partage ce lien pour inviter</p>
-                  <div className="mt-3 bg-[#1A1209] border border-[#3A2A0E] rounded-xl px-4 py-2 inline-block">
-                    <p className="text-[#9B8A6B] text-xs font-mono">{isSandbox ? "/classroom/sandbox" : `/classroom/${(bookingId ?? "").slice(0,8)}`}</p>
-                  </div>
+                  )}
+                  <span className="text-white/80 text-[11px] font-semibold bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-md">Vous</span>
+                </div>
+              </div>
+
+              {/* Bannière partage écran local */}
+              {isSharing && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
+                  <span className="text-white/70 text-xs font-semibold">Vous partagez votre écran</span>
                 </div>
               )}
             </div>
-          )}
-
-          {isSharing && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-              <span className="text-white/70 text-xs font-semibold">Vous partagez votre écran</span>
-            </div>
-          )}
-          {hasRemoteScreen && !isSharing && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="text-white/70 text-xs font-semibold">{displayOther} partage son écran</span>
-            </div>
-          )}
-          {remotePart && (
-            <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-white/5">
-              <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <p className="text-white/90 text-xs font-semibold">{displayOther}</p>
-            </div>
-          )}
-
-          {/* Self PiP */}
-          <div className="absolute bottom-4 right-4 w-44 h-28 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.6)] border-2 border-[#F5C400]/30 bg-[#1A1209]">
-            {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
-              <VideoTrack trackRef={localCamTrack} className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-[#2A1F0E]">
-                <div className="w-12 h-12 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold">{myInit}</div>
+          ) : (
+            // En attente de l'autre participant
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-8 bg-gradient-to-b from-[#1C1308] to-[#0A0703]">
+              <div className="text-center">
+                <div className="relative w-24 h-24 mx-auto mb-6">
+                  <div className="absolute inset-0 rounded-full border-2 border-[#F5C400]/10 animate-ping" />
+                  <div className="absolute inset-2 rounded-full border-2 border-[#F5C400]/20 animate-ping [animation-delay:0.3s]" />
+                  <div className="absolute inset-4 rounded-full border-2 border-[#F5C400]/30 animate-ping [animation-delay:0.6s]" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[#F5C400]/20 flex items-center justify-center">
+                      <div className="w-3 h-3 rounded-full bg-[#F5C400]/60" />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm font-semibold">En attente de {displayOther}…</p>
+                <p className="text-white/20 text-xs mt-2">Partage ce lien pour inviter</p>
+                <div className="mt-3 bg-[#1A1209] border border-[#3A2A0E] rounded-xl px-4 py-2 inline-block">
+                  <p className="text-[#9B8A6B] text-xs font-mono">{isSandbox ? "/classroom/sandbox" : `/classroom/${(bookingId ?? "").slice(0,8)}`}</p>
+                </div>
               </div>
-            )}
-            <div className="absolute bottom-1.5 left-2.5">
-              <span className="text-white/60 text-[10px] font-semibold bg-black/40 px-1.5 py-0.5 rounded-md">Vous</span>
-            </div>
-            {!isMicrophoneEnabled && (
-              <div className="absolute top-1.5 right-1.5 bg-red-600 rounded-full p-1">
-                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                </svg>
+              {/* Aperçu caméra locale */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#1A1209]"
+                style={{ width: 280, aspectRatio: "16/9" }}>
+                {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
+                  <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#2A1F0E]">
+                    <div className="w-12 h-12 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold">{myInit}</div>
+                  </div>
+                )}
+                <span className="absolute bottom-2 left-2.5 text-white/60 text-[10px] font-semibold bg-black/40 px-1.5 py-0.5 rounded-md">Vous</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Floating reactions */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
