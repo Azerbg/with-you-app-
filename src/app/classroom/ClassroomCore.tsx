@@ -807,7 +807,6 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   }
 
   useEffect(() => {
-    if (!isOpen) return;
     const obs = new ResizeObserver(() => {
       const el = containerRef.current; const m = mainRef.current; const p = previewRef.current;
       if (!el || !m || !p) return;
@@ -818,7 +817,7 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, []);
 
   useEffect(() => {
     if (!incomingObj) return;
@@ -952,14 +951,11 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
 
   // Escape key
   useEffect(() => {
-    if (!isOpen) return;
     const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  if (!isOpen) return null;
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0D0904]">
@@ -1384,15 +1380,17 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     <div className="h-screen flex flex-col bg-[#0F0A04] overflow-hidden select-none">
 
       {/* Whiteboard Modal */}
-      <WhiteboardModal
-        isOpen={wbOpen} isFull={wbFull}
-        onClose={() => setWbOpen(false)}
-        onToggleFull={() => setWbFull(v => !v)}
-        onSendData={sendData}
-        incomingObj={incomingWbObj}
-        clearCount={wbClearCount}
-        undoCount={wbUndoCount}
-      />
+      {wbOpen && (
+        <WhiteboardModal
+          isOpen={wbOpen} isFull={wbFull}
+          onClose={() => setWbOpen(false)}
+          onToggleFull={() => setWbFull(v => !v)}
+          onSendData={sendData}
+          incomingObj={incomingWbObj}
+          clearCount={wbClearCount}
+          undoCount={wbUndoCount}
+        />
+      )}
 
       {/* Canvas Modal */}
       <CanvasModal
