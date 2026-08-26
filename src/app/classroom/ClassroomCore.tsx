@@ -807,6 +807,7 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   }
 
   useEffect(() => {
+    if (!isOpen) return;
     const obs = new ResizeObserver(() => {
       const el = containerRef.current; const m = mainRef.current; const p = previewRef.current;
       if (!el || !m || !p) return;
@@ -817,7 +818,7 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
     if (containerRef.current) obs.observe(containerRef.current);
     return () => obs.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!incomingObj) return;
