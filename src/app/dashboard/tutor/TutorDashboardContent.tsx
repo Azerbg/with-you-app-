@@ -33,13 +33,6 @@ function StripeConnectCard() {
     fetch("/api/stripe/payouts")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setPayouts(data); });
-
-    // If Stripe redirected back with ?connect=refresh, auto-restart onboarding
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("connect") === "refresh") {
-      handleConnect();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleConnect() {
