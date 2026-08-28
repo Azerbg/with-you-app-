@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface Session {
   id: string;
+  studentId: string;
   studentName: string;
   studentInitials: string;
   scheduledAt: string;
@@ -79,8 +80,135 @@ function EmptyState({ tab }: { tab: Tab }) {
   );
 }
 
-function SessionCard({ s }: { s: Session }) {
+// ─── Note panel (slide-in) ────────────────────────────────────────────────────
+
+function NotePanel({
+  studentId,
+  studentName,
+  onClose,
+}: {
+  studentId: string;
+  studentName: string;
+  onClose: () => void;
+}) {
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/tutor/notes?studentId=${studentId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setContent(data.content ?? "");
+        setUpdatedAt(data.updatedAt ?? null);
+      })
+      .finally(() => {
+        setLoading(false);
+        setTimeout(() => textareaRef.current?.focus(), 100);
+      });
+  }, [studentId]);
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch("/api/tutor/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId, content }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUpdatedAt(data.updatedAt);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center sm:justify-end" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+      <div
+        className="relative bg-white w-full sm:w-96 sm:h-full sm:max-h-screen flex flex-col rounded-t-2xl sm:rounded-none sm:rounded-l-2xl shadow-2xl z-50 max-h-[70vh] sm:max-h-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 flex-shrink-0">
+          <div>
+            <p className="font-bold text-[#5C3D00] text-sm">Notes privées</p>
+            <p className="text-xs text-[#9B8A6B] mt-0.5">{studentName} — visible uniquement par vous</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-[#F2EFE9] flex items-center justify-center text-[#9B8A6B] transition"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 p-5 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="w-6 h-6 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={`Vos notes sur ${studentName}...\n\nEx: Points à travailler, niveau réel, objectifs, comportement, progression...`}
+              className="w-full h-64 sm:h-full min-h-[200px] resize-none border border-[#D9D0C3] rounded-xl px-4 py-3 text-sm text-[#2D1A00] bg-[#FDFAF6] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4BAA8] leading-relaxed"
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-black/5 flex items-center justify-between flex-shrink-0">
+          <span className="text-xs text-[#9B8A6B]">
+            {updatedAt
+              ? `Mis à jour le ${new Date(updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+              : "Aucune note enregistrée"}
+          </span>
+          <button
+            onClick={save}
+            disabled={saving || loading}
+            className={`px-5 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+              saved
+                ? "bg-green-100 text-green-700"
+                : "bg-[#F5C400] text-[#5C3D00] hover:bg-[#FFDE59] disabled:opacity-50"
+            }`}
+          >
+            {saving ? (
+              <><div className="w-3.5 h-3.5 border-2 border-[#5C3D00] border-t-transparent rounded-full animate-spin" /> Sauvegarde…</>
+            ) : saved ? (
+              <>✓ Sauvegardé</>
+            ) : (
+              <>Sauvegarder</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Session card ─────────────────────────────────────────────────────────────
+
+function SessionCard({ s, onOpenNote }: { s: Session; onOpenNote: (s: Session) => void }) {
   const isPast = new Date(s.scheduledAt) < new Date();
+  const now = Date.now();
+  const sessionMs = new Date(s.scheduledAt).getTime();
+  const canJoin = sessionMs - now <= 30 * 60 * 1000 && sessionMs - now > -s.durationMins * 60 * 1000;
+
   return (
     <div className="px-6 py-4 flex items-center gap-4 hover:bg-[#FFFBEA] transition">
       {/* Avatar */}
@@ -106,15 +234,42 @@ function SessionCard({ s }: { s: Session }) {
         </span>
       )}
 
-      <StatusBadge status={s.status} />
+      {/* Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Note button */}
+        <button
+          onClick={() => onOpenNote(s)}
+          title="Notes privées"
+          className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#9B8A6B] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </button>
+
+        {/* Join button (if joinable) */}
+        {canJoin ? (
+          <a
+            href={`/classroom/${s.id}`}
+            className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-[#FFDE59] transition"
+          >
+            Rejoindre →
+          </a>
+        ) : (
+          <StatusBadge status={s.status} />
+        )}
+      </div>
     </div>
   );
 }
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function SessionsClient({
-  fullName, initials, photo, profileComplete, sessions, totalEarnings, currency,
+  sessions, totalEarnings, currency,
 }: Props) {
   const [tab, setTab] = useState<Tab>("upcoming");
+  const [noteTarget, setNoteTarget] = useState<Session | null>(null);
 
   const now = new Date();
 
@@ -136,65 +291,86 @@ export default function SessionsClient({
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-8">
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-2xl border border-black/5 p-5">
-              <p className="text-xs text-[#9B8A6B] mb-1">Séances à venir</p>
-              <p className="text-3xl font-bold text-[#2D1A00]">{upcoming.length}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-black/5 p-5">
-              <p className="text-xs text-[#9B8A6B] mb-1">Séances passées</p>
-              <p className="text-3xl font-bold text-[#2D1A00]">{past.length}</p>
-            </div>
-            <div className="bg-[#5C3D00] rounded-2xl p-5">
-              <p className="text-xs text-white/50 mb-1">Revenus totaux</p>
-              <p className="text-3xl font-bold text-[#F5C400]">
-                {totalEarnings > 0 ? `${totalEarnings} ${currency ?? "TND"}` : "—"}
-              </p>
-            </div>
+        {/* Summary cards */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-2xl border border-black/5 p-5">
+            <p className="text-xs text-[#9B8A6B] mb-1">Séances à venir</p>
+            <p className="text-3xl font-bold text-[#2D1A00]">{upcoming.length}</p>
           </div>
-
-          {/* Main card */}
-          <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-
-            {/* Tabs */}
-            <div className="px-6 pt-5 pb-0 border-b border-black/5 flex items-center gap-1">
-              {tabs.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-xl border-b-2 transition -mb-px ${
-                    tab === t.key
-                      ? "border-[#F5C400] text-[#5C3D00]"
-                      : "border-transparent text-[#9B8A6B] hover:text-[#5C3D00]"
-                  }`}
-                >
-                  {t.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                    tab === t.key ? "bg-[#F5C400] text-[#5C3D00]" : "bg-[#F0EAD8] text-[#9B8A6B]"
-                  }`}>
-                    {t.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Session list */}
-            {displayed.length === 0 ? (
-              <EmptyState tab={tab} />
-            ) : (
-              <div className="divide-y divide-black/4">
-                {displayed.map((s) => (
-                  <SessionCard key={s.id} s={s} />
-                ))}
-              </div>
-            )}
-
+          <div className="bg-white rounded-2xl border border-black/5 p-5">
+            <p className="text-xs text-[#9B8A6B] mb-1">Séances passées</p>
+            <p className="text-3xl font-bold text-[#2D1A00]">{past.length}</p>
+          </div>
+          <div className="bg-[#5C3D00] rounded-2xl p-5">
+            <p className="text-xs text-white/50 mb-1">Revenus totaux</p>
+            <p className="text-3xl font-bold text-[#F5C400]">
+              {totalEarnings > 0 ? `${totalEarnings} ${currency ?? "TND"}` : "—"}
+            </p>
           </div>
         </div>
+
+        {/* Notes info banner */}
+        <div className="mb-6 bg-[#FFFBEA] border border-[#F5C400]/30 rounded-2xl px-5 py-3.5 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#F5C400]/20 flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#C49200]">
+              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+            </svg>
+          </div>
+          <p className="text-xs text-[#6B5E44]">
+            <span className="font-bold text-[#5C3D00]">Notes privées</span> — Cliquez sur l&apos;icône ✏️ d&apos;une séance pour ajouter vos notes personnelles sur un étudiant. Ces notes ne sont jamais visibles par l&apos;étudiant.
+          </p>
+        </div>
+
+        {/* Main card */}
+        <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+
+          {/* Tabs */}
+          <div className="px-6 pt-5 pb-0 border-b border-black/5 flex items-center gap-1">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-xl border-b-2 transition -mb-px ${
+                  tab === t.key
+                    ? "border-[#F5C400] text-[#5C3D00]"
+                    : "border-transparent text-[#9B8A6B] hover:text-[#5C3D00]"
+                }`}
+              >
+                {t.label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                  tab === t.key ? "bg-[#F5C400] text-[#5C3D00]" : "bg-[#F0EAD8] text-[#9B8A6B]"
+                }`}>
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Session list */}
+          {displayed.length === 0 ? (
+            <EmptyState tab={tab} />
+          ) : (
+            <div className="divide-y divide-black/4">
+              {displayed.map((s) => (
+                <SessionCard key={s.id} s={s} onOpenNote={setNoteTarget} />
+              ))}
+            </div>
+          )}
+
+        </div>
       </div>
+
+      {/* Note slide-in panel */}
+      {noteTarget && (
+        <NotePanel
+          studentId={noteTarget.studentId}
+          studentName={noteTarget.studentName}
+          onClose={() => setNoteTarget(null)}
+        />
+      )}
+    </div>
   );
 }

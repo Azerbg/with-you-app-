@@ -220,9 +220,24 @@ export default function SessionsClient({
                         </p>
                       )}
                     </div>
-                    <span className={`text-xs font-bold px-3 py-1.5 rounded-full flex-shrink-0 ${s.cls}`}>
-                      {s.label}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${s.cls}`}>
+                        {s.label}
+                      </span>
+                      {status === "COMPLETED" && (
+                        <a
+                          href={`/api/bookings/${b.id}/receipt`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Télécharger le reçu"
+                          className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#6B5E44] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 );
               })}

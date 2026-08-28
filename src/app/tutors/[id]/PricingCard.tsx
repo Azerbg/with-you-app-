@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Zone pricing (fixed psychological prices — no live conversion) ─────────────
@@ -48,6 +48,11 @@ const TZ_TO_COUNTRY: Record<string, string> = {
 
 export function useZone(): PriceZone {
   return useMemo(() => {
+    // 1. Manual override stored in localStorage
+    const override = typeof window !== "undefined" ? localStorage.getItem("preferred_currency") : null;
+    if (override && ZONES[override]) return ZONES[override];
+
+    // 2. Auto-detect from timezone
     const tz      = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const country = TZ_TO_COUNTRY[tz] ?? "US";
     const zone    = COUNTRY_ZONE[country] ?? "USD";
@@ -94,11 +99,39 @@ const PACKS = [
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function PricingCard() {
+  const [, forceUpdate] = useState(0);
   const zone = useZone();
   const { lang } = useLanguage();
 
+  function handleCurrencyChange() {
+    forceUpdate((n) => n + 1);
+  }
+
   return (
     <div className="space-y-4">
+
+      {/* Currency selector */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-[#F5C400]/50 uppercase tracking-widest">Tarifs</p>
+        <div className="flex gap-1">
+          {Object.values(ZONES).map((z) => (
+            <button
+              key={z.code}
+              onClick={() => {
+                localStorage.setItem("preferred_currency", z.code);
+                handleCurrencyChange();
+              }}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition ${
+                zone.code === z.code
+                  ? "bg-[#F5C400] text-[#5C3D00]"
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {z.code}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Discovery session */}
       <div>

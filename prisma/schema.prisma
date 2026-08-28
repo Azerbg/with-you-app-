@@ -182,6 +182,8 @@ model User {
   paymentMethod      TutorPaymentMethod?
   pendingProfileChanges  PendingProfileChange[] @relation("TutorPendingChanges")
   hrProfileChangeReviews PendingProfileChange[] @relation("HrProfileChangeReviewer")
+  tutorNotesWritten      TutorStudentNote[]     @relation("TutorNotes")
+  tutorNotesAboutMe      TutorStudentNote[]     @relation("StudentNotes")
 
   @@map("users")
 }
@@ -476,6 +478,25 @@ model Booking {
   review   Review?
 
   @@map("bookings")
+}
+
+// ─── TUTOR PRIVATE NOTES ─────────────────────────────────────────────────────
+// Visible only to the tutor who wrote them — never exposed to students
+
+model TutorStudentNote {
+  id        String   @id @default(cuid())
+  tutorId   String
+  studentId String
+  content   String   @db.Text
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  tutor   User @relation("TutorNotes", fields: [tutorId], references: [id], onDelete: Cascade)
+  student User @relation("StudentNotes", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([tutorId, studentId])
+  @@map("tutor_student_notes")
 }
 
 // ─── DISPUTES ────────────────────────────────────────────────────────────────

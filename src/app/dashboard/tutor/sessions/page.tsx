@@ -79,6 +79,7 @@ export default async function TutorSessionsPage() {
       : null;
     return {
       id: b.id,
+      studentId: b.studentId,
       studentName: name,
       studentInitials: initials,
       scheduledAt: b.scheduledAt.toISOString(),
