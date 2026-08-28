@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/stripe/payouts",
+      "path": "/api/stripe/payouts/trigger",
       "schedule": "0 8 * * 5"
     }
   ]

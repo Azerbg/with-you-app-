@@ -67,6 +67,21 @@ export async function POST(req: NextRequest) {
   const durationMins = sessionType === "SINGLE" ? 50 : 30;
   const studentPriceUsd = paymentIntent.amount / 100;
 
+  // Calculate tutor payout from their compensation rate
+  const tutorComp = await db.tutorCompensation.findUnique({
+    where: { userId: tutorId },
+    select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
+  });
+
+  const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
+  const hourlyRate = tutorCurrencyPref === "CAD"
+    ? (tutorComp?.hourlyRateCad ?? 0)
+    : (tutorComp?.hourlyRateTnd ?? 0);
+  const tutorPayoutAmount = hourlyRate > 0
+    ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
+    : Math.round(studentPriceUsd * 0.70 * 100) / 100; // fallback: 70% of student price
+  const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
+
   // Create booking
   const booking = await db.booking.create({
     data: {
@@ -78,6 +93,9 @@ export async function POST(req: NextRequest) {
       scheduledAt: slotDate,
       studentPriceUsd,
       studentCurrency: "USD",
+      tutorPayoutAmount,
+      tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
+      platformMargin,
       stripePaymentIntentId: paymentIntentId,
     },
   });

@@ -93,13 +93,13 @@ export default async function TutorDashboardPage() {
         where: { tutorId: session.user.id, status: "CONFIRMED", scheduledAt: { lt: now } },
       }),
       db.booking.findMany({
-        where: { tutorId: session.user.id, status: "CONFIRMED", scheduledAt: { gte: startOfMonth, lt: now } },
-        select: { studentPriceUsd: true },
+        where: { tutorId: session.user.id, status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: startOfMonth, lt: now } },
+        select: { tutorPayoutAmount: true },
       }),
     ]);
 
     const uniqueStudents = new Set(upcoming.map((b) => b.studentId)).size;
-    const earningsThisMonth = monthBookings.reduce((sum, b) => sum + (b.studentPriceUsd ?? 0), 0);
+    const earningsThisMonth = monthBookings.reduce((sum, b) => sum + (b.tutorPayoutAmount ?? 0), 0);
 
     const offerHourlyRate = app.offerCurrency === "TND"
       ? app.offerHourlyRateTnd

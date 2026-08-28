@@ -482,10 +482,14 @@ export default function DashboardContent(p: Props) {
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Terminée</span>
-                            <Link href="/dashboard/student/sessions"
-                              className="text-[10px] text-[#9B8A6B] hover:text-[#5C3D00] transition">
+                            <a
+                              href={`/api/bookings/${s.id}/receipt`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-[#9B8A6B] hover:text-[#C49200] transition font-medium"
+                            >
                               Reçu →
-                            </Link>
+                            </a>
                           </div>
                         </div>
                       );
