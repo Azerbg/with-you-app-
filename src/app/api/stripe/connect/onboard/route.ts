@@ -25,11 +25,19 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
-    // Verify the saved account still exists in Stripe (clear stale IDs from old environments)
+    // Verify the saved account exists AND has the recipient configuration applied.
+    // v1 accounts or accounts missing the config must be replaced.
     if (accountId) {
+      let needsReset = false;
       try {
-        await stripe.v2.core.accounts.retrieve(accountId);
+        const existing = await stripe.v2.core.accounts.retrieve(accountId);
+        if (!existing.applied_configurations.includes("recipient")) {
+          needsReset = true;
+        }
       } catch {
+        needsReset = true;
+      }
+      if (needsReset) {
         accountId = null;
         await db.user.update({
           where: { id: user.id },
