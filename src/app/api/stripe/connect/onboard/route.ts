@@ -40,8 +40,19 @@ export async function POST() {
 
     if (!accountId) {
       // Accounts v2 API — required for Stripe API version 2026-02-25.clover+
+      // Must specify configuration.recipient so the account has the "recipient"
+      // applied_configuration — required to create an account_link with configurations: ["recipient"]
       const account = await stripe.v2.core.accounts.create({
         ...(user.email ? { contact_email: user.email } : {}),
+        configuration: {
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
+        },
       });
       accountId = account.id;
       await db.user.update({
