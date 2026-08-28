@@ -26,9 +26,9 @@ export async function POST() {
     let accountId = user.stripeConnectAccountId;
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        ...(user.email ? { email: user.email } : {}),
+      // Accounts v2 API (required for Stripe API version 2026-02-25.clover+)
+      const account = await stripe.v2.core.accounts.create({
+        ...(user.email ? { contact_email: user.email } : {}),
       });
       accountId = account.id;
       await db.user.update({
