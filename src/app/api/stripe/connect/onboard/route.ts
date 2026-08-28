@@ -5,6 +5,14 @@ import { stripe } from "@/lib/stripe";
 
 const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
 
+async function createFreshAccount(email: string | null) {
+  const account = await stripe.accounts.create({
+    type: "express",
+    ...(email ? { email } : {}),
+  });
+  return account.id;
+}
+
 export async function POST() {
   try {
     const session = await auth();
@@ -25,51 +33,36 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
+    // Verify the saved account still exists in Stripe; clear stale IDs
+    if (accountId) {
+      try {
+        await stripe.accounts.retrieve(accountId);
+      } catch {
+        // Account no longer exists — clear it so we create a new one below
+        accountId = null;
+        await db.user.update({
+          where: { id: user.id },
+          data: { stripeConnectAccountId: null },
+        });
+      }
+    }
+
     if (!accountId) {
-      // Accounts v2 API (required for Stripe API version 2026-02-25.clover+)
-      const account = await stripe.v2.core.accounts.create({
-        ...(user.email ? { contact_email: user.email } : {}),
-      });
-      accountId = account.id;
+      accountId = await createFreshAccount(user.email);
       await db.user.update({
         where: { id: user.id },
         data: { stripeConnectAccountId: accountId },
       });
     }
 
-    // If the saved account no longer exists in Stripe (stale/deleted), create a fresh one
-    let accountLink;
-    try {
-      accountLink = await stripe.accountLinks.create({
-        account: accountId,
-        refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-        return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-        type: "account_onboarding",
-      });
-    } catch (linkErr: unknown) {
-      const isNoSuchAccount =
-        linkErr instanceof Error && linkErr.message.includes("No such account");
-      if (!isNoSuchAccount) throw linkErr;
-
-      // Stale account — create a new one
-      const freshAccount = await stripe.v2.core.accounts.create({
-        ...(user.email ? { contact_email: user.email } : {}),
-      });
-      accountId = freshAccount.id;
-      await db.user.update({
-        where: { id: user.id },
-        data: { stripeConnectAccountId: accountId },
-      });
-      accountLink = await stripe.accountLinks.create({
-        account: accountId,
-        refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-        return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-        type: "account_onboarding",
-      });
-    }
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+      return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+      type: "account_onboarding",
+    });
 
     return NextResponse.json({ url: accountLink.url });
-
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stripe error";
     console.error("[stripe/connect/onboard]", message);
