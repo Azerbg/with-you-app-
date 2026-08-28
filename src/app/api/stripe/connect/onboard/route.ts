@@ -52,6 +52,13 @@ export async function POST() {
       // applied_configuration — required to create an account_link with configurations: ["recipient"]
       const account = await stripe.v2.core.accounts.create({
         ...(user.email ? { contact_email: user.email } : {}),
+        dashboard: "express",
+        defaults: {
+          responsibilities: {
+            fees_collector: "application",
+            losses_collector: "stripe",
+          },
+        },
         configuration: {
           recipient: {
             capabilities: {
