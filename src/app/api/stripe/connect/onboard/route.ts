@@ -17,7 +17,12 @@ export async function POST() {
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, email: true, stripeConnectAccountId: true },
+      select: {
+        id: true,
+        email: true,
+        stripeConnectAccountId: true,
+        hrApplication: { select: { country: true } },
+      },
     });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -50,6 +55,7 @@ export async function POST() {
       // Accounts v2 API — required for Stripe API version 2026-02-25.clover+
       // Must specify configuration.recipient so the account has the "recipient"
       // applied_configuration — required to create an account_link with configurations: ["recipient"]
+      const country = user.hrApplication?.country ?? "TN";
       const account = await stripe.v2.core.accounts.create({
         ...(user.email ? { contact_email: user.email } : {}),
         dashboard: "express",
@@ -58,6 +64,9 @@ export async function POST() {
             fees_collector: "application",
             losses_collector: "application",
           },
+        },
+        identity: {
+          country,
         },
         configuration: {
           recipient: {
