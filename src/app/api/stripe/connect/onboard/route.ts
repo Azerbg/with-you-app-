@@ -37,14 +37,39 @@ export async function POST() {
       });
     }
 
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-      return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-      type: "account_onboarding",
-    });
+    // If the saved account no longer exists in Stripe (stale/deleted), create a fresh one
+    let accountLink;
+    try {
+      accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+        return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+        type: "account_onboarding",
+      });
+    } catch (linkErr: unknown) {
+      const isNoSuchAccount =
+        linkErr instanceof Error && linkErr.message.includes("No such account");
+      if (!isNoSuchAccount) throw linkErr;
+
+      // Stale account — create a new one
+      const freshAccount = await stripe.v2.core.accounts.create({
+        ...(user.email ? { contact_email: user.email } : {}),
+      });
+      accountId = freshAccount.id;
+      await db.user.update({
+        where: { id: user.id },
+        data: { stripeConnectAccountId: accountId },
+      });
+      accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+        return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+        type: "account_onboarding",
+      });
+    }
 
     return NextResponse.json({ url: accountLink.url });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stripe error";
     console.error("[stripe/connect/onboard]", message);
