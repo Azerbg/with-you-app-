@@ -22,15 +22,7 @@ export async function POST() {
   if (!accountId) {
     const account = await stripe.accounts.create({
       type: "express",
-      email: user.email,
-      capabilities: {
-        transfers: { requested: true },
-      },
-      settings: {
-        payouts: {
-          schedule: { interval: "weekly", weekly_anchor: "friday" },
-        },
-      },
+      email: user.email ?? undefined,
     });
     accountId = account.id;
     await db.user.update({
@@ -39,10 +31,11 @@ export async function POST() {
     });
   }
 
-  // Generate onboarding link (valid for 24h)
+  // Generate onboarding link
+  // refresh_url = page shown when the link expires (must be a real page, not an API route)
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${BASE_URL}/api/stripe/connect/onboard`,
+    refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
     return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
     type: "account_onboarding",
   });

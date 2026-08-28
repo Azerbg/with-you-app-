@@ -22,24 +22,40 @@ interface Payout {
 function StripeConnectCard() {
   const [status, setStatus] = useState<ConnectStatus | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [payouts, setPayouts] = useState<Payout[]>([]);
 
   useEffect(() => {
     fetch("/api/stripe/connect/status")
       .then((r) => r.json())
-      .then((data) => setStatus(data));
+      .then((data) => setStatus(data))
+      .catch(() => setStatus({ connected: false }));
     fetch("/api/stripe/payouts")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setPayouts(data); });
+
+    // If Stripe redirected back with ?connect=refresh, auto-restart onboarding
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("connect") === "refresh") {
+      handleConnect();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleConnect() {
     setConnecting(true);
+    setConnectError(null);
     try {
       const res = await fetch("/api/stripe/connect/onboard", { method: "POST" });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-    } finally {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setConnectError(data.error ?? "Impossible de se connecter à Stripe. Réessayez.");
+        setConnecting(false);
+      }
+    } catch {
+      setConnectError("Erreur réseau. Vérifiez votre connexion et réessayez.");
       setConnecting(false);
     }
   }
@@ -101,9 +117,19 @@ function StripeConnectCard() {
               disabled={connecting}
               className="w-full bg-[#5C3D00] text-[#F5C400] py-2 rounded-xl text-xs font-bold hover:bg-[#3d2900] transition disabled:opacity-50"
             >
-              {connecting ? "Chargement…" : "Connecter mon compte →"}
+              {connecting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+                  Chargement…
+                </span>
+              ) : "Connecter mon compte →"}
             </button>
           </>
+        )}
+        {connectError && (
+          <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {connectError}
+          </p>
         )}
       </div>
 
