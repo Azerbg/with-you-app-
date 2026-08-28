@@ -5,14 +5,6 @@ import { stripe } from "@/lib/stripe";
 
 const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
 
-async function createFreshAccount(email: string | null) {
-  const account = await stripe.accounts.create({
-    type: "express",
-    ...(email ? { email } : {}),
-  });
-  return account.id;
-}
-
 export async function POST() {
   try {
     const session = await auth();
@@ -33,12 +25,11 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
-    // Verify the saved account still exists in Stripe; clear stale IDs
+    // Verify the saved account still exists in Stripe (clear stale IDs from old environments)
     if (accountId) {
       try {
-        await stripe.accounts.retrieve(accountId);
+        await stripe.v2.core.accounts.retrieve(accountId);
       } catch {
-        // Account no longer exists — clear it so we create a new one below
         accountId = null;
         await db.user.update({
           where: { id: user.id },
@@ -48,18 +39,28 @@ export async function POST() {
     }
 
     if (!accountId) {
-      accountId = await createFreshAccount(user.email);
+      // Accounts v2 API — required for Stripe API version 2026-02-25.clover+
+      const account = await stripe.v2.core.accounts.create({
+        ...(user.email ? { contact_email: user.email } : {}),
+      });
+      accountId = account.id;
       await db.user.update({
         where: { id: user.id },
         data: { stripeConnectAccountId: accountId },
       });
     }
 
-    const accountLink = await stripe.accountLinks.create({
+    // Account Links v2 — use_case replaces the flat type/refresh_url/return_url
+    const accountLink = await stripe.v2.core.accountLinks.create({
       account: accountId,
-      refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-      return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-      type: "account_onboarding",
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient"],
+          refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+          return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+        },
+      },
     });
 
     return NextResponse.json({ url: accountLink.url });

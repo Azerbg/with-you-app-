@@ -26,14 +26,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${BASE_URL}/dashboard/tutor?connect=error`);
   }
 
-  // Check if onboarding is complete
-  const account = await stripe.accounts.retrieve(accountId);
-  const isComplete = account.details_submitted;
+  // Check if onboarding is complete using Accounts v2
+  const account = await stripe.v2.core.accounts.retrieve(accountId);
+  const hasOutstandingRequirements =
+    Array.isArray(account.requirements?.entries) && account.requirements.entries.length > 0;
 
-  if (isComplete) {
+  if (!hasOutstandingRequirements) {
     return NextResponse.redirect(`${BASE_URL}/dashboard/tutor?connect=success`);
   } else {
-    // Onboarding incomplete — redirect back
     return NextResponse.redirect(`${BASE_URL}/dashboard/tutor?connect=incomplete`);
   }
 }
