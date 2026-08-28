@@ -47,11 +47,12 @@ function StripeConnectCard() {
     setConnectError(null);
     try {
       const res = await fetch("/api/stripe/connect/onboard", { method: "POST" });
-      const data = await res.json();
+      let data: { url?: string; error?: string } = {};
+      try { data = await res.json(); } catch { /* empty body */ }
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setConnectError(data.error ?? "Impossible de se connecter à Stripe. Réessayez.");
+        setConnectError(data.error ?? `Erreur serveur (${res.status}). Vérifiez les logs Vercel.`);
         setConnecting(false);
       }
     } catch {
