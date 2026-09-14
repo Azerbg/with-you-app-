@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import StudentSidebar from "@/components/StudentSidebar";
+import CurrencySelector from "@/components/CurrencySelector";
 
 export default async function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -36,7 +37,13 @@ export default async function StudentDashboardLayout({ children }: { children: R
         initials={initials}
         image={profile.user.image ?? null}
       />
-      {children}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Topbar */}
+        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0">
+          <CurrencySelector />
+        </div>
+        {children}
+      </div>
     </div>
   );
 }
