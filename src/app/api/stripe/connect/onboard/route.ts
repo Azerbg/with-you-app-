@@ -58,12 +58,6 @@ export async function POST() {
       const country = user.hrApplication?.country ?? "TN";
       const account = await stripe.v2.core.accounts.create({
         ...(user.email ? { contact_email: user.email } : {}),
-        defaults: {
-          responsibilities: {
-            fees_collector: "application",
-            losses_collector: "application",
-          },
-        },
         identity: {
           country,
         },
