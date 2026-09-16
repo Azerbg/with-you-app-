@@ -69,6 +69,11 @@ export async function POST() {
           country,
         },
         configuration: {
+          merchant: {
+            capabilities: {
+              card_payments: { requested: true },
+            },
+          },
           recipient: {
             capabilities: {
               stripe_balance: {
