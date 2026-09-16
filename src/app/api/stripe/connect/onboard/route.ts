@@ -5,8 +5,18 @@ import { stripe } from "@/lib/stripe";
 
 const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
 
-// Countries not supported by Stripe Connect — fall back to FR
-const UNSUPPORTED_COUNTRIES = ["TN", "DZ", "MA", "LY"];
+// Stripe Connect v2 only supports these countries (subset — add more as needed)
+const SUPPORTED_COUNTRIES = [
+  "AU","AT","BE","BR","BG","CA","HR","CY","CZ","DK","EE","FI","FR","DE",
+  "GH","GI","GR","HK","HU","IN","ID","IE","IT","JP","KE","LV","LI","LT",
+  "LU","MY","MT","MX","NL","NZ","NG","NO","PL","PT","RO","SG","SK","SI",
+  "ES","SE","CH","TH","AE","GB","US",
+];
+
+function getSupportedCountry(country: string | null | undefined): string {
+  if (country && SUPPORTED_COUNTRIES.includes(country)) return country;
+  return "FR"; // default fallback for unsupported countries (TN, DZ, MA…)
+}
 
 export async function POST() {
   try {
@@ -33,11 +43,18 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
-    // Validate existing account — if it no longer exists on Stripe, reset
+    // Validate existing v2 account — reset if missing or missing recipient config
     if (accountId) {
+      let needsReset = false;
       try {
-        await stripe.accounts.retrieve(accountId);
+        const existing = await stripe.v2.core.accounts.retrieve(accountId);
+        if (!existing.applied_configurations.includes("recipient")) {
+          needsReset = true;
+        }
       } catch {
+        needsReset = true;
+      }
+      if (needsReset) {
         accountId = null;
         await db.user.update({
           where: { id: user.id },
@@ -47,15 +64,31 @@ export async function POST() {
     }
 
     if (!accountId) {
-      const rawCountry = user.hrApplication?.country ?? "FR";
-      const country = UNSUPPORTED_COUNTRIES.includes(rawCountry) ? "FR" : rawCountry;
+      const country = getSupportedCountry(user.hrApplication?.country);
 
-      const account = await stripe.accounts.create({
-        type: "express",
-        country,
-        ...(user.email ? { email: user.email } : {}),
-        capabilities: {
-          transfers: { requested: true },
+      const account = await stripe.v2.core.accounts.create({
+        ...(user.email ? { contact_email: user.email } : {}),
+        dashboard: "express",
+        defaults: {
+          responsibilities: {
+            fees_collector: "application",
+            losses_collector: "application",
+          },
+        },
+        identity: { country },
+        configuration: {
+          merchant: {
+            capabilities: {
+              card_payments: { requested: true },
+            },
+          },
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
         },
       });
 
@@ -66,11 +99,16 @@ export async function POST() {
       });
     }
 
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await stripe.v2.core.accountLinks.create({
       account: accountId,
-      refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-      return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-      type: "account_onboarding",
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient"],
+          refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+          return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+        },
+      },
     });
 
     return NextResponse.json({ url: accountLink.url });
