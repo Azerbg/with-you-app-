@@ -39,7 +39,7 @@ type CanvasObj = StrokeObj | ShapeObj | TextObj;
 type ActivePanel = "chat" | "info" | null;
 type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
 
-const REACTIONS      = ["👍", "❤️", "😂", "🎉", "🤔", "👏"];
+const REACTIONS      = ["👍", "❤️", "😂", "🎉", "👏"];
 const CANVAS_COLORS  = ["#1a1a1a","#dc2626","#ea580c","#f59e0b","#facc15","#16a34a","#0891b2","#2563eb","#9333ea","#db2777","#6b7280","#92400e"];
 const STROKE_WIDTHS  = [2, 4, 8, 16];
 const WORD_TOOL_IDS: DrawTool[] = ["pen", "text", "eraser", "hand"];
@@ -1712,47 +1712,6 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           </button>
 
           <div className="w-px h-10 bg-white/10 mx-1" />
-
-          {/* Plus */}
-          <div className="relative">
-            <button onClick={e => { e.stopPropagation(); toggleDd("plus"); }} className="flex flex-col items-center gap-1 group">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${openDropdown === "plus" ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
-              </div>
-              <span className={`text-[10px] transition ${openDropdown === "plus" ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>Plus</span>
-            </button>
-            {openDropdown === "plus" && (
-              <div className="absolute bottom-full mb-2 right-0 bg-[#1A1209] border border-[#3A2A0E] rounded-2xl shadow-2xl py-2 min-w-[210px] z-50" onClick={e => e.stopPropagation()}>
-                <button onClick={() => { togglePanel("info"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
-                  <svg className="w-4 h-4 text-[#F5C400]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Informations
-                </button>
-                <button onClick={() => { recording ? stopRecording() : startRecording(); setOpenDropdown(null); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-white/5 transition ${recording ? "text-red-400" : "text-white/70 hover:text-white"}`}>
-                  <svg className="w-4 h-4" fill={recording ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    {recording
-                      ? <><circle cx="12" cy="12" r="4" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 2a10 10 0 110 20A10 10 0 0112 2z" /></>
-                      : <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                    }
-                  </svg>
-                  {recording ? "Arrêter l'enregistrement" : "Enregistrer la séance"}
-                </button>
-                <button onClick={() => { window.open("mailto:support@withyou.app?subject=Problème en classe","_blank"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  Signaler un problème
-                </button>
-                <button onClick={() => { window.open("/help","_blank"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Assistance
-                </button>
-                <div className="border-t border-white/5 mx-3 my-1" />
-                <button onClick={() => { window.open(role === "student" ? "/dashboard/student/settings" : "/dashboard/tutor/settings","_blank"); setOpenDropdown(null); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  Paramètres
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* Quitter */}
           <button onClick={onLeave} className="flex flex-col items-center gap-1 group">
