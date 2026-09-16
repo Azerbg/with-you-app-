@@ -101,7 +101,8 @@ export async function POST() {
 
     // Read applied_configurations directly from the account to avoid mismatch
     const currentAccount = await stripe.v2.core.accounts.retrieve(accountId);
-    const appliedConfigs = (currentAccount.applied_configurations ?? []) as string[];
+    type Configuration = "merchant" | "recipient";
+    const appliedConfigs = (currentAccount.applied_configurations ?? []) as Configuration[];
 
     const accountLink = await stripe.v2.core.accountLinks.create({
       account: accountId,
