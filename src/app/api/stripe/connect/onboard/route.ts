@@ -5,6 +5,9 @@ import { stripe } from "@/lib/stripe";
 
 const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
 
+// Countries not supported by Stripe Connect — fall back to FR
+const UNSUPPORTED_COUNTRIES = ["TN", "DZ", "MA", "LY"];
+
 export async function POST() {
   try {
     const session = await auth();
@@ -30,19 +33,11 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
-    // Verify the saved account exists AND has the recipient configuration applied.
-    // v1 accounts or accounts missing the config must be replaced.
+    // Validate existing account — if it no longer exists on Stripe, reset
     if (accountId) {
-      let needsReset = false;
       try {
-        const existing = await stripe.v2.core.accounts.retrieve(accountId);
-        if (!existing.applied_configurations.includes("recipient")) {
-          needsReset = true;
-        }
+        await stripe.accounts.retrieve(accountId);
       } catch {
-        needsReset = true;
-      }
-      if (needsReset) {
         accountId = null;
         await db.user.update({
           where: { id: user.id },
@@ -52,37 +47,18 @@ export async function POST() {
     }
 
     if (!accountId) {
-      // Accounts v2 API — required for Stripe API version 2026-02-25.clover+
-      // Must specify configuration.recipient so the account has the "recipient"
-      // applied_configuration — required to create an account_link with configurations: ["recipient"]
-      const country = user.hrApplication?.country ?? "TN";
-      const account = await stripe.v2.core.accounts.create({
-        ...(user.email ? { contact_email: user.email } : {}),
-        dashboard: "express",
-        defaults: {
-          responsibilities: {
-            fees_collector: "application",
-            losses_collector: "application",
-          },
-        },
-        identity: {
-          country,
-        },
-        configuration: {
-          merchant: {
-            capabilities: {
-              card_payments: { requested: true },
-            },
-          },
-          recipient: {
-            capabilities: {
-              stripe_balance: {
-                stripe_transfers: { requested: true },
-              },
-            },
-          },
+      const rawCountry = user.hrApplication?.country ?? "FR";
+      const country = UNSUPPORTED_COUNTRIES.includes(rawCountry) ? "FR" : rawCountry;
+
+      const account = await stripe.accounts.create({
+        type: "express",
+        country,
+        ...(user.email ? { email: user.email } : {}),
+        capabilities: {
+          transfers: { requested: true },
         },
       });
+
       accountId = account.id;
       await db.user.update({
         where: { id: user.id },
@@ -90,17 +66,11 @@ export async function POST() {
       });
     }
 
-    // Account Links v2 — use_case replaces the flat type/refresh_url/return_url
-    const accountLink = await stripe.v2.core.accountLinks.create({
+    const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      use_case: {
-        type: "account_onboarding",
-        account_onboarding: {
-          configurations: ["recipient"],
-          refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
-          return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
-        },
-      },
+      refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
+      return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
+      type: "account_onboarding",
     });
 
     return NextResponse.json({ url: accountLink.url });
