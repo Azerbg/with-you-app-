@@ -34,7 +34,10 @@ interface ShapeObj {
 interface TextObj {
   kind: "text"; content: string; x: number; y: number; color: string; size: number;
 }
-type CanvasObj = StrokeObj | ShapeObj | TextObj;
+interface ImageObj {
+  kind: "image"; dataUrl: string; x: number; y: number; w: number; h: number;
+}
+type CanvasObj = StrokeObj | ShapeObj | TextObj | ImageObj;
 
 type ActivePanel = "chat" | "info" | null;
 type Dropdown    = "micro" | "camera" | "outils" | "plus" | null;
@@ -94,10 +97,25 @@ function BarBtn({ active, label, onClick, icon, blue = false }: {
   );
 }
 
+// ─── Image cache (module-level, shared between CanvasModal and WhiteboardModal) ─
+
+const imageCache = new Map<string, HTMLImageElement>();
+function preloadImage(dataUrl: string, onReady?: () => void) {
+  if (imageCache.has(dataUrl)) { onReady?.(); return; }
+  const img = new Image();
+  img.onload = () => { imageCache.set(dataUrl, img); onReady?.(); };
+  img.src = dataUrl;
+}
+
 // ─── Canvas draw helper (top-level, stable) ───────────────────────────────────
 
 function drawObj(ctx: CanvasRenderingContext2D, obj: CanvasObj) {
   ctx.save();
+  if (obj.kind === "image") {
+    const img = imageCache.get(obj.dataUrl);
+    if (img?.complete && img.naturalWidth > 0) ctx.drawImage(img, obj.x, obj.y, obj.w, obj.h);
+    ctx.restore(); return;
+  }
   if (obj.kind === "stroke") {
     if (obj.points.length < 2) { ctx.restore(); return; }
     ctx.globalAlpha  = obj.opacity;
@@ -176,6 +194,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const mainRef      = useRef<HTMLCanvasElement>(null);
   const previewRef   = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const objectsRef   = useRef<CanvasObj[]>([]);
   const redoRef      = useRef<CanvasObj[]>([]);
   const drawingRef   = useRef(false);
@@ -283,7 +302,12 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   useEffect(() => {
     if (!incomingObj) return;
     objectsRef.current.push(incomingObj);
-    drawObjOnMain(incomingObj);
+    if (incomingObj.kind === "image") {
+      // Preload image then redraw so it appears
+      preloadImage(incomingObj.dataUrl, () => redraw());
+    } else {
+      drawObjOnMain(incomingObj);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingObj]);
 
@@ -478,6 +502,40 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     objectsRef.current = []; redoRef.current = []; redraw();
     onSendData({ type: "canvas-clear" });
   }
+  function insertImage(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      const tempImg = new Image();
+      tempImg.onload = () => {
+        // Resize to max 600×400 and compress as JPEG 0.75
+        const maxW = 600, maxH = 400;
+        let w = tempImg.width, h = tempImg.height;
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h);
+          w = Math.round(w * ratio); h = Math.round(h * ratio);
+        }
+        const tmp = document.createElement("canvas");
+        tmp.width = w; tmp.height = h;
+        tmp.getContext("2d")!.drawImage(tempImg, 0, 0, w, h);
+        const dataUrl = tmp.toDataURL("image/jpeg", 0.75);
+        preloadImage(dataUrl, () => {
+          const c = mainRef.current;
+          const z = zoomRef.current; const p = panRef.current;
+          // Place at center of current visible area (world coords)
+          const x = c ? (c.width / 2 - p.x) / z - w / 2 : 50;
+          const y = c ? (c.height / 2 - p.y) / z - h / 2 : 50;
+          const obj: ImageObj = { kind: "image", dataUrl, x, y, w, h };
+          objectsRef.current.push(obj); redoRef.current = [];
+          redraw();
+          onSendData({ type: "canvas-obj", obj });
+        });
+      };
+      tempImg.src = src;
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleExport() {
     const c = mainRef.current; if (!c) return;
     const a = document.createElement("a");
@@ -501,15 +559,15 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`flex flex-col bg-[#0D0904] shadow-2xl overflow-hidden transition-all duration-200 border border-[#3A2A0E] ${
+      <div className={`flex flex-col bg-[#1E1610] shadow-2xl overflow-hidden transition-all duration-200 border border-[#4A3520] ${
         isFull ? "w-full h-full rounded-none" : "w-[92vw] h-[90vh] rounded-2xl"
       }`}>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0703] border-b border-white/5 flex-shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2 bg-[#2A1E0F] border-b border-white/10 flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-          <span className="text-white/85 text-sm font-bold">Toile collaborative</span>
-          <span className="text-white/25 text-xs hidden sm:block">Modifications visibles en temps réel</span>
+          <span className="text-white/90 text-sm font-bold">Toile collaborative</span>
+          <span className="text-white/35 text-xs hidden sm:block">Modifications visibles en temps réel</span>
           <div className="ml-auto flex items-center gap-1">
             <button onClick={handleExport} title="Exporter PNG"
               className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
@@ -535,7 +593,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
         </div>
 
         {/* Options toolbar */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0F0B05] border-b border-white/5 flex-shrink-0 flex-wrap">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#352610] border-b border-white/10 flex-shrink-0 flex-wrap">
 
           {/* Tools (Word mode: stylo, texte, gomme, main) */}
           <div className="flex items-center gap-0.5">
@@ -621,6 +679,16 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
 
           <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
 
+          {/* Insert image */}
+          <button onClick={() => imageInputRef.current?.click()} title="Insérer une image"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+
+          <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
+
           {/* Zoom controls */}
           <div className="flex items-center gap-0.5">
             <button onClick={() => { const r = containerRef.current?.getBoundingClientRect(); if (r) applyZoom(1.25, r.width/2, r.height/2); }}
@@ -636,6 +704,10 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             {TOOL_DEFS.find(t => t.id === tool)?.hint}
           </span>
         </div>
+
+        {/* Hidden image file input */}
+        <input ref={imageInputRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) insertImage(f); e.target.value = ""; }} />
 
         {/* Canvas area — fond gris document comme Word */}
         <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#e8e8e8]">
@@ -702,7 +774,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-1 bg-[#0A0703] border-t border-white/5 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-1 bg-[#2A1E0F] border-t border-white/10 flex-shrink-0">
           <span className="text-[10px] text-white/25">Toile partagée · Tactile · Molette = zoom · Outil Main = naviguer</span>
           <span className="text-[10px] text-white/25">Ctrl+Z annuler · Échap fermer · {zoomPct}%</span>
         </div>
