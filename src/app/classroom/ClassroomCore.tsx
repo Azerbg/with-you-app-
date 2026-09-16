@@ -807,15 +807,17 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   }
 
   useEffect(() => {
-    const obs = new ResizeObserver(() => {
+    function resize() {
       const el = containerRef.current; const m = mainRef.current; const p = previewRef.current;
       if (!el || !m || !p) return;
       const { width: w, height: h } = el.getBoundingClientRect();
-      m.width = w; m.height = h; p.width = w; p.height = h;
-      wbRedraw();
-    });
+      if (w > 0 && h > 0) { m.width = w; m.height = h; p.width = w; p.height = h; wbRedraw(); }
+    }
+    const obs = new ResizeObserver(resize);
     if (containerRef.current) obs.observe(containerRef.current);
-    return () => obs.disconnect();
+    // Fallback: force resize after layout is fully computed
+    const raf = requestAnimationFrame(() => requestAnimationFrame(resize));
+    return () => { obs.disconnect(); cancelAnimationFrame(raf); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1481,46 +1483,42 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
               </div>
             </div>
           ) : remotePart ? (
-            // En appel → grille côte-à-côte
-            <div className="absolute inset-0 bg-[#080503] flex items-center justify-center gap-3 p-5">
+            // En appel → participant distant plein écran + PiP local
+            <div className="absolute inset-0 bg-[#080503]">
 
-              {/* Tile distant */}
-              <div className="relative min-w-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#111009]"
-                style={{ flex: "0 1 560px", aspectRatio: "16/9" }}>
+              {/* Participant distant — plein écran */}
+              <div className="absolute inset-0 overflow-hidden">
                 {hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
-                  <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
+                  <VideoTrack trackRef={remoteCamTrack} className="w-full h-full object-contain" />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-3xl shadow-lg">{otherInit}</div>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-4xl shadow-lg">{otherInit}</div>
                     <p className="text-white/60 text-sm font-semibold">{displayOther}</p>
                     <p className="text-white/30 text-xs">Caméra désactivée</p>
                   </div>
                 )}
-                <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
+                <div className="absolute bottom-4 left-4 flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span className="text-white/80 text-[11px] font-semibold bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-md">{displayOther}</span>
                 </div>
               </div>
 
-              {/* Tile local */}
-              <div className="relative min-w-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#111009]"
-                style={{ flex: "0 1 560px", aspectRatio: "16/9" }}>
+              {/* PiP local — coin bas droite */}
+              <div className="absolute bottom-4 right-4 w-44 rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-[#1A1209]" style={{ aspectRatio: "16/9" }}>
                 {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
                   <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="w-20 h-20 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-3xl shadow-lg">{myInit}</div>
-                    <p className="text-white/60 text-sm font-semibold">Vous</p>
-                    {!isCameraEnabled && <p className="text-white/30 text-xs">Caméra désactivée</p>}
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#2A1F0E]">
+                    <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold">{myInit}</div>
                   </div>
                 )}
-                <div className="absolute bottom-2.5 left-3 flex items-center gap-1.5">
+                <div className="absolute bottom-1 left-1.5 flex items-center gap-1">
                   {!isMicrophoneEnabled && (
-                    <div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" /></svg>
+                    <div className="w-3.5 h-3.5 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" /></svg>
                     </div>
                   )}
-                  <span className="text-white/80 text-[11px] font-semibold bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-md">Vous</span>
+                  <span className="text-white/60 text-[9px] font-semibold bg-black/50 px-1 py-0.5 rounded">Vous</span>
                 </div>
               </div>
 
