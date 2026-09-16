@@ -5,7 +5,6 @@ import { stripe } from "@/lib/stripe";
 
 const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
 
-// Stripe Connect v2 only supports these countries (subset — add more as needed)
 const SUPPORTED_COUNTRIES = [
   "AU","AT","BE","BR","BG","CA","HR","CY","CZ","DK","EE","FI","FR","DE",
   "GH","GI","GR","HK","HU","IN","ID","IE","IT","JP","KE","LV","LI","LT",
@@ -15,7 +14,7 @@ const SUPPORTED_COUNTRIES = [
 
 function getSupportedCountry(country: string | null | undefined): string {
   if (country && SUPPORTED_COUNTRIES.includes(country)) return country;
-  return "FR"; // default fallback for unsupported countries (TN, DZ, MA…)
+  return "FR";
 }
 
 export async function POST() {
@@ -43,12 +42,13 @@ export async function POST() {
 
     let accountId = user.stripeConnectAccountId;
 
-    // Validate existing v2 account — reset if missing or missing recipient config
+    // Reset if account is missing or doesn't have both required configurations
     if (accountId) {
       let needsReset = false;
       try {
         const existing = await stripe.v2.core.accounts.retrieve(accountId);
-        if (!existing.applied_configurations.includes("recipient")) {
+        const configs = existing.applied_configurations ?? [];
+        if (!configs.includes("recipient") || !configs.includes("merchant")) {
           needsReset = true;
         }
       } catch {
@@ -99,12 +99,16 @@ export async function POST() {
       });
     }
 
+    // Read applied_configurations directly from the account to avoid mismatch
+    const currentAccount = await stripe.v2.core.accounts.retrieve(accountId);
+    const appliedConfigs = (currentAccount.applied_configurations ?? []) as string[];
+
     const accountLink = await stripe.v2.core.accountLinks.create({
       account: accountId,
       use_case: {
         type: "account_onboarding",
         account_onboarding: {
-          configurations: ["recipient"],
+          configurations: appliedConfigs,
           refresh_url: `${BASE_URL}/dashboard/tutor?connect=refresh`,
           return_url: `${BASE_URL}/api/stripe/connect/return?account=${accountId}`,
         },
