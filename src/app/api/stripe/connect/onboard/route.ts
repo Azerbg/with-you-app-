@@ -62,7 +62,13 @@ export async function POST() {
           country,
         },
         configuration: {
-          recipient: {},
+          recipient: {
+            capabilities: {
+              stripe_balance: {
+                stripe_transfers: { requested: true },
+              },
+            },
+          },
         },
       });
       accountId = account.id;
