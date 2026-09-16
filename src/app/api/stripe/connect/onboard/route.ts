@@ -3,7 +3,14 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 
-const BASE_URL = process.env.AUTH_URL ?? "https://with-you-app-red.vercel.app";
+const BASE_URL = (() => {
+  const url = process.env.NEXT_PUBLIC_APP_URL
+    ?? process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`
+    ?? process.env.AUTH_URL
+    ?? "https://with-you-app-red.vercel.app";
+  // strip trailing slash
+  return url.replace(/\/$/, "");
+})();
 
 const SUPPORTED_COUNTRIES = [
   "AU","AT","BE","BR","BG","CA","HR","CY","CZ","DK","EE","FI","FR","DE",
