@@ -1,14 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 
 export default function HomePage() {
   const { lang, setLang } = useLanguage();
   const t = T[lang];
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect authenticated users directly to their dashboard
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   const languages = t.languages as string[];
 
