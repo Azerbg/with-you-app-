@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import UserDetailClient from "./UserDetailClient";
+import TutorPricingCard from "./TutorPricingCard";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -41,7 +42,7 @@ export default async function UserDetailPage({ params }: Props) {
       createdAt: true, emailVerified: true, timezone: true,
       hrApplication: { select: { fullName: true, status: true } },
       studentProfile: { select: { cefrLevel: true, programTier: true, country: true, targetLanguage: true } },
-      tutorProfile: { select: { averageRating: true, totalReviews: true, verificationTier: true, languagesTaught: true } },
+      tutorProfile: { select: { averageRating: true, totalReviews: true, verificationTier: true, languagesTaught: true, sessionPriceUsd: true } },
       bookingsAsStudent: {
         orderBy: { createdAt: "desc" }, take: 20,
         select: {
@@ -156,6 +157,14 @@ export default async function UserDetailPage({ params }: Props) {
             <UserDetailClient userId={user.id} currentStatus={user.accountStatus} currentReason={user.statusReason ?? ""} />
           </div>
         </div>
+
+        {/* Tutor pricing */}
+        {user.tutorProfile && (
+          <TutorPricingCard
+            tutorId={user.id}
+            currentPrice={user.tutorProfile.sessionPriceUsd ?? null}
+          />
+        )}
 
         {/* Bookings */}
         {bookings.length > 0 && (

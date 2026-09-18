@@ -327,6 +327,9 @@ model TutorProfile {
   cefrTeachingMin  String?    // Lowest CEFR level tutor can teach (e.g. "A1")
   cefrTeachingMax  String?    // Highest CEFR level tutor can teach (e.g. "C2")
 
+  // Per-tutor session price (set by admin, overrides platform tier price)
+  sessionPriceUsd Float?
+
   // Visibility — tutor can hide themselves from student search
   isHidden        Boolean @default(false)
 
