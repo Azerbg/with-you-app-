@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
 import ContactButton from "./ContactButton";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default async function MyTutorsPage() {
   const session = await auth();
@@ -77,8 +78,11 @@ export default async function MyTutorsPage() {
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Mes tuteurs</h1>
-          <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
-            {initials}
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
+              {initials}
+            </div>
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
 import ProfileEditPanel from "@/components/ProfileEditPanel";
 import PaymentMethodsCard from "./PaymentMethodsCard";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface UpcomingBooking {
   id: string;
@@ -139,6 +140,7 @@ export default function DashboardContent(p: Props) {
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">{t.overview}</h1>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <button className="w-8 h-8 rounded-lg hover:bg-[#5C3D00]/05 flex items-center justify-center text-[#6B5E44] transition">
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
                 <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />

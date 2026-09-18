@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface ThreadUser {
   id: string;
@@ -163,6 +164,9 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         <div>
           <p className="text-sm font-bold text-[#2D1A00]">{name}</p>
           <p className="text-[10px] text-[#9B8A6B]">Tuteur</p>
+        </div>
+        <div className="ml-auto">
+          <LanguageSwitcher />
         </div>
       </div>
 

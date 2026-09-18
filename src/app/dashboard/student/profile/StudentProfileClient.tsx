@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Cropper from "react-easy-crop";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { Area } from "react-easy-crop";
 
 // ─── Crop utility ─────────────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ export default function StudentProfileClient(p: Props) {
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Mon profil</h1>
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             {saved && (
               <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full">
                 Modifications enregistrées ✓

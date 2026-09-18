@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface Booking {
   id: string;
@@ -88,8 +89,9 @@ export default function SessionsClient({
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
       {/* Top bar */}
-      <div className="h-14 border-b border-black/5 bg-white flex items-center px-8 flex-shrink-0">
+      <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
         <h1 className="text-base font-bold text-[#5C3D00]">Mes séances</h1>
+        <LanguageSwitcher />
       </div>
 
       <div className="flex-1 overflow-auto p-8 space-y-8">

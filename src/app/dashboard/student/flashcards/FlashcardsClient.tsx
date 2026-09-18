@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,8 @@ export default function FlashcardsClient(p: Props) {
           {/* Top bar */}
           <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
             <h1 className="text-base font-bold text-[#5C3D00]">Flashcards</h1>
+            <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <button
               onClick={() => setShowCreate(true)}
               className="flex items-center gap-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm px-4 py-2 rounded-xl hover:bg-[#FFDE59] transition"
@@ -250,6 +253,7 @@ export default function FlashcardsClient(p: Props) {
               </svg>
               Nouveau deck
             </button>
+            </div>
           </div>
 
           <div className="flex-1 p-8">
