@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 const NAV = [
   { label: "Overview",  href: "/dashboard/admin",           icon: "📊" },
@@ -17,6 +18,7 @@ interface Props { email: string; }
 export default function AdminSidebar({ email }: Props) {
   const pathname = usePathname();
   const initials = email.slice(0, 2).toUpperCase();
+  const { lang, setLang } = useLanguage();
 
   return (
     <div className="w-56 flex-shrink-0 bg-[#1A0F00] flex flex-col h-full overflow-hidden">
@@ -57,9 +59,30 @@ export default function AdminSidebar({ email }: Props) {
             <p className="text-[10px] text-white/30">Administrateur</p>
           </div>
         </div>
+
+        {/* Language toggle */}
+        <div className="flex items-center gap-1 mb-3">
+          <button
+            onClick={() => setLang("fr")}
+            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
+              lang === "fr" ? "bg-[#F5C400] text-[#1A0F00]" : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            FR
+          </button>
+          <button
+            onClick={() => setLang("en")}
+            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
+              lang === "en" ? "bg-[#F5C400] text-[#1A0F00]" : "text-white/30 hover:text-white/60"
+            }`}
+          >
+            EN
+          </button>
+        </div>
+
         <Link href="/api/auth/signout"
           className="block text-center text-xs text-white/30 hover:text-white/60 transition py-1">
-          Se déconnecter
+          {lang === "fr" ? "Se déconnecter" : "Sign out"}
         </Link>
       </div>
     </div>
