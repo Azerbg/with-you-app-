@@ -26,7 +26,7 @@ interface Props {
 }
 
 export default function StudentSidebar({ email, name, cefrLevel, tier, initials, image, activePage }: Props) {
-  const { lang, setLang } = useLanguage();
+  const { lang } = useLanguage();
   const s = T[lang].sidebar;
   const pathname = usePathname();
   const [tz, setTz] = useState<string>("");
@@ -189,27 +189,6 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
       {/* Bottom */}
       <div className="px-3 pb-5 pt-3 space-y-0.5">
         <div className="mx-1 h-px bg-white/6 mb-3" />
-
-        {/* Language toggle */}
-        <div className="flex items-center gap-1 px-3 py-2 mb-1">
-          <button
-            onClick={() => setLang("fr")}
-            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
-              lang === "fr" ? "bg-[#F5C400] text-[#5C3D00]" : "text-white/40 hover:text-white/70"
-            }`}
-          >
-            FR
-          </button>
-          <button
-            onClick={() => setLang("en")}
-            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
-              lang === "en" ? "bg-[#F5C400] text-[#5C3D00]" : "text-white/40 hover:text-white/70"
-            }`}
-          >
-            EN
-          </button>
-        </div>
-
         <a href="mailto:support@withyou.com" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-white/60 hover:bg-white/10 hover:text-white transition">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]">
             <circle cx="12" cy="12" r="10" />

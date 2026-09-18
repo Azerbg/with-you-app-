@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useLanguage } from "@/context/LanguageContext";
 
 interface Props {
   fullName: string;
@@ -92,7 +91,6 @@ const NAV = [
 export default function TutorSidebar({ fullName, initials, photo, profileComplete }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { lang, setLang } = useLanguage();
 
   const firstName = fullName.split(" ")[0];
 
@@ -162,27 +160,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
       </nav>
 
       {/* Footer */}
-      <div className="px-3 py-4 border-t border-[#F0EAD8] space-y-1">
-        {/* Language toggle */}
-        <div className="flex items-center gap-1 px-1 mb-2">
-          <button
-            onClick={() => setLang("fr")}
-            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
-              lang === "fr" ? "bg-[#F5C400] text-[#5C3D00]" : "text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-[#F5F0E8]"
-            }`}
-          >
-            FR
-          </button>
-          <button
-            onClick={() => setLang("en")}
-            className={`flex-1 py-1.5 rounded-lg text-[12px] font-bold transition ${
-              lang === "en" ? "bg-[#F5C400] text-[#5C3D00]" : "text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-[#F5F0E8]"
-            }`}
-          >
-            EN
-          </button>
-        </div>
-
+      <div className="px-3 py-4 border-t border-[#F0EAD8]">
         <Link
           href="/api/auth/signout"
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#9B8A6B] hover:bg-[#F5F0E8] hover:text-[#5C3D00] transition font-semibold"
@@ -190,7 +168,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
           </svg>
-          {lang === "fr" ? "Déconnexion" : "Sign out"}
+          Déconnexion
         </Link>
       </div>
     </div>

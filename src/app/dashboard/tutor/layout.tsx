@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import TutorSidebar from "@/components/TutorSidebar";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Link from "next/link";
 
 export default async function TutorLayout({ children }: { children: React.ReactNode }) {
@@ -62,7 +63,9 @@ export default async function TutorLayout({ children }: { children: React.ReactN
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Shared top bar */}
-        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0 gap-2">
+        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0 gap-3">
+          <LanguageSwitcher />
+
           {/* Messages */}
           <Link href="/dashboard/tutor/messages"
             className="relative w-9 h-9 rounded-xl hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
