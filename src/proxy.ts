@@ -34,7 +34,7 @@ export default async function proxy(req: NextRequest) {
     const loginUrl = new URL("/auth/login", req.nextUrl);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
-  }
+  } 
 
   if (isLoggedIn) {
     const role = token.role as string;

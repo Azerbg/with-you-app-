@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useMemo, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import CurrencySelector from "@/components/CurrencySelector";
 
 interface Tutor {
   userId: string;
@@ -586,7 +585,6 @@ export default function FindTutorsClient({
           <img src="/logo.svg" alt="WithYou" className="h-8 w-auto" />
         </Link>
         <div className="flex items-center gap-3">
-          <CurrencySelector />
           <Link
             href="/dashboard/student"
             className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition"

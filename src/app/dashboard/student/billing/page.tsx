@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import PaymentSetupClient from "@/app/settings/payment/PaymentSetupClient";
+import CurrencySelector from "@/components/CurrencySelector";
 
 interface Props {
   searchParams: Promise<{ setup_complete?: string }>;
@@ -31,8 +32,11 @@ export default async function BillingPage({ searchParams }: Props) {
         {/* Top bar */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
           <h1 className="text-base font-bold text-[#5C3D00]">Paiement</h1>
-          <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
-            {initials}
+          <div className="flex items-center gap-3">
+            <CurrencySelector />
+            <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
+              {initials}
+            </div>
           </div>
         </div>
 
