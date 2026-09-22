@@ -29,6 +29,7 @@ export default async function StudentSessionsPage() {
             tutorProfile: { select: { profilePhotoUrl: true } },
           },
         },
+        lesson: { select: { whiteboardData: true } },
       },
     }),
   ]);
@@ -50,6 +51,10 @@ export default async function StudentSessionsPage() {
     studentPriceUsd: b.studentPriceUsd,
     cancelledAt: b.cancelledAt?.toISOString() ?? null,
     cancelledBy: b.cancelledBy ?? null,
+    hasCanvas: !!(() => {
+      const wd = b.lesson?.whiteboardData as { objects?: unknown[]; pageHtml?: string } | null | undefined;
+      return wd && (wd.objects?.length || wd.pageHtml?.trim());
+    })(),
   }));
 
   return <SessionsClient bookings={serialized} currentUserId={session.user.id} />;

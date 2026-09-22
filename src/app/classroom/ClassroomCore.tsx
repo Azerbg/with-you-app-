@@ -184,12 +184,16 @@ const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
   { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
 ];
 
-function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText }: {
+interface PastCanvas { bookingId: string; scheduledAt: string; objects: CanvasObj[]; pageHtml: string; }
+
+function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText, bookingId, incomingRestore }: {
   isOpen: boolean; isFull: boolean;
   onClose: () => void; onToggleFull: () => void;
   onSendData: (d: object) => void;
   incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
   incomingPageText: string | null;
+  bookingId?: string;
+  incomingRestore: { objects: CanvasObj[]; pageHtml: string } | null;
 }) {
   const mainRef      = useRef<HTMLCanvasElement>(null);
   const previewRef   = useRef<HTMLCanvasElement>(null);
@@ -206,23 +210,86 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
   const [isPanning,    setIsPanning]    = useState(false);
-  const [pageText,     setPageText]     = useState("");   // texte HTML persistant
-  const pageTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef     = useRef<HTMLDivElement>(null);
+  const [fmtBar,      setFmtBar]       = useState<{ top: number; left: number } | null>(null);
+  const [tableOpen,   setTableOpen]    = useState(false);
+  const [tableHover,  setTableHover]   = useState({ r: 0, c: 0 });
   const syncTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasOpenRef      = useRef(false);
+  const [pastOpen,      setPastOpen]     = useState(false);
+  const [pastList,      setPastList]     = useState<PastCanvas[]>([]);
+  const [loadingPast,   setLoadingPast]  = useState(false);
+
+  function saveToDb() {
+    if (!bookingId) return;
+    const objects  = objectsRef.current;
+    const pageHtml = editorRef.current?.innerHTML ?? "";
+    if (!objects.length && !pageHtml.trim()) return;
+    fetch(`/api/lessons/${bookingId}/canvas`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objects, pageHtml }),
+    }).catch(() => { /* silent — background save */ });
+  }
+
+  function scheduleSave() {
+    if (!bookingId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(saveToDb, 4000);
+  }
+
+  // Periodic auto-save every 60s while canvas is open
+  useEffect(() => {
+    if (!isOpen || !bookingId) return;
+    wasOpenRef.current = true;
+    const id = setInterval(saveToDb, 60_000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, bookingId]);
+
+  // Save immediately when canvas closes (only after having been open at least once)
+  useEffect(() => {
+    if (isOpen) { wasOpenRef.current = true; return; }
+    if (!wasOpenRef.current) return;
+    saveToDb();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Auto-focus quand on entre en mode texte
   useEffect(() => {
     if (tool === "text" && isOpen) {
-      setTimeout(() => pageTextareaRef.current?.focus(), 30);
+      setTimeout(() => editorRef.current?.focus(), 30);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, isOpen]);
 
-  // Sync texte distant entrant
+  // Sync texte distant entrant (HTML)
   useEffect(() => {
     if (incomingPageText === null) return;
-    setPageText(incomingPageText);
+    if (editorRef.current) editorRef.current.innerHTML = incomingPageText;
   }, [incomingPageText]);
+
+  // Barre de formatage flottante — apparaît sur sélection de texte
+  useEffect(() => {
+    if (!isOpen) return;
+    const onSel = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !editorRef.current?.contains(sel.anchorNode)) {
+        setFmtBar(null); return;
+      }
+      const rr = sel.getRangeAt(0).getBoundingClientRect();
+      const cr = containerRef.current?.getBoundingClientRect();
+      if (!cr) return;
+      setFmtBar({
+        top:  Math.max(4, rr.top  - cr.top  - 48),
+        left: Math.max(4, Math.min(rr.left - cr.left + rr.width / 2 - 140, cr.width - 284)),
+      });
+    };
+    document.addEventListener("selectionchange", onSel);
+    return () => document.removeEventListener("selectionchange", onSel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Zoom & pan
   const zoomRef          = useRef(1);
@@ -330,8 +397,15 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   useEffect(() => {
     if (!isOpen) return;
     const fn = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (isFull) onToggleFull(); else onClose(); }
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); handleUndo(); }
+      if (e.key === "Escape") {
+        if (tableOpen) { setTableOpen(false); return; }
+        if (isFull) onToggleFull(); else onClose();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        // Don't undo canvas objects when focus is in the text editor
+        if (document.activeElement === editorRef.current) return;
+        e.preventDefault(); handleUndo();
+      }
     };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
@@ -472,6 +546,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
       redoRef.current = [];
       if (tool === "eraser") redraw(); // re-render cleanly after erasing
       onSendData({ type: "canvas-obj", obj });
+      scheduleSave();
     } else {
       const obj: ShapeObj = {
         kind: "shape", shape: tool as ShapeObj["shape"],
@@ -482,6 +557,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
       redoRef.current = [];
       drawObjOnMain(obj);
       onSendData({ type: "canvas-obj", obj });
+      scheduleSave();
     }
     curPts.current = [];
   }
@@ -491,17 +567,65 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     redoRef.current.push(objectsRef.current.pop()!);
     redraw();
     onSendData({ type: "canvas-undo" });
+    scheduleSave();
   }
   function handleRedo() {
     if (!redoRef.current.length) return;
     const obj = redoRef.current.pop()!;
     objectsRef.current.push(obj);
     drawObjOnMain(obj);
+    scheduleSave();
   }
   function handleClear() {
     objectsRef.current = []; redoRef.current = []; redraw();
     onSendData({ type: "canvas-clear" });
+    scheduleSave();
   }
+
+  // Load a full canvas (objects + pageHtml) — used for past canvas restore
+  function loadCanvas(objects: CanvasObj[], pageHtml: string) {
+    // Preload all images first, then apply
+    const imgs = objects.filter((o): o is ImageObj => o.kind === "image");
+    const preloads = imgs.map(o => new Promise<void>(res => preloadImage(o.dataUrl, () => res())));
+    Promise.all(preloads).then(() => {
+      objectsRef.current = objects;
+      redoRef.current    = [];
+      redraw();
+      if (editorRef.current) {
+        editorRef.current.innerHTML = pageHtml;
+        syncPageText(pageHtml);
+      }
+      scheduleSave();
+    });
+  }
+
+  // Incoming restore from the other participant
+  useEffect(() => {
+    if (!incomingRestore) return;
+    loadCanvas(incomingRestore.objects, incomingRestore.pageHtml);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingRestore]);
+
+  // Close past-canvases dropdown when clicking outside
+  useEffect(() => {
+    if (!pastOpen) return;
+    const close = (e: MouseEvent) => { if (!(e.target as Element)?.closest("[data-past-panel]")) setPastOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [pastOpen]);
+
+  // Fetch past canvases lazily when the panel opens
+  function openPastPanel() {
+    setPastOpen(true);
+    if (pastList.length || !bookingId) return;
+    setLoadingPast(true);
+    fetch(`/api/lessons/past-canvases?bookingId=${bookingId}`)
+      .then(r => r.json())
+      .then((data: PastCanvas[]) => setPastList(data))
+      .catch(() => {/* silent */})
+      .finally(() => setLoadingPast(false));
+  }
+
   function insertImage(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -529,6 +653,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           objectsRef.current.push(obj); redoRef.current = [];
           redraw();
           onSendData({ type: "canvas-obj", obj });
+          scheduleSave();
         });
       };
       tempImg.src = src;
@@ -546,6 +671,42 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     syncTimerRef.current = setTimeout(() => {
       onSendData({ type: "canvas-page-text", text });
     }, 400);
+  }
+  function syncFromEditor() {
+    const html = editorRef.current?.innerHTML ?? "";
+    syncPageText(html);
+    scheduleSave();
+  }
+  function fmt(cmd: string, val?: string) {
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(cmd, false, val);
+    syncFromEditor();
+  }
+  function setFontSize(px: string) {
+    // Marker trick: set size=7 as placeholder, then replace with real CSS font-size
+    document.execCommand("styleWithCSS", false, "false");
+    document.execCommand("fontSize", false, "7");
+    editorRef.current?.querySelectorAll('font[size="7"]').forEach(el => {
+      (el as HTMLElement).style.fontSize = px;
+      (el as HTMLElement).removeAttribute("size");
+    });
+    syncFromEditor();
+  }
+  function insertTable(rows: number, cols: number) {
+    editorRef.current?.focus();
+    let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0;font-family:Georgia,serif">';
+    for (let r = 0; r < rows; r++) {
+      html += "<tr>";
+      for (let c = 0; c < cols; c++) {
+        html += '<td style="border:1px solid #9B8A6B;padding:6px 10px;min-width:60px;min-height:28px"> </td>';
+      }
+      html += "</tr>";
+    }
+    html += "</table><br>";
+    document.execCommand("insertHTML", false, html);
+    syncFromEditor();
+    setTableOpen(false);
+    setTableHover({ r: 0, c: 0 });
   }
 
   const cursors: Record<DrawTool, string> = {
@@ -569,6 +730,87 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           <span className="text-white/90 text-sm font-bold">Toile collaborative</span>
           <span className="text-white/35 text-xs hidden sm:block">Modifications visibles en temps réel</span>
           <div className="ml-auto flex items-center gap-1">
+            {/* Past canvases loader */}
+            {bookingId && (
+              <div data-past-panel className="relative">
+                <button
+                  onClick={() => pastOpen ? setPastOpen(false) : openPastPanel()}
+                  title="Charger une toile"
+                  className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg transition text-xs ${pastOpen ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/40 hover:text-white hover:bg-white/10"}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6M3 7V5a2 2 0 012-2h14a2 2 0 012 2v2M3 7h18M3 7l2 13h14l2-13" />
+                  </svg>
+                  <span className="hidden sm:block">Toiles</span>
+                </button>
+
+                {pastOpen && (
+                  <div data-past-panel className="absolute top-9 right-0 z-50 w-64 bg-[#1A0F00] border border-white/15 rounded-xl shadow-2xl overflow-hidden">
+                    <div className="px-3 py-2 border-b border-white/10">
+                      <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Toiles passées</p>
+                    </div>
+
+                    {/* New canvas option */}
+                    <button
+                      onClick={() => {
+                        handleClear();
+                        if (editorRef.current) { editorRef.current.innerHTML = ""; syncPageText(""); }
+                        onSendData({ type: "canvas-restore", objects: [], pageHtml: "" });
+                        setPastOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 transition text-left border-b border-white/5"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 text-white/50" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <span className="text-white/70 text-xs font-semibold">Nouvelle toile vide</span>
+                    </button>
+
+                    {/* Past canvases */}
+                    {loadingPast ? (
+                      <div className="flex items-center justify-center py-6">
+                        <div className="w-5 h-5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : pastList.length === 0 ? (
+                      <p className="text-white/30 text-xs text-center py-5">Aucune toile enregistrée</p>
+                    ) : (
+                      <div className="max-h-56 overflow-y-auto">
+                        {pastList.map((p) => (
+                          <button
+                            key={p.bookingId}
+                            onClick={() => {
+                              loadCanvas(p.objects as CanvasObj[], p.pageHtml);
+                              onSendData({ type: "canvas-restore", objects: p.objects, pageHtml: p.pageHtml });
+                              setPastOpen(false);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 transition text-left"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-[#F5C400]/10 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-3.5 h-3.5 text-[#F5C400]/60" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <path strokeLinecap="round" d="M7 14l2.5-3.5 2 2.5 2-3L17 14" />
+                              </svg>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-white/70 text-xs font-semibold truncate">
+                                {new Date(p.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                              </p>
+                              <p className="text-white/30 text-[10px] mt-0.5">
+                                {(p.objects as CanvasObj[]).length} objet{(p.objects as CanvasObj[]).length !== 1 ? "s" : ""}
+                                {p.pageHtml.trim() ? " · texte" : ""}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button onClick={handleExport} title="Exporter PNG"
               className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -687,6 +929,58 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             </svg>
           </button>
 
+          {/* Insert table */}
+          <div className="relative">
+            <button
+              onClick={() => { setTableOpen(v => !v); setTableHover({ r: 0, c: 0 }); }}
+              title="Insérer un tableau"
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition ${
+                tableOpen ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/40" : "text-white/50 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              </svg>
+            </button>
+
+            {tableOpen && (
+              <div
+                className="absolute top-10 left-0 z-30 bg-[#1A0F00] border border-white/20 rounded-xl p-3 shadow-2xl"
+                onMouseLeave={() => setTableHover({ r: 0, c: 0 })}
+              >
+                <p className="text-white/40 text-[10px] mb-2 text-center font-mono">
+                  {tableHover.r > 0 ? `${tableHover.c} col × ${tableHover.r} lig` : "Choisir la taille"}
+                </p>
+                <div className="grid gap-0.5" style={{ gridTemplateColumns: "repeat(8, 1fr)" }}>
+                  {Array.from({ length: 64 }).map((_, i) => {
+                    const r = Math.floor(i / 8) + 1;
+                    const c = (i % 8) + 1;
+                    const active = r <= tableHover.r && c <= tableHover.c;
+                    return (
+                      <div
+                        key={i}
+                        className={`w-5 h-5 rounded border cursor-pointer transition-colors ${
+                          active ? "bg-[#F5C400]/40 border-[#F5C400]/60" : "bg-white/5 border-white/10 hover:bg-white/15"
+                        }`}
+                        onMouseEnter={() => setTableHover({ r, c })}
+                        onClick={() => insertTable(r, c)}
+                      />
+                    );
+                  })}
+                </div>
+                {tableHover.r > 0 && (
+                  <button
+                    className="mt-2 w-full py-1.5 rounded-lg bg-[#F5C400]/20 text-[#F5C400] text-xs font-bold hover:bg-[#F5C400]/30 transition"
+                    onClick={() => insertTable(tableHover.r, tableHover.c)}
+                  >
+                    Insérer {tableHover.c} × {tableHover.r}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="w-px h-6 bg-white/10 mx-1 flex-shrink-0" />
 
           {/* Zoom controls */}
@@ -729,7 +1023,85 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           <canvas ref={previewRef}
             className="absolute inset-0 pointer-events-none"
           />
-          {/* Couche texte — TOUJOURS visible, éditable seulement en mode texte */}
+          {/* Barre de formatage flottante (Word-like) */}
+          {fmtBar && tool === "text" && (
+            <div
+              className="absolute z-20 flex items-center gap-0.5 bg-[#1A0F00] border border-white/20 rounded-xl px-2 py-1.5 shadow-2xl"
+              style={{ top: fmtBar.top, left: fmtBar.left }}
+              onMouseDown={e => e.preventDefault()}
+            >
+              {/* Gras */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("bold"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Gras (Ctrl+B)">B</button>
+              {/* Italique */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("italic"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center italic text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Italique (Ctrl+I)">I</button>
+              {/* Souligné */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("underline"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center underline text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Souligné (Ctrl+U)">S</button>
+              {/* Barré */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("strikeThrough"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center line-through text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Barré">S</button>
+
+              <div className="w-px h-5 bg-white/15 mx-0.5" />
+
+              {/* Taille de police */}
+              <select
+                className="h-7 px-1 rounded-lg bg-white/5 text-white/70 text-[11px] border border-white/10 focus:outline-none cursor-pointer"
+                defaultValue=""
+                onMouseDown={e => e.stopPropagation()}
+                onChange={e => { e.preventDefault(); setFontSize(e.target.value); e.currentTarget.value = ""; }}
+              >
+                <option value="" disabled>Taille</option>
+                {[10,12,14,16,18,20,24,28,32,36,48,64].map(s => (
+                  <option key={s} value={`${s}px`}>{s}px</option>
+                ))}
+              </select>
+
+              <div className="w-px h-5 bg-white/15 mx-0.5" />
+
+              {/* Couleur texte */}
+              <label className="relative w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition" title="Couleur du texte">
+                <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10M12 3l5 9H7l5-9z"/><path strokeLinecap="round" d="M5 18h14"/></svg>
+                <input type="color" defaultValue="#1a1a1a"
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  onChange={e => fmt("foreColor", e.target.value)} />
+              </label>
+              {/* Surlignage */}
+              <label className="relative w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition" title="Surligner">
+                <svg className="w-4 h-4 text-[#F5C400]/70" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="15" width="18" height="4" rx="1"/><path d="M6 15V6l6-3 6 3v9" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+                <input type="color" defaultValue="#facc15"
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  onChange={e => fmt("hiliteColor", e.target.value)} />
+              </label>
+
+              <div className="w-px h-5 bg-white/15 mx-0.5" />
+
+              {/* Alignement */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("justifyLeft"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Gauche">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M4 11h10M4 16h14"/></svg>
+              </button>
+              <button onMouseDown={e => { e.preventDefault(); fmt("justifyCenter"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Centrer">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M7 11h10M6 16h12"/></svg>
+              </button>
+              <button onMouseDown={e => { e.preventDefault(); fmt("justifyRight"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Droite">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M10 11h10M6 16h14"/></svg>
+              </button>
+
+              <div className="w-px h-5 bg-white/15 mx-0.5" />
+
+              {/* Effacer la mise en forme */}
+              <button onMouseDown={e => { e.preventDefault(); fmt("removeFormat"); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:bg-red-500/20 hover:text-red-400 transition" title="Effacer la mise en forme">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          )}
+
+          {/* Couche texte rich — TOUJOURS visible, éditable seulement en mode texte */}
           {(() => {
             const z      = zoomRef.current;
             const px     = panRef.current.x;
@@ -737,10 +1109,11 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             const margin = 60 * z;
             const active = tool === "text";
             return (
-              <textarea
-                ref={pageTextareaRef}
-                readOnly={!active}
-                className="absolute resize-none focus:outline-none bg-transparent"
+              <div
+                ref={editorRef}
+                contentEditable={active}
+                suppressContentEditableWarning
+                className="absolute focus:outline-none bg-transparent overflow-auto"
                 style={{
                   left:         px + margin,
                   top:          py + margin,
@@ -751,20 +1124,15 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                   fontFamily:   "Georgia, serif",
                   color:        "#1a1a1a",
                   caretColor:   "#1a1a1a",
-                  overflow:     "auto",
                   whiteSpace:   "pre-wrap",
                   wordBreak:    "break-word",
                   pointerEvents: active ? "auto" : "none",
                   cursor:        active ? "text" : "default",
-                  // Bordure subtile en mode édition seulement
                   outline:      active ? "2px solid rgba(59,130,246,0.25)" : "none",
                   outlineOffset: "2px",
+                  userSelect:   active ? "text" : "none",
                 }}
-                value={pageText}
-                onChange={e => {
-                  setPageText(e.target.value);
-                  syncPageText(e.target.value);
-                }}
+                onInput={() => syncFromEditor()}
                 onKeyDown={e => {
                   if (e.key === "Escape") setTool("pen");
                 }}
@@ -1395,10 +1763,11 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   function stopRecording() { mediaRecorderRef.current?.stop(); }
 
   // Canvas
-  const [incomingCanvasObj,  setIncomingCanvasObj]  = useState<CanvasObj | null>(null);
-  const [canvasClearCount,   setCanvasClearCount]   = useState(0);
-  const [canvasUndoCount,    setCanvasUndoCount]    = useState(0);
-  const [incomingPageText,   setIncomingPageText]   = useState<string | null>(null);
+  const [incomingCanvasObj,     setIncomingCanvasObj]     = useState<CanvasObj | null>(null);
+  const [canvasClearCount,      setCanvasClearCount]      = useState(0);
+  const [canvasUndoCount,       setCanvasUndoCount]       = useState(0);
+  const [incomingPageText,      setIncomingPageText]      = useState<string | null>(null);
+  const [incomingCanvasRestore, setIncomingCanvasRestore] = useState<{ objects: CanvasObj[]; pageHtml: string } | null>(null);
 
   // Whiteboard (Paint)
   const [incomingWbObj, setIncomingWbObj] = useState<CanvasObj | null>(null);
@@ -1424,6 +1793,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           case "wb-clear":        setWbClearCount(n => n + 1); break;
           case "wb-undo":         setWbUndoCount(n => n + 1); break;
           case "canvas-page-text": setIncomingPageText(msg.text); break;
+          case "canvas-restore":  setIncomingCanvasRestore({ objects: msg.objects ?? [], pageHtml: msg.pageHtml ?? "" }); break;
         }
       } catch { /* ignore */ }
     };
@@ -1476,6 +1846,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         clearCount={canvasClearCount}
         undoCount={canvasUndoCount}
         incomingPageText={incomingPageText}
+        bookingId={bookingId}
+        incomingRestore={incomingCanvasRestore}
       />
 
       {/* Top bar */}

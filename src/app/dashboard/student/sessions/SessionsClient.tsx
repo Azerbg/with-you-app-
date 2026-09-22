@@ -17,6 +17,7 @@ interface Booking {
   studentPriceUsd: number | null;
   cancelledAt: string | null;
   cancelledBy: string | null;
+  hasCanvas: boolean;
 }
 
 function initials(name: string) {
@@ -226,6 +227,18 @@ export default function SessionsClient({
                       <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${s.cls}`}>
                         {s.label}
                       </span>
+                      {status === "COMPLETED" && b.hasCanvas && (
+                        <a
+                          href={`/classroom/${b.id}/canvas`}
+                          title="Voir la Toile de la séance"
+                          className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#6B5E44] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
+                        >
+                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
+                            <rect x="3" y="3" width="14" height="14" rx="2" />
+                            <path strokeLinecap="round" d="M6 13l2.5-3 2 2.5 2-3L15 13" />
+                          </svg>
+                        </a>
+                      )}
                       {status === "COMPLETED" && (
                         <a
                           href={`/api/bookings/${b.id}/receipt`}

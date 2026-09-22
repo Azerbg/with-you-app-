@@ -43,7 +43,7 @@ export const QUESTION_BANK: QuizQuestion[] = [
     options: ["watched", "were watching", "have watched", "watch"],
     correct: 1,
   },
-  {
+  { 
     id: "G-B1",
     category: "GRAMMAR",
     level: "B1",

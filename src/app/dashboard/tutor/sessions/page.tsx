@@ -56,6 +56,7 @@ export default async function TutorSessionsPage() {
           email: true,
         },
       },
+      lesson: { select: { whiteboardData: true } },
     },
   });
 
@@ -87,6 +88,10 @@ export default async function TutorSessionsPage() {
       status: b.status,
       earnings,
       currency,
+      hasCanvas: !!(() => {
+        const wd = b.lesson?.whiteboardData as { objects?: unknown[]; pageHtml?: string } | null | undefined;
+        return wd && (wd.objects?.length || wd.pageHtml?.trim());
+      })(),
     };
   });
 

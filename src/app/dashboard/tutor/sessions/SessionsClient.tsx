@@ -12,6 +12,7 @@ interface Session {
   status: string;
   earnings: number | null;
   currency: string | null;
+  hasCanvas: boolean;
 }
 
 interface Props {
@@ -236,6 +237,20 @@ function SessionCard({ s, onOpenNote }: { s: Session; onOpenNote: (s: Session) =
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Canvas button (COMPLETED with canvas) */}
+        {s.status === "COMPLETED" && s.hasCanvas && (
+          <a
+            href={`/classroom/${s.id}/canvas`}
+            title="Voir la Toile de la séance"
+            className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#9B8A6B] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
+              <rect x="3" y="3" width="14" height="14" rx="2" />
+              <path strokeLinecap="round" d="M6 13l2.5-3 2 2.5 2-3L15 13" />
+            </svg>
+          </a>
+        )}
+
         {/* Note button */}
         <button
           onClick={() => onOpenNote(s)}
