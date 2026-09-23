@@ -429,7 +429,7 @@ const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
 interface CanvasPage  { objects: CanvasObj[]; pageHtml: string; }
 interface PastCanvas  { bookingId: string; scheduledAt: string; pages: CanvasPage[]; }
 
-function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText, bookingId, incomingRestore }: {
+function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText, bookingId, incomingRestore, incomingPagesSync }: {
   isOpen: boolean; isFull: boolean;
   onClose: () => void; onToggleFull: () => void;
   onSendData: (d: object) => void;
