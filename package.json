@@ -12,6 +12,7 @@
     "@auth/prisma-adapter": "^2.11.2",
     "@livekit/components-react": "^2.9.21",
     "@livekit/components-styles": "^1.2.0",
+    "@livekit/track-processors": "^0.8.1",
     "@prisma/client": "^6.19.2",
     "@stripe/react-stripe-js": "^2.9.0",
     "@stripe/stripe-js": "^4.10.0",

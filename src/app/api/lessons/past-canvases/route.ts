@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
   const bookingId = req.nextUrl.searchParams.get("bookingId");
   if (!bookingId) return NextResponse.json({ error: "bookingId required" }, { status: 400 });
 
-  // Find the current booking to get the student/tutor pair
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     select: { studentId: true, tutorId: true },
@@ -21,14 +20,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Find past bookings between the same pair that have canvas data
   const past = await db.booking.findMany({
     where: {
       id:        { not: bookingId },
       studentId: booking.studentId,
       tutorId:   booking.tutorId,
       status:    "COMPLETED",
-      lesson: { isNot: null },
+      lesson:    { isNot: null },
     },
     orderBy: { scheduledAt: "desc" },
     take: 10,
@@ -39,14 +37,19 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const result = past
-    .map(b => ({
-      bookingId:   b.id,
-      scheduledAt: b.scheduledAt.toISOString(),
-      objects:     (b.lesson?.whiteboardData as { objects?: unknown[] })?.objects ?? [],
-      pageHtml:    (b.lesson?.whiteboardData as { pageHtml?: string })?.pageHtml   ?? "",
-    }))
-    .filter(b => b.objects.length > 0 || b.pageHtml.trim());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = past.map(b => {
+    const wd = b.lesson?.whiteboardData as any;
+    if (!wd) return null;
+    // Normalise legacy format
+    const pages: { objects: unknown[]; pageHtml: string }[] = Array.isArray(wd.pages)
+      ? wd.pages
+      : [{ objects: wd.objects ?? [], pageHtml: wd.pageHtml ?? "" }];
+    return { bookingId: b.id, scheduledAt: b.scheduledAt.toISOString(), pages };
+  })
+  .filter((b): b is NonNullable<typeof b> =>
+    b !== null && b.pages.some(p => p.objects.length > 0 || p.pageHtml.trim())
+  );
 
   return NextResponse.json(result);
 }

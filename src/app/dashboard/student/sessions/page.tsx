@@ -52,8 +52,10 @@ export default async function StudentSessionsPage() {
     cancelledAt: b.cancelledAt?.toISOString() ?? null,
     cancelledBy: b.cancelledBy ?? null,
     hasCanvas: !!(() => {
-      const wd = b.lesson?.whiteboardData as { objects?: unknown[]; pageHtml?: string } | null | undefined;
-      return wd && (wd.objects?.length || wd.pageHtml?.trim());
+      const wd = b.lesson?.whiteboardData as { pages?: { objects?: unknown[]; pageHtml?: string }[]; objects?: unknown[]; pageHtml?: string } | null | undefined;
+      if (!wd) return false;
+      if (Array.isArray(wd.pages)) return wd.pages.some(p => p.objects?.length || p.pageHtml?.trim());
+      return wd.objects?.length || wd.pageHtml?.trim();
     })(),
   }));
 

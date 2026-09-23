@@ -9,7 +9,7 @@ import {
   VideoTrack,
   isTrackReference,
 } from "@livekit/components-react";
-import { Track, RoomEvent, ConnectionQuality, ParticipantEvent } from "livekit-client";
+import { Track, RoomEvent, ConnectionQuality, ParticipantEvent, LocalVideoTrack } from "livekit-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,6 +169,117 @@ function drawObj(ctx: CanvasRenderingContext2D, obj: CanvasObj) {
   ctx.restore();
 }
 
+// ─── Virtual Background Panel ────────────────────────────────────────────────
+
+type BgChoice = "none" | "blur-soft" | "blur-strong" | string; // string = image data URL or color
+
+const SOLID_COLORS = [
+  { label: "Noir",        hex: "#0a0a0a" },
+  { label: "Nuit",        hex: "#0f172a" },
+  { label: "Forêt",       hex: "#0f2718" },
+  { label: "Marron",      hex: "#2d1a00" },
+  { label: "Ardoise",     hex: "#1e293b" },
+  { label: "Violet",      hex: "#1e1b4b" },
+  { label: "Gris foncé",  hex: "#1f2937" },
+  { label: "Bordeaux",    hex: "#4c0519" },
+];
+
+function solidDataUrl(hex: string): string {
+  const c = document.createElement("canvas");
+  c.width = 4; c.height = 4;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = hex; ctx.fillRect(0, 0, 4, 4);
+  return c.toDataURL();
+}
+
+function VirtualBgPanel({ onClose, onApply, current, applying }: {
+  onClose: () => void;
+  onApply: (choice: BgChoice) => void;
+  current: BgChoice;
+  applying: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { if (ev.target?.result) onApply(ev.target.result as string); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  return (
+    <div className="bg-[#0D0904] border border-white/10 rounded-2xl shadow-2xl p-4 w-80">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white/80 text-sm font-bold">Arrière-plan</p>
+        <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      {applying && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-[#F5C400]/10 rounded-xl">
+          <div className="w-3.5 h-3.5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <span className="text-[#F5C400] text-xs">Application en cours…</span>
+        </div>
+      )}
+
+      {/* None + Blur */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {/* None */}
+        <button onClick={() => onApply("none")} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition ${current === "none" ? "border-[#F5C400] bg-[#F5C400]/10" : "border-white/10 hover:border-white/25 hover:bg-white/5"}`}>
+          <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
+            <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+          </div>
+          <span className={`text-[10px] font-semibold ${current === "none" ? "text-[#F5C400]" : "text-white/40"}`}>Aucun</span>
+        </button>
+
+        {/* Blur soft */}
+        <button onClick={() => onApply("blur-soft")} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition ${current === "blur-soft" ? "border-[#F5C400] bg-[#F5C400]/10" : "border-white/10 hover:border-white/25 hover:bg-white/5"}`}>
+          <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/9" }}>
+            <div className="w-full h-full bg-gradient-to-br from-[#2a1f0e] to-[#0a0703]" style={{ filter: "blur(3px)" }} />
+          </div>
+          <span className={`text-[10px] font-semibold ${current === "blur-soft" ? "text-[#F5C400]" : "text-white/40"}`}>Flou léger</span>
+        </button>
+
+        {/* Blur strong */}
+        <button onClick={() => onApply("blur-strong")} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition ${current === "blur-strong" ? "border-[#F5C400] bg-[#F5C400]/10" : "border-white/10 hover:border-white/25 hover:bg-white/5"}`}>
+          <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/9" }}>
+            <div className="w-full h-full bg-gradient-to-br from-[#2a1f0e] to-[#0a0703]" style={{ filter: "blur(8px)" }} />
+          </div>
+          <span className={`text-[10px] font-semibold ${current === "blur-strong" ? "text-[#F5C400]" : "text-white/40"}`}>Flou fort</span>
+        </button>
+      </div>
+
+      {/* Solid colors */}
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">Couleur unie</p>
+      <div className="grid grid-cols-8 gap-1.5 mb-4">
+        {SOLID_COLORS.map(c => (
+          <button
+            key={c.hex}
+            onClick={() => onApply(c.hex)}
+            title={c.label}
+            className={`w-full rounded-lg border-2 transition ${current === c.hex ? "border-[#F5C400] scale-110" : "border-transparent hover:border-white/30"}`}
+            style={{ aspectRatio: "1", backgroundColor: c.hex }}
+          />
+        ))}
+      </div>
+
+      {/* Custom image */}
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">Image personnalisée</p>
+      <button
+        onClick={() => fileRef.current?.click()}
+        className="w-full flex items-center justify-center gap-2 h-9 rounded-xl border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 transition text-xs font-semibold"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        Choisir une image
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
+
 // ─── Floating Call PiP ───────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -315,7 +426,8 @@ const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
   { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
 ];
 
-interface PastCanvas { bookingId: string; scheduledAt: string; objects: CanvasObj[]; pageHtml: string; }
+interface CanvasPage  { objects: CanvasObj[]; pageHtml: string; }
+interface PastCanvas  { bookingId: string; scheduledAt: string; pages: CanvasPage[]; }
 
 function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomingObj, clearCount, undoCount, incomingPageText, bookingId, incomingRestore }: {
   isOpen: boolean; isFull: boolean;
@@ -325,6 +437,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   incomingPageText: string | null;
   bookingId?: string;
   incomingRestore: { objects: CanvasObj[]; pageHtml: string } | null;
+  incomingPagesSync: { pages: CanvasPage[]; currentPage: number } | null;
 }) {
   const mainRef      = useRef<HTMLCanvasElement>(null);
   const previewRef   = useRef<HTMLCanvasElement>(null);
@@ -348,19 +461,34 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const syncTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasOpenRef      = useRef(false);
+
+  // Multi-page support
+  const pagesRef        = useRef<CanvasPage[]>([{ objects: [], pageHtml: "" }]);
+  const currentPageRef  = useRef(0);
+  const [currentPage,   setCurrentPage]  = useState(0);
+  const [pageCount,     setPageCount]    = useState(1);
+
   const [pastOpen,      setPastOpen]     = useState(false);
   const [pastList,      setPastList]     = useState<PastCanvas[]>([]);
   const [loadingPast,   setLoadingPast]  = useState(false);
 
+  function syncCurrentPageToRef() {
+    pagesRef.current[currentPageRef.current] = {
+      objects:  objectsRef.current,
+      pageHtml: editorRef.current?.innerHTML ?? "",
+    };
+  }
+
   function saveToDb() {
     if (!bookingId) return;
-    const objects  = objectsRef.current;
-    const pageHtml = editorRef.current?.innerHTML ?? "";
-    if (!objects.length && !pageHtml.trim()) return;
+    syncCurrentPageToRef();
+    const pages = pagesRef.current;
+    const hasContent = pages.some(p => p.objects.length > 0 || p.pageHtml.trim());
+    if (!hasContent) return;
     fetch(`/api/lessons/${bookingId}/canvas`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ objects, pageHtml }),
+      body: JSON.stringify({ pages }),
     }).catch(() => { /* silent — background save */ });
   }
 
@@ -713,29 +841,87 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     scheduleSave();
   }
 
-  // Load a full canvas (objects + pageHtml) — used for past canvas restore
-  function loadCanvas(objects: CanvasObj[], pageHtml: string) {
-    // Preload all images first, then apply
-    const imgs = objects.filter((o): o is ImageObj => o.kind === "image");
-    const preloads = imgs.map(o => new Promise<void>(res => preloadImage(o.dataUrl, () => res())));
-    Promise.all(preloads).then(() => {
-      objectsRef.current = objects;
+  // ─── Multi-page management ────────────────────────────────────────────────
+
+  function applyPageLocally(pages: CanvasPage[], idx: number) {
+    const page = pages[Math.min(idx, pages.length - 1)];
+    const imgs = page.objects.filter((o): o is ImageObj => o.kind === "image");
+    Promise.all(imgs.map(o => new Promise<void>(res => preloadImage(o.dataUrl, () => res())))).then(() => {
+      objectsRef.current = [...page.objects];
       redoRef.current    = [];
       redraw();
-      if (editorRef.current) {
-        editorRef.current.innerHTML = pageHtml;
-        syncPageText(pageHtml);
-      }
-      scheduleSave();
+      if (editorRef.current) editorRef.current.innerHTML = page.pageHtml;
+      currentPageRef.current = idx;
+      setCurrentPage(idx);
+      setPageCount(pages.length);
     });
   }
 
-  // Incoming restore from the other participant
+  function switchToPage(idx: number) {
+    if (idx === currentPageRef.current) return;
+    syncCurrentPageToRef();
+    const pages = pagesRef.current;
+    applyPageLocally(pages, idx);
+    onSendData({ type: "canvas-pages-sync", pages, currentPage: idx });
+    scheduleSave();
+  }
+
+  function addPage() {
+    syncCurrentPageToRef();
+    const newPages = [...pagesRef.current, { objects: [], pageHtml: "" }];
+    pagesRef.current = newPages;
+    const newIdx = newPages.length - 1;
+    objectsRef.current = []; redoRef.current = []; redraw();
+    if (editorRef.current) editorRef.current.innerHTML = "";
+    currentPageRef.current = newIdx;
+    setCurrentPage(newIdx);
+    setPageCount(newPages.length);
+    onSendData({ type: "canvas-pages-sync", pages: newPages, currentPage: newIdx });
+    scheduleSave();
+  }
+
+  function deletePage(idx: number) {
+    if (pagesRef.current.length <= 1) return;
+    syncCurrentPageToRef();
+    const newPages = pagesRef.current.filter((_, i) => i !== idx);
+    pagesRef.current = newPages;
+    const newIdx = Math.min(currentPageRef.current, newPages.length - 1);
+    applyPageLocally(newPages, newIdx);
+    onSendData({ type: "canvas-pages-sync", pages: newPages, currentPage: newIdx });
+    scheduleSave();
+  }
+
+  // Load a full canvas (objects + pageHtml) — used for past canvas restore (single-page)
+  function loadCanvas(objects: CanvasObj[], pageHtml: string) {
+    const pages: CanvasPage[] = [{ objects, pageHtml }];
+    pagesRef.current = pages;
+    applyPageLocally(pages, 0);
+    if (editorRef.current) syncPageText(pageHtml);
+    scheduleSave();
+  }
+
+  // Load a full multi-page canvas — used for past canvas restore
+  function loadPages(pages: CanvasPage[]) {
+    pagesRef.current = pages.length ? pages : [{ objects: [], pageHtml: "" }];
+    applyPageLocally(pagesRef.current, 0);
+    scheduleSave();
+  }
+
+  // Incoming restore from the other participant (past canvas load)
   useEffect(() => {
     if (!incomingRestore) return;
     loadCanvas(incomingRestore.objects, incomingRestore.pageHtml);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingRestore]);
+
+  // Incoming pages sync from the other participant (page switch / add / delete)
+  useEffect(() => {
+    if (!incomingPagesSync) return;
+    const { pages, currentPage: idx } = incomingPagesSync;
+    pagesRef.current = pages;
+    applyPageLocally(pages, idx);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingPagesSync]);
 
   // Close past-canvases dropdown when clicking outside
   useEffect(() => {
@@ -884,8 +1070,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                     {/* New canvas option */}
                     <button
                       onClick={() => {
-                        handleClear();
-                        if (editorRef.current) { editorRef.current.innerHTML = ""; syncPageText(""); }
+                        loadPages([{ objects: [], pageHtml: "" }]);
                         onSendData({ type: "canvas-restore", objects: [], pageHtml: "" });
                         setPastOpen(false);
                       }}
@@ -912,8 +1097,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                           <button
                             key={p.bookingId}
                             onClick={() => {
-                              loadCanvas(p.objects as CanvasObj[], p.pageHtml);
-                              onSendData({ type: "canvas-restore", objects: p.objects, pageHtml: p.pageHtml });
+                              loadPages(p.pages);
+                              onSendData({ type: "canvas-pages-sync", pages: p.pages, currentPage: 0 });
                               setPastOpen(false);
                             }}
                             className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 transition text-left"
@@ -929,8 +1114,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                                 {new Date(p.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                               </p>
                               <p className="text-white/30 text-[10px] mt-0.5">
-                                {(p.objects as CanvasObj[]).length} objet{(p.objects as CanvasObj[]).length !== 1 ? "s" : ""}
-                                {p.pageHtml.trim() ? " · texte" : ""}
+                                {p.pages.length} feuille{p.pages.length !== 1 ? "s" : ""}
+                                {" · "}{p.pages.reduce((n, pg) => n + pg.objects.length, 0)} objets
                               </p>
                             </div>
                           </button>
@@ -1272,10 +1457,52 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           })()}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-1 bg-[#2A1E0F] border-t border-white/10 flex-shrink-0">
-          <span className="text-[10px] text-white/25">Toile partagée · Tactile · Molette = zoom · Outil Main = naviguer</span>
-          <span className="text-[10px] text-white/25">Ctrl+Z annuler · Échap fermer · {zoomPct}%</span>
+        {/* Page tabs strip */}
+        <div className="flex items-center gap-0.5 px-3 py-1.5 bg-[#1E1610] border-t border-white/10 flex-shrink-0 overflow-x-auto">
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <div key={i} className="flex items-center group flex-shrink-0">
+              <button
+                onClick={() => switchToPage(i)}
+                className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition ${
+                  currentPage === i
+                    ? "bg-[#F5C400]/20 text-[#F5C400] border border-[#F5C400]/30"
+                    : "text-white/35 hover:text-white/70 hover:bg-white/8 border border-transparent"
+                }`}
+              >
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6M9 8h6M9 16h4M5 3h10l4 4v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+                </svg>
+                Feuille {i + 1}
+              </button>
+              {pageCount > 1 && (
+                <button
+                  onClick={() => deletePage(i)}
+                  title="Supprimer cette feuille"
+                  className="w-4 h-4 -ml-0.5 mr-1 rounded flex items-center justify-center text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition flex-shrink-0"
+                >
+                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+
+          {/* Add page */}
+          <button
+            onClick={addPage}
+            title="Ajouter une feuille"
+            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/8 border border-dashed border-white/15 hover:border-white/30 transition ml-1"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+
+          <div className="ml-auto flex-shrink-0 flex items-center gap-3 pl-3">
+            <span className="text-[10px] text-white/20 hidden md:block">Ctrl+Z · Molette = zoom</span>
+            <span className="text-[10px] text-white/20">{zoomPct}%</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1893,12 +2120,43 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   }
   function stopRecording() { mediaRecorderRef.current?.stop(); }
 
+  // Virtual background
+  const [bgPanelOpen,  setBgPanelOpen]  = useState(false);
+  const [currentBg,    setCurrentBg]    = useState<BgChoice>("none");
+  const [bgApplying,   setBgApplying]   = useState(false);
+
+  async function applyBackground(choice: BgChoice) {
+    const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+    const videoTrack = pub?.videoTrack as LocalVideoTrack | undefined;
+    if (!videoTrack) return;
+    setBgApplying(true);
+    try {
+      if (choice === "none") {
+        await videoTrack.stopProcessor();
+      } else if (choice === "blur-soft" || choice === "blur-strong") {
+        const { BackgroundBlur } = await import("@livekit/track-processors");
+        await videoTrack.setProcessor(BackgroundBlur(choice === "blur-soft" ? 8 : 20));
+      } else {
+        // Solid color hex or custom image data URL
+        const { VirtualBackground } = await import("@livekit/track-processors");
+        const url = choice.startsWith("#") ? solidDataUrl(choice) : choice;
+        await videoTrack.setProcessor(VirtualBackground(url));
+      }
+      setCurrentBg(choice);
+    } catch (err) {
+      console.error("Background error:", err);
+    } finally {
+      setBgApplying(false);
+    }
+  }
+
   // Canvas
   const [incomingCanvasObj,     setIncomingCanvasObj]     = useState<CanvasObj | null>(null);
   const [canvasClearCount,      setCanvasClearCount]      = useState(0);
   const [canvasUndoCount,       setCanvasUndoCount]       = useState(0);
   const [incomingPageText,      setIncomingPageText]      = useState<string | null>(null);
-  const [incomingCanvasRestore, setIncomingCanvasRestore] = useState<{ objects: CanvasObj[]; pageHtml: string } | null>(null);
+  const [incomingCanvasRestore,  setIncomingCanvasRestore]  = useState<{ objects: CanvasObj[]; pageHtml: string } | null>(null);
+  const [incomingCanvasPages,    setIncomingCanvasPages]    = useState<{ pages: CanvasPage[]; currentPage: number } | null>(null);
 
   // Whiteboard (Paint)
   const [incomingWbObj, setIncomingWbObj] = useState<CanvasObj | null>(null);
@@ -1924,7 +2182,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           case "wb-clear":        setWbClearCount(n => n + 1); break;
           case "wb-undo":         setWbUndoCount(n => n + 1); break;
           case "canvas-page-text": setIncomingPageText(msg.text); break;
-          case "canvas-restore":  setIncomingCanvasRestore({ objects: msg.objects ?? [], pageHtml: msg.pageHtml ?? "" }); break;
+          case "canvas-restore":    setIncomingCanvasRestore({ objects: msg.objects ?? [], pageHtml: msg.pageHtml ?? "" }); break;
+          case "canvas-pages-sync": setIncomingCanvasPages({ pages: msg.pages ?? [], currentPage: msg.currentPage ?? 0 }); break;
         }
       } catch { /* ignore */ }
     };
@@ -1995,6 +2254,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         incomingPageText={incomingPageText}
         bookingId={bookingId}
         incomingRestore={incomingCanvasRestore}
+        incomingPagesSync={incomingCanvasPages}
       />
 
       {/* Top bar */}
@@ -2196,6 +2456,18 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         )}
       </div>
 
+      {/* Virtual background panel — slides up above control bar */}
+      {bgPanelOpen && (
+        <div className="flex-shrink-0 bg-transparent px-4 pt-2 pb-0 z-20 flex justify-center">
+          <VirtualBgPanel
+            onClose={() => setBgPanelOpen(false)}
+            onApply={async (c) => { await applyBackground(c); }}
+            current={currentBg}
+            applying={bgApplying}
+          />
+        </div>
+      )}
+
       {/* Control bar */}
       <div className="flex-shrink-0 bg-[#0A0703] border-t border-white/5 px-4 py-3 z-10">
         <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -2255,6 +2527,21 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
           />
 
+          {/* Arrière-plan */}
+          <div className="relative">
+            <BarBtn active={bgPanelOpen || currentBg !== "none"} label="Fond" onClick={() => setBgPanelOpen(v => !v)}
+              icon={
+                <div className="relative">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {currentBg !== "none" && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#F5C400] border border-[#0A0703]" />
+                  )}
+                </div>
+              }
+            />
+          </div>
 
           {/* Partager */}
           <BarBtn active={isSharing} label="Partager" onClick={toggleScreen} blue={true}
