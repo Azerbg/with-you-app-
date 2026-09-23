@@ -28,9 +28,7 @@ export async function GET(req: NextRequest) {
       studentId: booking.studentId,
       tutorId:   booking.tutorId,
       status:    "COMPLETED",
-      lesson: {
-        whiteboardData: { not: null },
-      },
+      lesson: { isNot: null },
     },
     orderBy: { scheduledAt: "desc" },
     take: 10,
