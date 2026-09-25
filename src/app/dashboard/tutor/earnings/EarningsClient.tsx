@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -248,26 +249,80 @@ function PaymentForm({
         </div>
       )}
 
-      {(type === "PAYPAL" || type === "WISE" || type === "PAYONEER") && (
+      {type === "PAYPAL" && (
         <div className="space-y-3 bg-[#FAF8F0] rounded-xl p-4">
-          <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">
-            Compte {type === "PAYPAL" ? "PayPal" : type === "WISE" ? "Wise" : "Payoneer"}
+          <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">Compte PayPal</p>
+          <p className="text-xs text-[#6B5E44]">
+            Connectez votre compte PayPal en toute sécurité via l&apos;authentification officielle PayPal.
+            Votre e-mail sera vérifié automatiquement.
           </p>
+          <a
+            href="/api/paypal/connect"
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#003087] text-white font-bold rounded-xl text-sm hover:bg-[#002069] transition"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944 2.72A.766.766 0 015.71 2h7.5c2.6 0 4.45.624 5.495 1.856.97 1.145 1.19 2.573.67 4.336-.009.032-.018.064-.009.032C18.424 11.1 16.18 13 12.37 13H9.928l-.872 5.516a.641.641 0 01-.633.54l-1.347-.719z"/>
+            </svg>
+            Se connecter avec PayPal
+          </a>
+          {initial?.type === "PAYPAL" && initial.email && (
+            <p className="text-xs text-emerald-600 font-semibold text-center">
+              ✓ Compte connecté : {initial.email.slice(0, 3)}•••@{initial.email.split("@")[1]}
+            </p>
+          )}
+        </div>
+      )}
+
+      {(type === "WISE" || type === "PAYONEER") && (
+        <div className="space-y-3 bg-[#FAF8F0] rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">
+              Compte {type === "WISE" ? "Wise" : "Payoneer"}
+            </p>
+            <a
+              href={type === "WISE" ? "https://wise.com/register" : "https://www.payoneer.com/accounts/receive-payments/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline font-semibold"
+            >
+              Créer un compte →
+            </a>
+          </div>
           <div>
-            <label className="block text-xs font-semibold text-[#5C3D00] mb-1">Adresse e-mail du compte</label>
+            <label className="block text-xs font-semibold text-[#5C3D00] mb-1">
+              Adresse e-mail du compte {type === "WISE" ? "Wise" : "Payoneer"}
+            </label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="votre@email.com" className={inputCls} />
           </div>
+          <p className="text-xs text-[#9B8A6B]">
+            {type === "WISE"
+              ? "Les virements sont envoyés directement vers votre balance Wise."
+              : "Les paiements sont envoyés vers votre compte Payoneer via e-mail."}
+          </p>
         </div>
       )}
 
       {type === "D17" && (
         <div className="space-y-3 bg-[#FAF8F0] rounded-xl p-4">
-          <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">Compte D17 / Flouci</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">Compte D17 / Flouci</p>
+            <a
+              href="https://d17.com.tn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline font-semibold"
+            >
+              Télécharger D17 →
+            </a>
+          </div>
           <div>
-            <label className="block text-xs font-semibold text-[#5C3D00] mb-1">Numéro de téléphone</label>
+            <label className="block text-xs font-semibold text-[#5C3D00] mb-1">Numéro de téléphone D17</label>
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+216 XX XXX XXX" className={inputCls} />
           </div>
+          <p className="text-xs text-[#9B8A6B]">
+            Le numéro doit être enregistré sur l&apos;application D17.
+          </p>
         </div>
       )}
 
@@ -275,15 +330,22 @@ function PaymentForm({
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>
       )}
 
-      <div className="flex gap-3 pt-2">
-        <button onClick={onCancel} className="flex-1 py-2.5 border-2 border-[#6B5E44]/30 text-[#5C3D00] font-bold rounded-full hover:bg-[#FFF3B0] transition text-sm">
+      {type !== "PAYPAL" && (
+        <div className="flex gap-3 pt-2">
+          <button onClick={onCancel} className="flex-1 py-2.5 border-2 border-[#6B5E44]/30 text-[#5C3D00] font-bold rounded-full hover:bg-[#FFF3B0] transition text-sm">
+            Annuler
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition text-sm">
+            {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+      )}
+      {type === "PAYPAL" && (
+        <button onClick={onCancel} className="w-full py-2.5 border-2 border-[#6B5E44]/30 text-[#5C3D00] font-bold rounded-full hover:bg-[#FFF3B0] transition text-sm">
           Annuler
         </button>
-        <button onClick={handleSave} disabled={saving}
-          className="flex-1 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full hover:bg-[#FFDE59] disabled:opacity-50 transition text-sm">
-          {saving ? "Enregistrement…" : "Enregistrer"}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -367,6 +429,24 @@ function PaymentMethodCard({ pm, onEdit }: { pm: PaymentMethod; onEdit: () => vo
 export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, currency }: Props) {
   const [pm, setPm] = useState<PaymentMethod | null>(paymentMethod);
   const [editing, setEditing] = useState(false);
+  const searchParams = useSearchParams();
+
+  const paypalStatus = searchParams.get("paypal");
+  const errorParam = searchParams.get("error");
+
+  const [banner, setBanner] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  useEffect(() => {
+    if (paypalStatus === "connected") {
+      setBanner({ type: "success", msg: "Compte PayPal connecté avec succès !" });
+    } else if (errorParam === "paypal_cancelled") {
+      setBanner({ type: "error", msg: "Connexion PayPal annulée." });
+    } else if (errorParam === "paypal_not_configured") {
+      setBanner({ type: "error", msg: "PayPal n'est pas encore configuré sur cette plateforme." });
+    } else if (errorParam) {
+      setBanner({ type: "error", msg: "Erreur lors de la connexion PayPal. Réessayez." });
+    }
+  }, [paypalStatus, errorParam]);
 
   const totalPaid = payouts.filter(p => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
   const pending   = payouts.filter(p => p.status === "PENDING" || p.status === "PROCESSING").reduce((s, p) => s + p.amount, 0);
@@ -379,6 +459,18 @@ export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, 
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         <div className="flex-1 overflow-auto p-8">
           <div className="max-w-3xl mx-auto space-y-6">
+
+            {/* PayPal connect banner */}
+            {banner && (
+              <div className={`rounded-2xl px-5 py-4 flex items-center justify-between gap-4 ${
+                banner.type === "success"
+                  ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                  : "bg-red-50 border border-red-200 text-red-700"
+              }`}>
+                <p className="text-sm font-semibold">{banner.msg}</p>
+                <button onClick={() => setBanner(null)} className="text-lg leading-none opacity-60 hover:opacity-100">×</button>
+              </div>
+            )}
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">
