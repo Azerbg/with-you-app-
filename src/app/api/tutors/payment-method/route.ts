@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 
 const schema = z.object({
-  type: z.enum(["BANK_TN", "BANK_INTL", "PAYPAL", "WISE", "D17"]),
+  type: z.enum(["BANK_TN", "BANK_INTL", "PAYPAL", "WISE", "PAYONEER", "D17"]),
   bankNameTn:    z.string().optional(),
   accountHolder: z.string().optional(),
   rib:           z.string().optional(),

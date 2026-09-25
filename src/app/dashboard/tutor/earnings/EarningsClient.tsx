@@ -81,6 +81,16 @@ const METHOD_TYPES = [
     ),
   },
   {
+    key: "PAYONEER",
+    label: "Payoneer",
+    sublabel: "Paiement international",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-red-500">
+        <circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8l4 4-4 4"/>
+      </svg>
+    ),
+  },
+  {
     key: "D17",
     label: "D17 / Flouci",
     sublabel: "Paiement mobile tunisien",
@@ -238,10 +248,10 @@ function PaymentForm({
         </div>
       )}
 
-      {(type === "PAYPAL" || type === "WISE") && (
+      {(type === "PAYPAL" || type === "WISE" || type === "PAYONEER") && (
         <div className="space-y-3 bg-[#FAF8F0] rounded-xl p-4">
           <p className="text-xs font-bold text-[#6B5E44] uppercase tracking-widest">
-            Compte {type === "PAYPAL" ? "PayPal" : "Wise"}
+            Compte {type === "PAYPAL" ? "PayPal" : type === "WISE" ? "Wise" : "Payoneer"}
           </p>
           <div>
             <label className="block text-xs font-semibold text-[#5C3D00] mb-1">Adresse e-mail du compte</label>
