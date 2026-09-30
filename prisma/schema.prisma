@@ -184,6 +184,7 @@ model User {
   hrProfileChangeReviews PendingProfileChange[] @relation("HrProfileChangeReviewer")
   tutorNotesWritten      TutorStudentNote[]     @relation("TutorNotes")
   tutorNotesAboutMe      TutorStudentNote[]     @relation("StudentNotes")
+  notifications          Notification[]
 
   @@map("users")
 }
@@ -470,6 +471,10 @@ model Booking {
   whiteboardSnapshotUrl String? // PNG saved to DigitalOcean Spaces
   chatLogSaved          Boolean @default(false)
   reviewLeft            Boolean @default(false) // Has student left a review?
+
+  // Email reminders
+  reminded24h Boolean @default(false) // 24h-before reminder sent
+  reminded1h  Boolean @default(false) // 1h-before reminder sent
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1010,4 +1015,19 @@ model EmailOtp {
 
   @@unique([email, code])
   @@map("email_otps")
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "REMINDER_24H" | "REMINDER_1H" | "NEW_MESSAGE"
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
 }

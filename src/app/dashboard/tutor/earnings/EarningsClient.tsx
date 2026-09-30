@@ -280,12 +280,12 @@ function PaymentForm({
               Compte {type === "WISE" ? "Wise" : "Payoneer"}
             </p>
             <a
-              href={type === "WISE" ? "https://wise.com/register" : "https://www.payoneer.com/accounts/receive-payments/"}
+              href={type === "WISE" ? "https://wise.com" : "https://www.payoneer.com"}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline font-semibold"
             >
-              Créer un compte →
+              Ouvrir {type === "WISE" ? "Wise" : "Payoneer"} →
             </a>
           </div>
           <div>
@@ -297,8 +297,8 @@ function PaymentForm({
           </div>
           <p className="text-xs text-[#9B8A6B]">
             {type === "WISE"
-              ? "Les virements sont envoyés directement vers votre balance Wise."
-              : "Les paiements sont envoyés vers votre compte Payoneer via e-mail."}
+              ? "Entrez l'e-mail associé à votre compte Wise."
+              : "Entrez l'e-mail associé à votre compte Payoneer."}
           </p>
         </div>
       )}
@@ -313,7 +313,7 @@ function PaymentForm({
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline font-semibold"
             >
-              Télécharger D17 →
+              Ouvrir D17 →
             </a>
           </div>
           <div>
@@ -321,7 +321,7 @@ function PaymentForm({
             <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+216 XX XXX XXX" className={inputCls} />
           </div>
           <p className="text-xs text-[#9B8A6B]">
-            Le numéro doit être enregistré sur l&apos;application D17.
+            Entrez le numéro associé à votre compte D17.
           </p>
         </div>
       )}

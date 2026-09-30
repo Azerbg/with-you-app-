@@ -3,6 +3,10 @@
     {
       "path": "/api/stripe/payouts/trigger",
       "schedule": "0 8 * * 5"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 * * * *"
     }
   ]
 }

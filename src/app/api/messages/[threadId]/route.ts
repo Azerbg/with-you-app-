@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendNewMessageNotification } from "@/lib/email";
 
 async function getIsLocked(threadId: string, studentId: string, tutorId: string): Promise<boolean> {
   const [tutorReplied, hasBooking] = await Promise.all([
@@ -87,6 +88,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
       data: { lastMessageAt: new Date() },
     }),
   ]);
+
+  // Notify the recipient — fire and forget
+  const recipientId = userId === thread.studentId ? thread.tutorId : thread.studentId;
+  db.user.findUnique({
+    where: { id: recipientId },
+    select: { email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } },
+  }).then(async (recipient) => {
+    if (!recipient) return;
+    const recipientName =
+      recipient.hrApplication?.fullName ||
+      [recipient.firstName, recipient.lastName].filter(Boolean).join(" ") ||
+      recipient.email;
+    const sender = await db.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, hrApplication: { select: { fullName: true } } },
+    });
+    const senderName =
+      sender?.hrApplication?.fullName ||
+      [sender?.firstName, sender?.lastName].filter(Boolean).join(" ") ||
+      "Quelqu'un";
+
+    await Promise.allSettled([
+      db.notification.create({
+        data: {
+          userId: recipientId,
+          type: "NEW_MESSAGE",
+          title: `Message de ${senderName}`,
+          body: content.trim().slice(0, 100),
+          link: `/dashboard/${session.user.role === "TUTOR" ? "student" : "tutor"}/messages`,
+        },
+      }),
+      sendNewMessageNotification({
+        recipientEmail: recipient.email,
+        recipientName,
+        senderName,
+        preview: content.trim(),
+        threadId,
+      }),
+    ]);
+  }).catch(() => {/* non-blocking */});
 
   return NextResponse.json(message);
 }

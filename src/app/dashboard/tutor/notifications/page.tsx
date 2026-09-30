@@ -1,0 +1,23 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import NotificationsClient from "./NotificationsClient";
+
+export default async function TutorNotificationsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/auth/login");
+
+  const notifications = await db.notification.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  // Mark all as read
+  await db.notification.updateMany({
+    where: { userId: session.user.id, isRead: false },
+    data: { isRead: true },
+  });
+
+  return <NotificationsClient notifications={notifications} />;
+}
