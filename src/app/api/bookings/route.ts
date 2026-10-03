@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
   const sessionType = (paymentIntent.metadata.sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
   const durationMins = sessionType === "SINGLE" ? 50 : 30;
   const studentPriceUsd = paymentIntent.amount / 100;
+  const creditAppliedTnd = parseFloat(paymentIntent.metadata.creditAppliedTnd ?? "0") || 0;
 
   // Calculate tutor payout from their compensation rate
   const tutorComp = await db.tutorCompensation.findUnique({
@@ -82,23 +83,32 @@ export async function POST(req: NextRequest) {
     : Math.round(studentPriceUsd * 0.70 * 100) / 100; // fallback: 70% of student price
   const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
 
-  // Create booking
-  const booking = await db.booking.create({
-    data: {
-      studentId: session.user.id,
-      tutorId,
-      sessionType,
-      status: "CONFIRMED",
-      durationMins,
-      scheduledAt: slotDate,
-      studentPriceUsd,
-      studentCurrency: "USD",
-      tutorPayoutAmount,
-      tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
-      platformMargin,
-      stripePaymentIntentId: paymentIntentId,
-    },
-  });
+  // Create booking (+ deduct credits atomically)
+  const [booking] = await db.$transaction([
+    db.booking.create({
+      data: {
+        studentId: session.user.id,
+        tutorId,
+        sessionType,
+        status: "CONFIRMED",
+        durationMins,
+        scheduledAt: slotDate,
+        studentPriceUsd,
+        studentCurrency: "USD",
+        tutorPayoutAmount,
+        tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
+        platformMargin,
+        stripePaymentIntentId: paymentIntentId,
+        creditAppliedTnd,
+      },
+    }),
+    ...(creditAppliedTnd > 0
+      ? [db.user.update({
+          where: { id: session.user.id },
+          data: { platformCreditBalance: { decrement: creditAppliedTnd } },
+        })]
+      : []),
+  ]);
 
   // Send confirmation email (non-blocking)
   const [student, tutorUser] = await Promise.all([

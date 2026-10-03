@@ -106,6 +106,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      await db.notification.create({
+        data: {
+          userId: tutorId,
+          type: "PAYOUT_PROCESSED",
+          title: "Virement traité",
+          body: `Votre virement de ${totalAmount.toFixed(2)} ${currencyPref} pour ${bookings.length} séance(s) a été envoyé.`,
+          link: `/dashboard/tutor/earnings`,
+        },
+      });
+
       results.push({ tutorId, amount: totalAmount, currency: currencyPref, transferId: transfer.id });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";

@@ -147,7 +147,12 @@ model User {
   stripeCustomerId       String? // Students — for payment collection
   stripeConnectAccountId String? // Tutors — for Stripe Connect payouts
 
-  platformCreditBalance Float @default(0) // Credits from late-cancellation refunds
+  platformCreditBalance Float @default(0) // Credits from late-cancellation refunds & referrals
+  notifPreferences      Json  @default("{}") // Notification preferences per category
+
+  referralCode     String?   @unique // Auto-generated on first use
+  referralsSent    Referral[] @relation("ReferralsSent")
+  referralReceived Referral?  @relation("ReferralsReceived")
 
   // Admin-managed account status
   accountStatus    AccountStatus @default(ACTIVE)
@@ -454,6 +459,9 @@ model Booking {
   tutorCurrency     Currency @default(TND)
   platformMargin    Float?  // Hidden from both
 
+  // Credits applied at checkout
+  creditAppliedTnd Float @default(0) // Platform credits used (TND)
+
   // Stripe
   stripePaymentIntentId String?
   stripeTransferId      String? // Set when payout is processed
@@ -473,8 +481,9 @@ model Booking {
   reviewLeft            Boolean @default(false) // Has student left a review?
 
   // Email reminders
-  reminded24h Boolean @default(false) // 24h-before reminder sent
-  reminded1h  Boolean @default(false) // 1h-before reminder sent
+  reminded24h      Boolean @default(false) // 24h-before reminder sent
+  reminded1h       Boolean @default(false) // 1h-before reminder sent
+  reviewInviteSent Boolean @default(false) // 2h-after review invitation sent
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1030,4 +1039,20 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@map("notifications")
+}
+
+// ─── REFERRALS ────────────────────────────────────────────────────────────────
+model Referral {
+  id          String    @id @default(cuid())
+  referrerId  String
+  referredId  String    @unique // one referrer per user
+  code        String
+  status      String    @default("PENDING") // PENDING | REWARDED
+  rewardedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  referrer User @relation("ReferralsSent",     fields: [referrerId], references: [id])
+  referred User @relation("ReferralsReceived", fields: [referredId],  references: [id])
+
+  @@map("referrals")
 }

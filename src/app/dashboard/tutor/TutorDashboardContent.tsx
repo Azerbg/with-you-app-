@@ -216,6 +216,8 @@ export default function TutorDashboardContent({
                     { href: "/dashboard/tutor/availability", icon: "🗓️", title: "Disponibilités" },
                     { href: "/dashboard/tutor/complete-profile", icon: "✏️", title: "Mon profil" },
                     { href: "/dashboard/tutor/sessions", icon: "📋", title: "Mes séances" },
+                    { href: "/dashboard/tutor/reviews", icon: "⭐", title: "Mes avis" },
+                    { href: "/dashboard/tutor/referral", icon: "🎁", title: "Parrainage" },
                   ].map((a) => (
                     <Link key={a.href} href={a.href}
                       className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#FFFBEA] transition group">

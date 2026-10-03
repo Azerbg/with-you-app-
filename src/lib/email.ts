@@ -281,6 +281,36 @@ export async function sendSessionReminder(params: {
 
 // ─── New message notification ─────────────────────────────────────────────────
 
+export async function sendReviewInvitation(params: {
+  studentEmail: string;
+  studentName: string;
+  tutorName: string;
+  bookingId: string;
+}) {
+  const { studentEmail, studentName, tutorName, bookingId } = params;
+  const reviewUrl = `${BASE_URL}/review/${bookingId}`;
+
+  await sendEmail(studentEmail, `Comment s'est passée votre séance avec ${tutorName} ?`, `
+    <div style="font-family:sans-serif;max-width:560px;margin:auto">
+      <div style="background:#5C3D00;padding:20px 32px;border-radius:16px 16px 0 0;text-align:center">
+        <span style="font-size:24px;font-weight:900;color:#F5C400">WithYou</span>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
+        <h2 style="color:#2D1A00;margin:0 0 8px">Votre avis compte !</h2>
+        <p style="color:#6B5E44">Bonjour ${studentName},</p>
+        <p style="color:#6B5E44">Votre séance avec <strong>${tutorName}</strong> vient de se terminer. Que pensez-vous de cette expérience ?</p>
+        <p style="color:#6B5E44">Partagez votre avis en 2 minutes — cela aide les autres étudiants à choisir le bon tuteur.</p>
+        <div style="text-align:center;margin:28px 0">
+          <a href="${reviewUrl}" style="display:inline-block;background:#F5C400;color:#5C3D00;padding:14px 32px;border-radius:50px;text-decoration:none;font-weight:700;font-size:16px">
+            ⭐ Laisser un avis
+          </a>
+        </div>
+        <p style="color:#9B8A6B;font-size:12px;margin-top:24px;text-align:center">WithYou · Plateforme d'apprentissage des langues</p>
+      </div>
+    </div>
+  `);
+}
+
 export async function sendNewMessageNotification(params: {
   recipientEmail: string;
   recipientName: string;

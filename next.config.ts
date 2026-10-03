@@ -19,4 +19,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrap with Sentry only if properly installed and configured
+async function buildConfig() {
+  try {
+    const { withSentryConfig } = await import("@sentry/nextjs");
+    if (typeof withSentryConfig !== "function") return nextConfig;
+    return withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: true,
+      sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+      telemetry: false,
+    });
+  } catch {
+    return nextConfig;
+  }
+}
+
+export default buildConfig();

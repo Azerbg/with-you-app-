@@ -6,6 +6,8 @@ interface Review {
   id: string;
   ratingComposite: number;
   text: string | null;
+  tutorResponse: string | null;
+  tutorRespondedAt: string | null;
   createdAt: string;
   student: { firstName: string | null; lastName: string | null };
 }
@@ -79,6 +81,12 @@ export default function TutorProfileClient({ reviews: initial, tutorId, totalRev
                 </div>
                 {r.text && (
                   <p className="text-sm text-[#5C3D00] leading-relaxed">{r.text}</p>
+                )}
+                {r.tutorResponse && (
+                  <div className="mt-3 pl-3 border-l-2 border-[#F5C400]">
+                    <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-wide mb-1">Réponse du tuteur</p>
+                    <p className="text-xs text-[#5C3D00] leading-relaxed">{r.tutorResponse}</p>
+                  </div>
                 )}
               </div>
             </div>

@@ -4,15 +4,15 @@ import { db } from "@/lib/db";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { id } = await params;
+  const { bookingId } = await params;
 
   const booking = await db.booking.findUnique({
-    where: { id },
+    where: { id: bookingId },
     include: {
       student: { select: { firstName: true, lastName: true, email: true } },
       tutor: {
@@ -66,7 +66,7 @@ export async function GET(
   };
   const sessionTypeLabel = SESSION_TYPE_LABEL[booking.sessionType] ?? "Séance";
 
-  const shortId = id.slice(0, 8).toUpperCase();
+  const shortId = bookingId.slice(0, 8).toUpperCase();
   const statusLabel = booking.status === "COMPLETED" ? "Terminée" : "Confirmée";
 
   const html = `<!DOCTYPE html>
@@ -118,7 +118,6 @@ export async function GET(
         <p>Émis le ${receiptDate}</p>
         <div class="receipt-num">N° ${shortId}</div>
       </div>
-
       <div class="body">
         <div class="section">
           <div class="section-title">Détails de la séance</div>
@@ -129,40 +128,28 @@ export async function GET(
           <div class="row"><span class="label">Tuteur</span><span class="value">${tutorName}</span></div>
           <div class="row"><span class="label">Statut</span><span class="value"><span class="status-badge">✓ ${statusLabel}</span></span></div>
         </div>
-
         <div class="section">
           <div class="section-title">Informations de facturation</div>
           <div class="row"><span class="label">Étudiant</span><span class="value">${studentName}</span></div>
           <div class="row"><span class="label">Email</span><span class="value">${booking.student.email}</span></div>
           <div class="row"><span class="label">Réservation</span><span class="value">#${shortId}</span></div>
         </div>
-
         <div class="section">
           <div class="section-title">Résumé du paiement</div>
           <div class="row">
             <span class="label">${sessionTypeLabel} · ${booking.durationMins} min</span>
             <span class="value">${amount.toFixed(2)} ${currency}</span>
           </div>
-          <div class="row">
-            <span class="label">Frais de service</span>
-            <span class="value">0.00 ${currency}</span>
-          </div>
+          <div class="row"><span class="label">Frais de service</span><span class="value">0.00 ${currency}</span></div>
           <div class="total-box">
             <span class="label">Total payé</span>
             <span class="value">${amount.toFixed(2)} ${currency}</span>
           </div>
         </div>
       </div>
-
       <div class="footer">
-        <p>
-          Merci d'avoir choisi <strong>WithYou</strong>.<br>
-          Ce document constitue votre reçu officiel de paiement.<br>
-          Pour toute question : <strong>support@withyou.com</strong>
-        </p>
-        <a href="javascript:window.print()" class="print-btn no-print">
-          🖨️ Imprimer / Enregistrer en PDF
-        </a>
+        <p>Merci d'avoir choisi <strong>WithYou</strong>.<br>Ce document constitue votre reçu officiel de paiement.<br>Pour toute question : <strong>support@withyou.com</strong></p>
+        <a href="javascript:window.print()" class="print-btn no-print">Imprimer / Enregistrer en PDF</a>
       </div>
     </div>
   </div>

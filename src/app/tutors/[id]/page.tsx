@@ -90,6 +90,8 @@ export default async function TutorProfilePage({ params }: Props) {
       ratingAccuracy: true,
       ratingValue: true,
       text: true,
+      tutorResponse: true,
+      tutorRespondedAt: true,
       createdAt: true,
       student: { select: { firstName: true, lastName: true } },
     },
@@ -119,6 +121,8 @@ export default async function TutorProfilePage({ params }: Props) {
     id: r.id,
     ratingComposite: r.ratingComposite,
     text: r.text,
+    tutorResponse: r.tutorResponse ?? null,
+    tutorRespondedAt: r.tutorRespondedAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
     student: r.student,
   }));

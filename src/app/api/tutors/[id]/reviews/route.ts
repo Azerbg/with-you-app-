@@ -19,12 +19,18 @@ export async function GET(
       id: true,
       ratingComposite: true,
       text: true,
+      tutorResponse: true,
+      tutorRespondedAt: true,
       createdAt: true,
       student: { select: { firstName: true, lastName: true } },
     },
   });
 
   return NextResponse.json(
-    reviews.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })),
+    reviews.map(r => ({
+      ...r,
+      createdAt: r.createdAt.toISOString(),
+      tutorRespondedAt: r.tutorRespondedAt?.toISOString() ?? null,
+    })),
   );
 }

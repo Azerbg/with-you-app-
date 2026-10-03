@@ -138,7 +138,14 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       setText("");
       onMessageSent();
     } else {
-      setSendError("Échec de l'envoi. Réessayez.");
+      const data = await res.json().catch(() => ({}));
+      if (data.error === "CONTACT_INFO_BLOCKED") {
+        setSendError("⚠️ Les coordonnées personnelles (email, téléphone, réseaux sociaux) ne sont pas autorisées.");
+      } else if (data.error === "MESSAGE_LIMIT_REACHED") {
+        setSendError("Vous devez attendre la réponse du tuteur ou réserver une séance avant d'envoyer d'autres messages.");
+      } else {
+        setSendError("Échec de l'envoi. Réessayez.");
+      }
     }
     setSending(false);
   }

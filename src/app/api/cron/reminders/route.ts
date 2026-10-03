@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendSessionReminder } from "@/lib/email";
+import { sendSessionReminder, sendReviewInvitation } from "@/lib/email";
 
 // Secured: Vercel automatically blocks external calls to cron routes in production.
 // For manual testing, pass ?secret=CRON_SECRET as query param.
@@ -98,6 +98,49 @@ export async function GET(req: NextRequest) {
     sent1h++;
   }
 
-  console.log(`[cron/reminders] 24h: ${sent24h}, 1h: ${sent1h}`);
-  return NextResponse.json({ ok: true, sent24h, sent1h });
+  // ── 2h after: send review invitation ─────────────────────────────────────
+  // Window: session ended between 1h45 and 2h15 ago
+  const from2hAgo = new Date(now.getTime() - 135 * 60 * 1000); // 2h15 ago
+  const to2hAgo   = new Date(now.getTime() - 105 * 60 * 1000); // 1h45 ago
+
+  const bookingsForReview = await db.booking.findMany({
+    where: {
+      status: "COMPLETED",
+      reviewInviteSent: false,
+      scheduledAt: { gte: from2hAgo, lte: to2hAgo },
+    },
+    include: {
+      student: { select: { id: true, email: true, firstName: true, lastName: true } },
+      tutor:   { select: { id: true, hrApplication: { select: { fullName: true } } } },
+    },
+  });
+
+  let sentReviewInvites = 0;
+  for (const b of bookingsForReview) {
+    const studentName = [b.student.firstName, b.student.lastName].filter(Boolean).join(" ") || b.student.email;
+    const tutorName   = b.tutor.hrApplication?.fullName ?? "votre tuteur";
+
+    await Promise.allSettled([
+      sendReviewInvitation({
+        studentEmail: b.student.email,
+        studentName,
+        tutorName,
+        bookingId: b.id,
+      }),
+      db.notification.create({
+        data: {
+          userId: b.student.id,
+          type: "REVIEW_INVITE",
+          title: "Comment était votre séance ?",
+          body: `Partagez votre avis sur votre séance avec ${tutorName}.`,
+          link: `/review/${b.id}`,
+        },
+      }),
+      db.booking.update({ where: { id: b.id }, data: { reviewInviteSent: true } }),
+    ]);
+    sentReviewInvites++;
+  }
+
+  console.log(`[cron/reminders] 24h: ${sent24h}, 1h: ${sent1h}, review invites: ${sentReviewInvites}`);
+  return NextResponse.json({ ok: true, sent24h, sent1h, sentReviewInvites });
 }

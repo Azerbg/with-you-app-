@@ -24,7 +24,13 @@ export async function POST(req: NextRequest) {
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    select: { studentId: true, tutorId: true, status: true, review: { select: { id: true } } },
+    select: {
+      studentId: true,
+      tutorId: true,
+      status: true,
+      review: { select: { id: true } },
+      student: { select: { firstName: true, lastName: true } },
+    },
   });
 
   if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
@@ -78,6 +84,21 @@ export async function POST(req: NextRequest) {
         data: { totalReviews, averageRating },
       });
     }
+  });
+
+  // Notify tutor about the new review
+  const studentName = booking.student?.firstName
+    ? `${booking.student.firstName} ${booking.student.lastName ?? ""}`.trim()
+    : "Un étudiant";
+
+  await db.notification.create({
+    data: {
+      userId: booking.tutorId,
+      type: "NEW_REVIEW",
+      title: "Nouvel avis reçu",
+      body: `${studentName} a laissé un avis sur votre profil.`,
+      link: `/dashboard/tutor/reviews`,
+    },
   });
 
   return NextResponse.json({ ok: true });

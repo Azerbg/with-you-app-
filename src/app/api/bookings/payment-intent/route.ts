@@ -88,10 +88,23 @@ export async function POST(req: NextRequest) {
   }
 
   // Compute price
-  const amountCents =
+  const baseCents =
     sessionType === "DISCOVERY"
       ? DISCOVERY_PRICE_CENTS
       : (SINGLE_PRICE_CENTS[profile.verificationTier] ?? SINGLE_PRICE_CENTS.BASIC);
+
+  // Apply platform credits (TND → USD cents, fixed rate: 1 TND = 32 cents)
+  const TND_TO_CENTS = 32;
+  const student = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { platformCreditBalance: true },
+  });
+  const creditBalanceTnd = student?.platformCreditBalance ?? 0;
+  // Max discount: keep at least $0.50 for Stripe minimum
+  const maxDiscountCents = Math.max(baseCents - 50, 0);
+  const creditDiscountCents = Math.min(Math.floor(creditBalanceTnd * TND_TO_CENTS), maxDiscountCents);
+  const creditAppliedTnd = creditDiscountCents > 0 ? creditDiscountCents / TND_TO_CENTS : 0;
+  const amountCents = baseCents - creditDiscountCents;
 
   // Get or create Stripe customer
   let stripeCustomerId = (
@@ -125,6 +138,7 @@ export async function POST(req: NextRequest) {
       scheduledAt: slotDate.toISOString(),
       sessionType,
       amountCents: String(amountCents),
+      creditAppliedTnd: String(creditAppliedTnd),
     },
   });
 
@@ -132,6 +146,8 @@ export async function POST(req: NextRequest) {
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     amountUsd: amountCents / 100,
+    baseAmountUsd: baseCents / 100,
+    creditAppliedTnd,
     sessionType,
   });
 }

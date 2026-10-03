@@ -3,6 +3,20 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sendNewMessageNotification } from "@/lib/email";
 
+// ─── Anti-bypass: detect contact info sharing ────────────────────────────────
+const BYPASS_PATTERNS = [
+  /\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b/i,                          // email
+  /(\+?[\d\s\-().]{7,15}\d)/,                                   // phone numbers
+  /\b(wa\.me|whatsapp\.com|t\.me|telegram\.me)\b/i,             // WhatsApp / Telegram links
+  /\b(whatsapp|watsapp|whats.?app)\b/i,                         // WhatsApp keyword
+  /\b(telegram|signal|viber|skype|discord|snapchat|instagram|facebook)\b/i,
+  /\b(mon num[eé]ro|my number|appelle.?moi|call me|contacte.?moi|contact me)\b/i,
+];
+
+function containsContactInfo(text: string): boolean {
+  return BYPASS_PATTERNS.some(p => p.test(text));
+}
+
 async function getIsLocked(threadId: string, studentId: string, tutorId: string): Promise<boolean> {
   const [tutorReplied, hasBooking] = await Promise.all([
     db.message.count({ where: { threadId, senderId: tutorId } }),
@@ -58,6 +72,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
   const { threadId } = await params;
   const { content } = await req.json();
   if (!content?.trim()) return NextResponse.json({ error: "Empty message" }, { status: 400 });
+
+  if (containsContactInfo(content)) {
+    return NextResponse.json(
+      { error: "CONTACT_INFO_BLOCKED", message: "Les coordonnées personnelles (email, téléphone, réseaux sociaux) ne sont pas autorisées dans les messages." },
+      { status: 400 }
+    );
+  }
 
   const thread = await db.messageThread.findUnique({ where: { id: threadId } });
   if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });

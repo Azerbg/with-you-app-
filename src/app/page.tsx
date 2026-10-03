@@ -627,7 +627,11 @@ export default function HomePage() {
         </div>
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-white/30">© {new Date().getFullYear()} WithYou. {t.footer.rights}</p>
-          <p className="text-xs text-white/30">{t.footer.phase}</p>
+          <div className="flex items-center gap-4">
+            <Link href="/legal/cgu" className="text-xs text-white/30 hover:text-white/60 transition">CGU</Link>
+            <Link href="/legal/privacy" className="text-xs text-white/30 hover:text-white/60 transition">Confidentialité</Link>
+            <p className="text-xs text-white/30">{t.footer.phase}</p>
+          </div>
         </div>
       </footer>
     </div>

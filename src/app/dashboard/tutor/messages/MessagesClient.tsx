@@ -117,6 +117,7 @@ function ChatPanel({
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -144,6 +145,7 @@ function ChatPanel({
   async function send() {
     if (!text.trim() || sending) return;
     setSending(true);
+    setSendError(null);
     const res = await fetch(`/api/messages/${thread.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -154,6 +156,13 @@ function ChatPanel({
       setMessages(prev => [...prev, msg]);
       setText("");
       onMessageSent();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      if (data.error === "CONTACT_INFO_BLOCKED") {
+        setSendError("⚠️ Les coordonnées personnelles (email, téléphone, réseaux sociaux) ne sont pas autorisées.");
+      } else {
+        setSendError("Échec de l'envoi. Réessayez.");
+      }
     }
     setSending(false);
   }
@@ -227,6 +236,13 @@ function ChatPanel({
         ))}
         <div ref={bottomRef} />
       </div>
+
+      {/* Send error */}
+      {sendError && (
+        <div className="px-4 pt-2">
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{sendError}</p>
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-black/5 bg-white px-4 py-3 flex items-end gap-3">

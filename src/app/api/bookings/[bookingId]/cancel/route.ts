@@ -4,15 +4,15 @@ import { db } from "@/lib/db";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ bookingId: string }> }
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
+  const { bookingId } = await params;
   const { reason } = await req.json() as { reason?: string };
 
-  const booking = await db.booking.findUnique({ where: { id } });
+  const booking = await db.booking.findUnique({ where: { id: bookingId } });
   if (!booking) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Only student or tutor on this booking can cancel
@@ -52,7 +52,7 @@ export async function POST(
   }
 
   await db.booking.update({
-    where: { id },
+    where: { id: bookingId },
     data: {
       status:             "CANCELLED",
       cancelledAt:        now,

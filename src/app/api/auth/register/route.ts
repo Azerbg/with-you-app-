@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password, firstName, lastName, role } = parsed.data;
+    const referralCode = typeof body.referralCode === "string" ? body.referralCode.toUpperCase() : null;
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
@@ -43,6 +44,20 @@ export async function POST(req: NextRequest) {
       await db.studentProfile.create({ data: { userId: user.id } });
     } else if (role === "TUTOR") {
       await db.tutorProfile.create({ data: { userId: user.id } });
+    }
+
+    // Create referral record if a valid code was provided
+    if (referralCode) {
+      const referrer = await db.user.findUnique({ where: { referralCode }, select: { id: true } });
+      if (referrer && referrer.id !== user.id) {
+        await db.referral.create({
+          data: {
+            referrerId: referrer.id,
+            referredId: user.id,
+            code: referralCode,
+          },
+        });
+      }
     }
 
     // Delete any existing tokens for this user, then create 6-digit OTP (expires 10 min)

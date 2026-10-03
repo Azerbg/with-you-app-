@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import NotifPreferencesTab from "@/components/NotifPreferencesTab";
 
 interface Contact {
   fullName: string;
@@ -16,7 +17,7 @@ interface Props {
   contact: Contact;
 }
 
-type Tab = "compte" | "contact";
+type Tab = "compte" | "contact" | "notifications";
 
 export default function TutorSettingsClient({ email, hasPassword, isHidden: initialHidden, contact }: Props) {
   const [tab, setTab] = useState<Tab>("compte");
@@ -115,6 +116,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
   const TABS: { key: Tab; label: string }[] = [
     { key: "compte", label: "Compte" },
     { key: "contact", label: "Informations de contact" },
+    { key: "notifications", label: "Notifications" },
   ];
 
   return (
@@ -319,6 +321,9 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
               </div>
             </div>
           )}
+
+          {/* ── NOTIFICATIONS TAB ── */}
+          {tab === "notifications" && <NotifPreferencesTab />}
 
         </div>
       </div>

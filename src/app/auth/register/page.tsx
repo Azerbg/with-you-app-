@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
@@ -54,6 +54,8 @@ const FEATURES = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const refCode = searchParams.get("ref")?.toUpperCase() ?? null;
   const { lang, setLang } = useLanguage();
   const t = T[lang].auth.register;
 
@@ -96,6 +98,7 @@ export default function RegisterPage() {
         email: form.email,
         password: form.password,
         role: form.role,
+        referralCode: refCode,
       }),
     });
 
@@ -179,6 +182,22 @@ export default function RegisterPage() {
               {lang === "fr" ? "EN" : "FR"}
             </button>
           </div>
+
+          {refCode && (
+            <div className="mb-5 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-2xl px-4 py-3 flex items-center gap-3">
+              <span className="text-xl">🎁</span>
+              <div>
+                <p className="text-sm font-bold text-[#5C3D00]">
+                  {lang === "fr" ? "Bonus de bienvenue : 10 TND offerts" : "Welcome bonus: 10 TND credit"}
+                </p>
+                <p className="text-xs text-[#9B8A6B]">
+                  {lang === "fr"
+                    ? `Code de parrainage appliqué : ${refCode}`
+                    : `Referral code applied: ${refCode}`}
+                </p>
+              </div>
+            </div>
+          )}
 
           <h1 className="text-2xl font-bold text-[#1A1208] mb-1">{t.title}</h1>
           <p className="text-sm text-[#8B7355] mb-6">
