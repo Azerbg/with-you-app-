@@ -22,7 +22,9 @@ const nextConfig: NextConfig = {
 // Wrap with Sentry only if properly installed and configured
 async function buildConfig() {
   try {
-    const { withSentryConfig } = await import("@sentry/nextjs");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sentry = await import("@sentry/nextjs") as any;
+    const withSentryConfig = sentry.withSentryConfig;
     if (typeof withSentryConfig !== "function") return nextConfig;
     return withSentryConfig(nextConfig, {
       org: process.env.SENTRY_ORG,

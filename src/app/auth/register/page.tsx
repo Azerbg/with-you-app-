@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -53,6 +53,10 @@ const FEATURES = [
 ];
 
 export default function RegisterPage() {
+  return <Suspense><RegisterPageInner /></Suspense>;
+}
+
+function RegisterPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const refCode = searchParams.get("ref")?.toUpperCase() ?? null;
