@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 
 
 interface UpcomingSession {
@@ -21,6 +22,7 @@ interface Props {
     upcomingSessions: number;
     studentsCount: number;
     earningsThisMonth: number;
+    currency: string;
   };
   upcomingSessions: UpcomingSession[];
   offerHourlyRate: number | null;
@@ -51,35 +53,33 @@ function formatTime(iso: string) {
 export default function TutorDashboardContent({
   fullName, initials, photo, profileComplete, stats, upcomingSessions, offerHourlyRate, offerCurrency,
 }: Props) {
+  const { lang } = useLanguage();
   const firstName = fullName.split(" ")[0];
+  const cur = stats.currency || offerCurrency || "TND";
 
   const statCards = [
     {
-      label: "Séances complétées",
+      label: lang === "fr" ? "Séances complétées" : "Completed sessions",
       value: stats.sessionsCompleted,
       icon: "✅",
-      bg: "bg-emerald-500",
       light: "bg-emerald-50 text-emerald-700",
     },
     {
-      label: "Séances à venir",
+      label: lang === "fr" ? "Séances à venir" : "Upcoming sessions",
       value: stats.upcomingSessions,
       icon: "📅",
-      bg: "bg-blue-500",
       light: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Étudiants actifs",
+      label: lang === "fr" ? "Étudiants actifs" : "Active students",
       value: stats.studentsCount,
       icon: "👥",
-      bg: "bg-purple-500",
       light: "bg-purple-50 text-purple-700",
     },
     {
-      label: "Revenus ce mois",
-      value: stats.earningsThisMonth > 0 ? `${stats.earningsThisMonth} ${offerCurrency ?? "TND"}` : "—",
+      label: lang === "fr" ? "Revenus ce mois" : "Earnings this month",
+      value: `${stats.earningsThisMonth.toFixed(2)} ${cur}`,
       icon: "💰",
-      bg: "bg-[#F5C400]",
       light: "bg-[#FFF3B0] text-[#5C3D00]",
     },
   ];
@@ -97,9 +97,9 @@ export default function TutorDashboardContent({
             <div className="absolute top-4 right-24 w-16 h-16 rounded-full bg-[#F5C400]/5" />
             <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-[#F5C400]/60 text-xs font-bold uppercase tracking-widest mb-1">Espace tuteur</p>
-                <h2 className="text-3xl font-bold text-white mb-1">Bonjour, {firstName} 👋</h2>
-                <p className="text-white/50 text-sm">Bienvenue sur WithYou — continuez à faire la différence.</p>
+                <p className="text-[#F5C400]/60 text-xs font-bold uppercase tracking-widest mb-1">{lang === "fr" ? "Espace tuteur" : "Tutor dashboard"}</p>
+                <h2 className="text-3xl font-bold text-white mb-1">{lang === "fr" ? `Bonjour, ${firstName} 👋` : `Hello, ${firstName} 👋`}</h2>
+                <p className="text-white/50 text-sm">{lang === "fr" ? "Bienvenue sur WithYou — continuez à faire la différence." : "Welcome to WithYou — keep making a difference."}</p>
               </div>
               <div className="w-16 h-16 rounded-2xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-2xl flex-shrink-0 overflow-hidden shadow-lg">
                 {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : initials}
@@ -108,7 +108,7 @@ export default function TutorDashboardContent({
             {offerHourlyRate && (
               <div className="mt-5 inline-flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
                 <span className="text-[#F5C400] font-bold text-lg">{offerHourlyRate} {offerCurrency ?? "TND"}/h</span>
-                <span className="text-white/40 text-xs">· taux horaire</span>
+                <span className="text-white/40 text-xs">· {lang === "fr" ? "taux horaire" : "hourly rate"}</span>
               </div>
             )}
           </div>
@@ -119,13 +119,13 @@ export default function TutorDashboardContent({
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-[#F5C400] flex items-center justify-center flex-shrink-0 text-base">⚠️</div>
                 <div>
-                  <p className="text-sm font-bold text-[#5C3D00]">Profil incomplet</p>
-                  <p className="text-xs text-[#6B5E44]">Complétez votre profil pour apparaître dans les recherches des étudiants.</p>
+                  <p className="text-sm font-bold text-[#5C3D00]">{lang === "fr" ? "Profil incomplet" : "Incomplete profile"}</p>
+                  <p className="text-xs text-[#6B5E44]">{lang === "fr" ? "Complétez votre profil pour apparaître dans les recherches des étudiants." : "Complete your profile to appear in student searches."}</p>
                 </div>
               </div>
               <Link href="/dashboard/tutor/complete-profile"
                 className="flex-shrink-0 bg-[#5C3D00] text-[#F5C400] font-bold text-xs px-4 py-2 rounded-xl hover:bg-[#3d2900] transition whitespace-nowrap">
-                Compléter →
+                {lang === "fr" ? "Compléter →" : "Complete →"}
               </Link>
             </div>
           )}
@@ -149,17 +149,17 @@ export default function TutorDashboardContent({
             {/* Upcoming sessions — 2/3 */}
             <div className="xl:col-span-2 bg-white rounded-2xl border border-black/5 overflow-hidden">
               <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-                <p className="font-bold text-[#2D1A00]">Prochaines séances</p>
+                <p className="font-bold text-[#2D1A00]">{lang === "fr" ? "Prochaines séances" : "Upcoming sessions"}</p>
                 <Link href="/dashboard/tutor/sessions" className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold">
-                  Tout voir →
+                  {lang === "fr" ? "Tout voir →" : "View all →"}
                 </Link>
               </div>
 
               {upcomingSessions.length === 0 ? (
                 <div className="px-6 py-12 text-center">
                   <div className="text-4xl mb-3">📭</div>
-                  <p className="text-sm font-semibold text-[#5C3D00]">Aucune séance planifiée</p>
-                  <p className="text-xs text-[#9B8A6B] mt-1">Les réservations des étudiants apparaîtront ici</p>
+                  <p className="text-sm font-semibold text-[#5C3D00]">{lang === "fr" ? "Aucune séance planifiée" : "No sessions scheduled"}</p>
+                  <p className="text-xs text-[#9B8A6B] mt-1">{lang === "fr" ? "Les réservations des étudiants apparaîtront ici" : "Student bookings will appear here"}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-black/4">
@@ -209,15 +209,15 @@ export default function TutorDashboardContent({
               {/* Quick actions */}
               <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
                 <div className="px-5 py-4 border-b border-black/5">
-                  <p className="font-bold text-[#2D1A00] text-sm">Actions rapides</p>
+                  <p className="font-bold text-[#2D1A00] text-sm">{lang === "fr" ? "Actions rapides" : "Quick actions"}</p>
                 </div>
                 <div className="divide-y divide-black/4">
                   {[
-                    { href: "/dashboard/tutor/availability", icon: "🗓️", title: "Disponibilités" },
-                    { href: "/dashboard/tutor/complete-profile", icon: "✏️", title: "Mon profil" },
-                    { href: "/dashboard/tutor/sessions", icon: "📋", title: "Mes séances" },
-                    { href: "/dashboard/tutor/reviews", icon: "⭐", title: "Mes avis" },
-                    { href: "/dashboard/tutor/referral", icon: "🎁", title: "Parrainage" },
+                    { href: "/dashboard/tutor/availability", icon: "🗓️", title: lang === "fr" ? "Disponibilités" : "Availability" },
+                    { href: "/dashboard/tutor/complete-profile", icon: "✏️", title: lang === "fr" ? "Mon profil" : "My profile" },
+                    { href: "/dashboard/tutor/sessions", icon: "📋", title: lang === "fr" ? "Mes séances" : "My sessions" },
+                    { href: "/dashboard/tutor/reviews", icon: "⭐", title: lang === "fr" ? "Mes avis" : "My reviews" },
+                    { href: "/dashboard/tutor/referral", icon: "🎁", title: lang === "fr" ? "Parrainage" : "Referral" },
                   ].map((a) => (
                     <Link key={a.href} href={a.href}
                       className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#FFFBEA] transition group">
@@ -241,8 +241,8 @@ export default function TutorDashboardContent({
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-[#2D1A00]">Revenus & paiements</p>
-                  <p className="text-xs text-[#9B8A6B]">Historique, méthode de paiement</p>
+                  <p className="text-sm font-bold text-[#2D1A00]">{lang === "fr" ? "Revenus & paiements" : "Earnings & payments"}</p>
+                  <p className="text-xs text-[#9B8A6B]">{lang === "fr" ? "Historique, méthode de paiement" : "History, payment method"}</p>
                 </div>
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#C4BAA8] group-hover:text-[#5C3D00] transition flex-shrink-0">
                   <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -253,10 +253,12 @@ export default function TutorDashboardContent({
               <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">Conseil du jour</p>
+                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{lang === "fr" ? "Conseil du jour" : "Tip of the day"}</p>
                 </div>
                 <p className="text-sm text-[#6B5E44] leading-relaxed">
-                  Complétez votre profil et définissez vos disponibilités pour recevoir vos premières réservations.
+                  {lang === "fr"
+                    ? "Complétez votre profil et définissez vos disponibilités pour recevoir vos premières réservations."
+                    : "Complete your profile and set your availability to start receiving bookings."}
                 </p>
               </div>
 

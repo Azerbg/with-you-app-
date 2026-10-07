@@ -26,7 +26,7 @@ function getInitials(s: Student) {
 function getDisplayName(s: Student) {
   if (s.firstName && s.lastName) return `${s.firstName} ${s.lastName}`;
   if (s.firstName) return s.firstName;
-  return s.email;
+  return s.email.split("@")[0]; // never show full email in lists
 }
 
 function formatDate(iso: string | null) {

@@ -2,10 +2,12 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
+import SignOutButton from "@/components/SignOutButton";
 import TutorDashboardContent from "./TutorDashboardContent";
 import VideoSubmissionPanel from "./VideoSubmissionPanel";
 import OfferAcceptancePanel from "./OfferAcceptancePanel";
 import SupportPanel from "./SupportPanel";
+import { getTutorStats } from "@/lib/tutorStats";
 
 const STAGE_INFO: Record<string, { label: string; desc: string; color: string; step: number }> = {
   INCOMPLETE:          { label: "Dossier incomplet",        desc: "Votre dossier est incomplet. Veuillez le compléter pour continuer.",           color: "bg-gray-50 border-gray-300 text-gray-700",    step: 1 },
@@ -78,32 +80,23 @@ export default async function TutorDashboardPage() {
     const fullName = app.fullName ?? user.email;
     const initials = fullName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
-    // Fetch bookings as tutor
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currency = app.offerCurrency ?? "TND";
 
-    const [upcoming, completed, monthBookings] = await Promise.all([
-      db.booking.findMany({
-        where: { tutorId: session.user.id, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: now } },
-        orderBy: { scheduledAt: "asc" },
-        take: 4,
-        include: { student: { select: { firstName: true, lastName: true, email: true } } },
-      }),
-      db.booking.count({
-        where: { tutorId: session.user.id, status: "CONFIRMED", scheduledAt: { lt: now } },
-      }),
-      db.booking.findMany({
-        where: { tutorId: session.user.id, status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: startOfMonth, lt: now } },
-        select: { tutorPayoutAmount: true },
-      }),
-    ]);
-
-    const uniqueStudents = new Set(upcoming.map((b) => b.studentId)).size;
-    const earningsThisMonth = monthBookings.reduce((sum, b) => sum + (b.tutorPayoutAmount ?? 0), 0);
+    // Consistent stats from shared function
+    const stats = await getTutorStats(session.user.id, currency);
 
     const offerHourlyRate = app.offerCurrency === "TND"
       ? app.offerHourlyRateTnd
       : app.offerHourlyRateCad;
+
+    // Upcoming sessions list for the dashboard card (max 5)
+    const now = new Date();
+    const upcoming = await db.booking.findMany({
+      where: { tutorId: session.user.id, status: { in: ["PENDING", "CONFIRMED"] }, scheduledAt: { gte: now } },
+      orderBy: { scheduledAt: "asc" },
+      take: 5,
+      include: { student: { select: { firstName: true, lastName: true, email: true } } },
+    });
 
     return (
       <TutorDashboardContent
@@ -112,16 +105,17 @@ export default async function TutorDashboardPage() {
         photo={profile?.profilePhotoUrl ?? null}
         profileComplete={profileComplete}
         stats={{
-          sessionsCompleted: completed,
-          upcomingSessions: upcoming.length,
-          studentsCount: uniqueStudents,
-          earningsThisMonth,
+          sessionsCompleted: stats.completed,
+          upcomingSessions: stats.upcoming,
+          studentsCount: stats.activeStudents,
+          earningsThisMonth: stats.earningsThisMonth,
+          currency: stats.currency,
         }}
         upcomingSessions={upcoming.map((b) => ({
           id: b.id,
-          studentName: b.student.firstName && b.student.lastName
-            ? `${b.student.firstName} ${b.student.lastName}`
-            : b.student.email,
+          studentName: b.student.firstName
+            ? `${b.student.firstName}${b.student.lastName ? " " + b.student.lastName : ""}`
+            : b.student.email.split("@")[0],
           scheduledAt: b.scheduledAt.toISOString(),
           durationMins: b.durationMins,
           status: b.status,
@@ -159,7 +153,7 @@ export default async function TutorDashboardPage() {
             </Link>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>
-              <Link href="/api/auth/signout" className="text-xs text-white/70 hover:text-white transition">Déconnexion</Link>
+              <SignOutButton className="text-xs text-white/70 hover:text-white transition">Déconnexion</SignOutButton>
             </div>
           </div>
 
@@ -266,9 +260,9 @@ export default async function TutorDashboardPage() {
           <div className="w-8 h-8 rounded-lg bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">
             {initials}
           </div>
-          <Link href="/api/auth/signout" className="text-xs text-[#6B5E44] hover:text-[#5C3D00] transition">
+          <SignOutButton className="text-xs text-[#6B5E44] hover:text-[#5C3D00] transition">
             Déconnexion
-          </Link>
+          </SignOutButton>
         </div>
       </div>
 

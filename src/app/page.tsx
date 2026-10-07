@@ -111,7 +111,7 @@ export default function HomePage() {
               <nav className="hidden md:flex items-center gap-6 text-[13px] text-gray-500 font-medium">
                 <a href="#how-it-works" className="hover:text-[#5C3D00] transition-colors">{t.nav.howItWorks}</a>
                 <Link href="/tutors/apply" className="hover:text-[#5C3D00] transition-colors">{t.nav.becomeTutor}</Link>
-                <a href="#pricing" className="hover:text-[#5C3D00] transition-colors">{lang === "fr" ? "Commencer" : "Get started"}</a>
+                <a href="#cta" className="hover:text-[#5C3D00] transition-colors">{lang === "fr" ? "Commencer" : "Get started"}</a>
               </nav>
             )}
 
@@ -412,7 +412,7 @@ export default function HomePage() {
                   <div className="relative h-48 w-full overflow-hidden">
                     <img
                       src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.png"}
-                      alt={`Étape ${i + 1}`}
+                      alt={lang === "fr" ? `Étape ${i + 1}` : `Step ${i + 1}`}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-white/60 to-transparent" />
@@ -439,7 +439,7 @@ export default function HomePage() {
                     <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title}</h3>
+                  <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title.replace(/^\p{Emoji_Presentation}\s*/u, "")}</h3>
                   <p className="text-sm text-[#6B5E44] leading-relaxed">{s.desc}</p>
                 </div>
 
@@ -530,7 +530,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Final CTA — full bleed image with overlay ── */}
-      <section id="pricing" className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
+      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "600px" }}>
 
         {/* Background image */}
         <img
@@ -558,15 +558,15 @@ export default function HomePage() {
             {lang === "fr" ? (
               <>Prêt à faire de<br />vrais <span className="text-[#F5C400]">progrès</span> ?</>
             ) : (
-              <>Ready to make<br />real <span className="text-[#F5C400]">progress</span> ?</>
+              <>Ready to make<br />real <span className="text-[#F5C400]">progress</span>?</>
             )}
           </h2>
 
           {/* Subtitle */}
           <p className="text-white/60 text-lg leading-relaxed max-w-md mb-10">
             {lang === "fr"
-              ? "Rejoignez des centaines d'apprenants qui progressent chaque semaine avec un tuteur dédié."
-              : "Join hundreds of learners making weekly progress with a dedicated tutor."}
+              ? "Rejoignez 500+ apprenants qui progressent chaque semaine avec un tuteur dédié."
+              : "Join 500+ learners making weekly progress with a dedicated tutor."}
           </p>
 
           {/* CTAs */}
@@ -612,15 +612,19 @@ export default function HomePage() {
             <div key={col.title}>
               <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">{col.title}</p>
               <div className="flex flex-col gap-2">
-                {col.links.map((l, linkIdx) => (
-                  <div key={l}>
-                    {colIdx === 1 && linkIdx === 0 ? (
-                      <Link href="/tutors/apply" className="text-xs text-white/60 hover:text-[#F5C400] transition">{l}</Link>
-                    ) : (
-                      <span className="text-xs text-white/60 hover:text-[#F5C400] cursor-pointer transition">{l}</span>
-                    )}
-                  </div>
-                ))}
+                {col.links.map((l, linkIdx) => {
+                  const footerHrefs: Record<string, Record<number, string>> = {
+                    "0": { 0: "/find-tutors", 1: "#how-it-works", 2: "#cta", 3: "/onboarding" },
+                    "1": { 0: "/tutors/apply", 1: "/tutors/apply", 2: "/tutors/apply" },
+                    "2": { 0: "/legal/cgu", 1: "/legal/privacy", 2: "/legal/cgu" },
+                  };
+                  const href = footerHrefs[String(colIdx)]?.[linkIdx] ?? "#";
+                  return (
+                    <div key={l}>
+                      <Link href={href} className="text-xs text-white/60 hover:text-[#F5C400] transition">{l}</Link>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -630,7 +634,6 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             <Link href="/legal/cgu" className="text-xs text-white/30 hover:text-white/60 transition">CGU</Link>
             <Link href="/legal/privacy" className="text-xs text-white/30 hover:text-white/60 transition">Confidentialité</Link>
-            <p className="text-xs text-white/30">{t.footer.phase}</p>
           </div>
         </div>
       </footer>

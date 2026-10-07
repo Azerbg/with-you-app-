@@ -37,7 +37,7 @@ interface Message {
 function displayName(u: ThreadUser): string {
   if (u.hrApplication?.fullName) return u.hrApplication.fullName;
   const name = [u.firstName, u.lastName].filter(Boolean).join(" ");
-  return name || u.email;
+  return name || u.email.split("@")[0];
 }
 
 function initials(name: string): string {

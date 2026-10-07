@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 const NAV = [
   { label: "Overview",  href: "/dashboard/admin",           icon: "📊" },
@@ -58,10 +59,11 @@ export default function AdminSidebar({ email }: Props) {
           </div>
         </div>
 
-        <Link href="/api/auth/signout"
-          className="block text-center text-xs text-white/30 hover:text-white/60 transition py-1">
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className="block text-center text-xs text-white/30 hover:text-white/60 transition py-1 w-full">
           Se déconnecter
-        </Link>
+        </button>
       </div>
     </div>
   );

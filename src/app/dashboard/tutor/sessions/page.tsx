@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import SessionsClient from "./SessionsClient";
+import { getTutorStats } from "@/lib/tutorStats";
 
 export default async function TutorSessionsPage() {
   const session = await auth();
@@ -54,6 +55,7 @@ export default async function TutorSessionsPage() {
           firstName: true,
           lastName: true,
           email: true,
+          image: true,
         },
       },
       lesson: { select: { whiteboardData: true } },
@@ -61,32 +63,32 @@ export default async function TutorSessionsPage() {
   });
 
   const currency = app.offerCurrency ?? "TND";
-  const hourlyRate =
-    currency === "TND" ? (app.offerHourlyRateTnd ?? 0) : (app.offerHourlyRateCad ?? 0);
 
-  const sessions = bookings.map((b) => {
-    const name =
-      b.student.firstName && b.student.lastName
-        ? `${b.student.firstName} ${b.student.lastName}`
-        : b.student.email;
-    const initials = name
+  const [tutorStats, sessions_raw] = await Promise.all([
+    getTutorStats(session.user.id, currency),
+    Promise.resolve(bookings),
+  ]);
+
+  const sessions = sessions_raw.map((b) => {
+    const name = b.student.firstName
+      ? `${b.student.firstName}${b.student.lastName ? " " + b.student.lastName : ""}`
+      : b.student.email.split("@")[0];
+    const studentInitials = name
       .split(" ")
       .map((w: string) => w[0])
       .slice(0, 2)
       .join("")
       .toUpperCase();
-    const earnings = b.status === "CONFIRMED" || b.status === "COMPLETED"
-      ? Math.round((b.durationMins / 60) * hourlyRate)
-      : null;
     return {
       id: b.id,
       studentId: b.studentId,
       studentName: name,
-      studentInitials: initials,
+      studentInitials,
+      studentImage: (b.student as { image?: string | null }).image ?? null,
       scheduledAt: b.scheduledAt.toISOString(),
       durationMins: b.durationMins,
       status: b.status,
-      earnings,
+      earnings: b.tutorPayoutAmount ?? null,
       currency,
       hasCanvas: !!(() => {
         const wd = b.lesson?.whiteboardData as { pages?: { objects?: unknown[]; pageHtml?: string }[]; objects?: unknown[]; pageHtml?: string } | null | undefined;
@@ -97,8 +99,6 @@ export default async function TutorSessionsPage() {
     };
   });
 
-  const totalEarnings = sessions.reduce((sum, s) => sum + (s.earnings ?? 0), 0);
-
   return (
     <SessionsClient
       fullName={fullName}
@@ -106,7 +106,7 @@ export default async function TutorSessionsPage() {
       photo={profile?.profilePhotoUrl ?? null}
       profileComplete={profileComplete}
       sessions={sessions}
-      totalEarnings={totalEarnings}
+      tutorStats={tutorStats}
       currency={currency}
     />
   );

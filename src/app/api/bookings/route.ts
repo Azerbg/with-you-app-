@@ -64,7 +64,9 @@ export async function POST(req: NextRequest) {
 
   // Read session type and amount from PaymentIntent metadata
   const sessionType = (paymentIntent.metadata.sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
-  const durationMins = sessionType === "SINGLE" ? 50 : 30;
+  const rawDuration = sessionType === "SINGLE" ? 50 : 30;
+  // Clamp to valid range (15–240 min) to prevent bad data
+  const durationMins = Math.min(240, Math.max(15, rawDuration));
   const studentPriceUsd = paymentIntent.amount / 100;
   const creditAppliedTnd = parseFloat(paymentIntent.metadata.creditAppliedTnd ?? "0") || 0;
 

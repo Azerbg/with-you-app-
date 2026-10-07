@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 interface Props {
   fullName: string;
@@ -161,15 +162,15 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-[#F0EAD8]">
-        <Link
-          href="/api/auth/signout"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#9B8A6B] hover:bg-[#F5F0E8] hover:text-[#5C3D00] transition font-semibold"
+        <button
+          onClick={() => signOut({ callbackUrl: "/" })}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#9B8A6B] hover:bg-[#F5F0E8] hover:text-[#5C3D00] transition font-semibold w-full"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
           </svg>
           Déconnexion
-        </Link>
+        </button>
       </div>
     </div>
   );

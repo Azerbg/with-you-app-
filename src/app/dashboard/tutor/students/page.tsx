@@ -26,6 +26,7 @@ export default async function TutorStudentsPage() {
     select: {
       studentId: true,
       scheduledAt: true,
+      durationMins: true,
       status: true,
       student: {
         select: {
@@ -56,6 +57,8 @@ export default async function TutorStudentsPage() {
     firstSessionAt: string | null;
   }>();
 
+  const now = new Date();
+
   for (const b of bookings) {
     const s = b.student;
     if (!map.has(s.id)) {
@@ -75,7 +78,10 @@ export default async function TutorStudentsPage() {
     }
     const entry = map.get(s.id)!;
     entry.totalSessions++;
-    if (b.status === "COMPLETED") {
+    // Count as completed if status=COMPLETED OR (CONFIRMED and session already ended)
+    const endAt = new Date(b.scheduledAt.getTime() + b.durationMins * 60 * 1000);
+    const isDone = b.status === "COMPLETED" || (b.status === "CONFIRMED" && endAt < now);
+    if (isDone) {
       entry.completedSessions++;
       const iso = b.scheduledAt.toISOString();
       if (!entry.lastSessionAt || iso > entry.lastSessionAt) entry.lastSessionAt = iso;

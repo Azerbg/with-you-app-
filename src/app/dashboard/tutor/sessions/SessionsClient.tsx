@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import type { TutorStats } from "@/lib/tutorStats";
 
 interface Session {
   id: string;
   studentId: string;
   studentName: string;
   studentInitials: string;
+  studentImage: string | null;
   scheduledAt: string;
   durationMins: number;
   status: string;
@@ -21,7 +23,7 @@ interface Props {
   photo: string | null;
   profileComplete: boolean;
   sessions: Session[];
-  totalEarnings: number;
+  tutorStats: TutorStats;
   currency: string | null;
 }
 
@@ -212,9 +214,11 @@ function SessionCard({ s, onOpenNote }: { s: Session; onOpenNote: (s: Session) =
 
   return (
     <div className="px-6 py-4 flex items-center gap-4 hover:bg-[#FFFBEA] transition">
-      {/* Avatar */}
-      <div className="w-10 h-10 rounded-xl bg-[#F5C400]/20 flex items-center justify-center flex-shrink-0 text-[#5C3D00] font-bold text-sm">
-        {s.studentInitials}
+      {/* Student avatar — never falls back to logged-in user's image */}
+      <div className="w-10 h-10 rounded-xl bg-[#F5C400]/20 flex items-center justify-center flex-shrink-0 text-[#5C3D00] font-bold text-sm overflow-hidden">
+        {s.studentImage
+          ? <img src={s.studentImage} alt={s.studentName} className="w-full h-full object-cover" />
+          : s.studentInitials}
       </div>
 
       {/* Info */}
@@ -281,19 +285,22 @@ function SessionCard({ s, onOpenNote }: { s: Session; onOpenNote: (s: Session) =
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function SessionsClient({
-  sessions, totalEarnings, currency,
+  sessions, tutorStats, currency,
 }: Props) {
   const [tab, setTab] = useState<Tab>("upcoming");
   const [noteTarget, setNoteTarget] = useState<Session | null>(null);
 
   const now = new Date();
 
+  // upcoming = scheduledAt > now, not cancelled (consistent with getTutorStats)
   const upcoming = sessions.filter(
-    (s) => new Date(s.scheduledAt) >= now && s.status !== "CANCELLED",
+    (s) => new Date(s.scheduledAt) > now && s.status !== "CANCELLED",
   );
-  const past = sessions.filter(
-    (s) => new Date(s.scheduledAt) < now || s.status === "COMPLETED" || s.status === "CANCELLED",
-  );
+  // past = endAt < now (scheduledAt + durationMins), not cancelled
+  const past = sessions.filter((s) => {
+    const endAt = new Date(new Date(s.scheduledAt).getTime() + s.durationMins * 60 * 1000);
+    return endAt < now && s.status !== "CANCELLED";
+  });
 
   const displayed = tab === "upcoming" ? upcoming : tab === "past" ? past : sessions;
 
@@ -313,16 +320,16 @@ export default function SessionsClient({
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-2xl border border-black/5 p-5">
             <p className="text-xs text-[#9B8A6B] mb-1">Séances à venir</p>
-            <p className="text-3xl font-bold text-[#2D1A00]">{upcoming.length}</p>
+            <p className="text-3xl font-bold text-[#2D1A00]">{tutorStats.upcoming}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5">
-            <p className="text-xs text-[#9B8A6B] mb-1">Séances passées</p>
-            <p className="text-3xl font-bold text-[#2D1A00]">{past.length}</p>
+            <p className="text-xs text-[#9B8A6B] mb-1">Séances complétées</p>
+            <p className="text-3xl font-bold text-[#2D1A00]">{tutorStats.completed}</p>
           </div>
           <div className="bg-[#5C3D00] rounded-2xl p-5">
             <p className="text-xs text-white/50 mb-1">Revenus totaux</p>
             <p className="text-3xl font-bold text-[#F5C400]">
-              {totalEarnings > 0 ? `${totalEarnings} ${currency ?? "TND"}` : "—"}
+              {tutorStats.earningsTotal.toFixed(2)} {currency ?? "TND"}
             </p>
           </div>
         </div>
