@@ -415,17 +415,17 @@ function FloatingCallPiP({ remoteCamTrack, localCamTrack, hasRemoteVideo, isCame
 
 // ─── Canvas Modal (Toile) ─────────────────────────────────────────────────────
 
-const TOOL_DEFS: { id: DrawTool; label: string; hint: string; d: string }[] = [
-  { id: "pen",      label: "Stylo",      hint: "Dessinez librement. Supporte le tactile.",          d: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" },
-  { id: "highlight",label: "Surligneur", hint: "Surlignez des zones (transparence 40%).",           d: "M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" },
-  { id: "eraser",   label: "Gomme",      hint: "Effacez en peignant par-dessus.",                   d: "M20 20H7L3 16l13-13 7 7-3 10zm-7 0l-4-4" },
-  { id: "text",     label: "Texte",      hint: "Cliquez pour placer du texte. Entrée pour valider.",d: "M9 12h6M12 9v6M4 7V4h16v3M9 20h6M12 4v16" },
-  { id: "line",     label: "Ligne",      hint: "Tracez une ligne droite.",                          d: "M5 19L19 5" },
-  { id: "arrow",    label: "Flèche",     hint: "Tracez une flèche avec pointe.",                    d: "M5 19L19 5m0 0H9m10 0v10" },
-  { id: "rect",     label: "Rectangle",  hint: "Dessinez un rectangle.",                            d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" },
-  { id: "circle",   label: "Cercle",     hint: "Dessinez une ellipse.",                             d: "M12 22a10 10 0 110-20 10 10 0 010 20z" },
-  { id: "triangle", label: "Triangle",   hint: "Dessinez un triangle isocèle.",                     d: "M3 21l9-16 9 16H3z" },
-  { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
+const TOOL_DEFS: { id: DrawTool; label: string; hint: string; hintEn: string; d: string }[] = [
+  { id: "pen",      label: "Stylo",      hint: "Dessinez librement. Supporte le tactile.",           hintEn: "Draw freely. Touch supported.",              d: "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" },
+  { id: "highlight",label: "Surligneur", hint: "Surlignez des zones (transparence 40%).",            hintEn: "Highlight areas (40% opacity).",              d: "M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" },
+  { id: "eraser",   label: "Gomme",      hint: "Effacez en peignant par-dessus.",                    hintEn: "Erase by painting over.",                    d: "M20 20H7L3 16l13-13 7 7-3 10zm-7 0l-4-4" },
+  { id: "text",     label: "Texte",      hint: "Cliquez pour placer du texte. Entrée pour valider.", hintEn: "Click to place text. Enter to confirm.",     d: "M9 12h6M12 9v6M4 7V4h16v3M9 20h6M12 4v16" },
+  { id: "line",     label: "Ligne",      hint: "Tracez une ligne droite.",                           hintEn: "Draw a straight line.",                      d: "M5 19L19 5" },
+  { id: "arrow",    label: "Flèche",     hint: "Tracez une flèche avec pointe.",                     hintEn: "Draw an arrow with tip.",                    d: "M5 19L19 5m0 0H9m10 0v10" },
+  { id: "rect",     label: "Rectangle",  hint: "Dessinez un rectangle.",                             hintEn: "Draw a rectangle.",                          d: "M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" },
+  { id: "circle",   label: "Cercle",     hint: "Dessinez une ellipse.",                              hintEn: "Draw an ellipse.",                           d: "M12 22a10 10 0 110-20 10 10 0 010 20z" },
+  { id: "triangle", label: "Triangle",   hint: "Dessinez un triangle isocèle.",                      hintEn: "Draw an isosceles triangle.",                d: "M3 21l9-16 9 16H3z" },
+  { id: "hand",     label: "Main",       hint: "Glissez pour déplacer la vue. Molette pour zoomer.", hintEn: "Drag to pan. Scroll to zoom.",               d: "M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" },
 ];
 
 interface CanvasPage  { objects: CanvasObj[]; pageHtml: string; }
@@ -1353,7 +1353,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
 
           {/* Tool hint */}
           <span className="ml-2 text-white/25 text-[10px] hidden md:block truncate">
-            {TOOL_DEFS.find(t => t.id === tool)?.hint}
+            {(() => { const td = TOOL_DEFS.find(t => t.id === tool); return td ? (lang === "fr" ? td.hint : td.hintEn) : ""; })()}
           </span>
         </div>
 
@@ -1478,7 +1478,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           </button>
 
           <div className="ml-auto flex-shrink-0 flex items-center gap-3 pl-3">
-            <span className="text-[10px] text-white/20 hidden md:block">Ctrl+Z · Molette = zoom</span>
+            <span className="text-[10px] text-white/20 hidden md:block">{lang === "fr" ? "Ctrl+Z · Molette = zoom" : "Ctrl+Z · Scroll = zoom"}</span>
             <span className="text-[10px] text-white/20">{zoomPct}%</span>
           </div>
         </div>
@@ -1564,6 +1564,13 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   const [filled,  setFilled]  = useState(false);
   const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
 
+  // Focus textarea reliably after it mounts (textPos change → new render → raf)
+  useEffect(() => {
+    if (!textPos) return;
+    const raf = requestAnimationFrame(() => textareaRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [textPos]);
+
   const isFillable = ["rect","circle","triangle"].includes(tool);
   const getMain    = () => mainRef.current?.getContext("2d") ?? null;
   const getPreview = () => previewRef.current?.getContext("2d") ?? null;
@@ -1630,7 +1637,6 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
     if (tool === "text") {
       committingRef.current = false; textVal.current = "";
       setTextPos({ x: p[0], y: p[1] });
-      setTimeout(() => textareaRef.current?.focus(), 30);
       return;
     }
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -1840,13 +1846,14 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
           )}
         </div>
 
-        <p className="text-[9px] text-white/25 truncate">{TOOL_DEFS.find(t => t.id === tool)?.hint}</p>
+        <p className="text-[9px] text-white/25 truncate">{(() => { const td = TOOL_DEFS.find(t => t.id === tool); return td ? (lang === "fr" ? td.hint : td.hintEn) : ""; })()}</p>
       </div>
 
       {/* Canvas area */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden bg-white">
         <canvas ref={mainRef} className="absolute inset-0"
           style={{ cursor: wbCursors[tool] ?? "crosshair", touchAction: "none" }}
+          onMouseDown={e => { if (tool === "text") e.preventDefault(); }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
