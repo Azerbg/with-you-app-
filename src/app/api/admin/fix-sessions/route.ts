@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -9,10 +9,16 @@ import { db } from "@/lib/db";
  * 2. Closes (→ COMPLETED) any CONFIRMED booking whose session has already ended.
  * Protected: ADMIN role only.
  */
-export async function POST() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const bearer = req.headers.get("authorization");
+  if (cronSecret && bearer === `Bearer ${cronSecret}`) {
+    // allowed via CRON_SECRET (for CLI/PowerShell use)
+  } else {
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   // Step 1: fix bad durationMins
