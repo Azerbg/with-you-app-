@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
 import Link from "next/link";
 import { ClassroomView } from "../ClassroomCore";
+import { useCall } from "@/context/CallContext";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -61,39 +61,58 @@ function LeftScreen({ role, bookingId }: { role: string; bookingId: string }) {
 export default function ClassroomClient({
   bookingId, role, tutorName, studentName, scheduledAt, durationMins,
 }: Props) {
-  const [token,   setToken]   = useState<string | null>(null);
   const [myName,  setMyName]  = useState(role === "student" ? studentName : tutorName);
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [left,    setLeft]    = useState(false);
-  const leavingRef            = useRef(false);
+  const joinedRef             = useRef(false);
 
+  const { joinCall, leaveCall, isInCall, elapsed, setOverlayOpen } = useCall();
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
 
+  // When the call ends (for any reason) while we're mounted, show LeftScreen
+  useEffect(() => {
+    if (joinedRef.current && !isInCall) setLeft(true);
+  }, [isInCall]);
+
   const handleLeave = useCallback(async () => {
-    if (leavingRef.current) return;
-    leavingRef.current = true;
-    try { await fetch(`/api/bookings/${bookingId}/complete`, { method: "PATCH" }); } catch { /* best-effort */ }
+    // leaveCall() calls /api/bookings/${bookingId}/complete + room.disconnect()
+    await leaveCall();
     setLeft(true);
-  }, [bookingId]);
+  }, [leaveCall]);
 
   const fetchToken = useCallback(async () => {
     try {
       const res  = await fetch(`/api/livekit/token?bookingId=${bookingId}`);
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Impossible de rejoindre la salle."); return; }
-      setToken(data.token);
+
+      const name = data.displayName || myName;
       if (data.displayName) setMyName(data.displayName);
+
+      await joinCall({
+        serverUrl,
+        token:       data.token,
+        roomId:      bookingId,
+        myName:      name,
+        otherName:   role === "student" ? tutorName : studentName,
+        role,
+        scheduledAt,
+        durationMins,
+        bookingId,
+      });
+      joinedRef.current = true;
     } catch {
       setError("Erreur réseau. Veuillez réessayer.");
     } finally {
       setLoading(false);
     }
-  }, [bookingId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, joinCall, serverUrl, role, tutorName, studentName, scheduledAt, durationMins]);
 
   useEffect(() => { fetchToken(); }, [fetchToken]);
 
-  if (left)    return <LeftScreen role={role} bookingId={bookingId} />;
+  if (left) return <LeftScreen role={role} bookingId={bookingId} />;
 
   if (loading) return (
     <div className="h-screen bg-[#0F0A04] flex items-center justify-center">
@@ -118,24 +137,16 @@ export default function ClassroomClient({
   );
 
   return (
-    <LiveKitRoom
-      video={true}
-      audio={true}
-      token={token!}
-      serverUrl={serverUrl}
-      onDisconnected={handleLeave}
-      style={{ height: "100vh" }}
-    >
-      <ClassroomView
-        role={role}
-        myName={myName}
-        otherName={role === "student" ? tutorName : studentName}
-        durationMins={durationMins}
-        scheduledAt={scheduledAt}
-        bookingId={bookingId}
-        onLeave={handleLeave}
-      />
-      <RoomAudioRenderer />
-    </LiveKitRoom>
+    <ClassroomView
+      role={role}
+      myName={myName}
+      otherName={role === "student" ? tutorName : studentName}
+      durationMins={durationMins}
+      scheduledAt={scheduledAt}
+      bookingId={bookingId}
+      elapsed={elapsed}
+      onOverlayChange={setOverlayOpen}
+      onLeave={handleLeave}
+    />
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useCall } from "@/context/CallContext";
 import {
   useTracks,
   useLocalParticipant,
@@ -278,137 +279,6 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
         {lang === "fr" ? "Choisir une image" : "Choose an image"}
       </button>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-    </div>
-  );
-}
-
-// ─── Floating Call PiP ───────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function FloatingCallPiP({ remoteCamTrack, localCamTrack, hasRemoteVideo, isCameraEnabled, isMicrophoneEnabled, otherName, otherInit, myInit, elapsed, fmt }: {
-  remoteCamTrack: any; localCamTrack: any;
-  hasRemoteVideo: boolean; isCameraEnabled: boolean; isMicrophoneEnabled: boolean;
-  otherName: string; otherInit: string; myInit: string;
-  elapsed: number; fmt: (s: number) => string;
-}) {
-  const pipRef   = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-  const offset   = useRef({ x: 0, y: 0 });
-  const [pos,        setPos]        = useState<{ x: number; y: number } | null>(null);
-  const [minimized,  setMinimized]  = useState(false);
-
-  // Drag — mouse
-  function onMouseDown(e: React.MouseEvent) {
-    dragging.current = true;
-    const r = pipRef.current?.getBoundingClientRect();
-    if (r) offset.current = { x: e.clientX - r.left, y: e.clientY - r.top };
-    e.preventDefault();
-  }
-  useEffect(() => {
-    function move(e: MouseEvent) {
-      if (!dragging.current) return;
-      setPos({
-        x: Math.max(8, Math.min(window.innerWidth  - 232, e.clientX - offset.current.x)),
-        y: Math.max(8, Math.min(window.innerHeight - 160, e.clientY - offset.current.y)),
-      });
-    }
-    function up() { dragging.current = false; }
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup",   up);
-    return () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
-  }, []);
-
-  // Drag — touch
-  function onTouchStart(e: React.TouchEvent) {
-    dragging.current = true;
-    const t = e.touches[0];
-    const r = pipRef.current?.getBoundingClientRect();
-    if (r) offset.current = { x: t.clientX - r.left, y: t.clientY - r.top };
-  }
-  useEffect(() => {
-    function move(e: TouchEvent) {
-      if (!dragging.current) return;
-      const t = e.touches[0];
-      setPos({
-        x: Math.max(8, Math.min(window.innerWidth  - 232, t.clientX - offset.current.x)),
-        y: Math.max(8, Math.min(window.innerHeight - 160, t.clientY - offset.current.y)),
-      });
-      e.preventDefault();
-    }
-    function up() { dragging.current = false; }
-    document.addEventListener("touchmove", move, { passive: false });
-    document.addEventListener("touchend",  up);
-    return () => { document.removeEventListener("touchmove", move); document.removeEventListener("touchend", up); };
-  }, []);
-
-  const style: React.CSSProperties = pos
-    ? { position: "fixed", left: pos.x, top: pos.y, zIndex: 100 }
-    : { position: "fixed", bottom: 96, right: 16,   zIndex: 100 };
-
-  return (
-    <div ref={pipRef} style={style}
-      className="w-[224px] rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-[#0A0703] select-none">
-
-      {/* Header / drag handle */}
-      <div
-        className="flex items-center justify-between px-2.5 py-1.5 bg-[#1A0F00] cursor-grab active:cursor-grabbing"
-        onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0 animate-pulse" />
-          <span className="text-white/70 text-[10px] font-semibold truncate">{otherName.split(" ")[0]}</span>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="text-[#F5C400] text-[9px] font-mono">{fmt(elapsed)}</span>
-          <button
-            onMouseDown={e => e.stopPropagation()}
-            onClick={() => setMinimized(v => !v)}
-            className="w-5 h-5 rounded flex items-center justify-center text-white/40 hover:text-white/80 transition"
-            title={minimized ? "Agrandir" : "Réduire"}
-          >
-            {minimized
-              ? <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
-              : <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
-            }
-          </button>
-        </div>
-      </div>
-
-      {/* Video area */}
-      {!minimized && (
-        <div className="relative bg-[#0A0703]" style={{ aspectRatio: "16/9" }}>
-          {/* Remote participant */}
-          {hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
-            <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#1A0F00]">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-lg">{otherInit}</div>
-            </div>
-          )}
-
-          {/* Local PiP (small, corner) */}
-          <div className="absolute bottom-1.5 right-1.5 rounded-lg overflow-hidden border border-white/20 bg-[#0A0703]"
-            style={{ width: 54, aspectRatio: "16/9" }}>
-            {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
-              <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#1A0F00]">
-                <span className="text-[#F5C400] font-bold text-[9px]">{myInit}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Muted mic indicator */}
-          {!isMicrophoneEnabled && (
-            <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center shadow">
-              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-              </svg>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -1970,10 +1840,14 @@ function InfoPanel({ myName, otherName, elapsed, msgCount, quality, remoteQualit
 
 // ─── ClassroomView ────────────────────────────────────────────────────────────
 
-export function ClassroomView({ role, myName, otherName, durationMins, scheduledAt, bookingId, isSandbox, onLeave }: {
+export function ClassroomView({ role, myName, otherName, durationMins, scheduledAt, bookingId, isSandbox, onLeave, elapsed: elapsedProp, onOverlayChange }: {
   role: "student" | "tutor"; myName: string; otherName: string;
   durationMins?: number; scheduledAt?: string; bookingId?: string;
   isSandbox?: boolean; onLeave: () => void;
+  /** Timer injected from CallProvider so it survives navigation. Falls back to local timer. */
+  elapsed?: number;
+  /** Called whenever the whiteboard/canvas overlay opens or closes. */
+  onOverlayChange?: (open: boolean) => void;
 }) {
   const { lang } = useLanguage();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
@@ -1985,13 +1859,15 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     { onlySubscribed: false }
   );
 
-  // Timer
+  // Timer — uses injected elapsed from CallProvider when available; local fallback otherwise
   const startRef = useRef(scheduledAt ? new Date(scheduledAt).getTime() : Date.now());
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsedLocal, setElapsedLocal] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - startRef.current) / 1000))), 1000);
+    if (elapsedProp !== undefined) return; // provider owns the timer
+    const id = setInterval(() => setElapsedLocal(Math.max(0, Math.floor((Date.now() - startRef.current) / 1000))), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [elapsedProp]);
+  const elapsed = elapsedProp ?? elapsedLocal;
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
 
   // Tracks
@@ -2027,6 +1903,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   // Leave / disconnect
   const userInitiatedLeaveRef = useRef(false);
   const [disconnected, setDisconnected] = useState(false);
+  const { intentionalLeaveRef } = useCall();
 
   async function handleLeave() {
     userInitiatedLeaveRef.current = true;
@@ -2037,14 +1914,14 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     onLeave();
   }
 
-  // Fix 10: Disconnect overlay
+  // Disconnect overlay — suppressed when leave was user-initiated (from here or from MiniCall)
   useEffect(() => {
     const onDisconnect = () => {
-      if (!userInitiatedLeaveRef.current) setDisconnected(true);
+      if (!userInitiatedLeaveRef.current && !intentionalLeaveRef.current) setDisconnected(true);
     };
     room.on(RoomEvent.Disconnected, onDisconnect);
     return () => { room.off(RoomEvent.Disconnected, onDisconnect); };
-  }, [room]);
+  }, [room, intentionalLeaveRef]);
 
   // Mic toast
   const [micToast, setMicToast] = useState<string | null>(null);
@@ -2091,6 +1968,11 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   // Opening bgPanel or picker closes the other
   function openBgPanel() { setBgPanelOpen(v => !v); setShowPicker(false); setOpenDropdown(null); }
   function openPicker()  { setShowPicker(v => !v);  setBgPanelOpen(false); setOpenDropdown(null); }
+
+  // Notify global CallProvider when overlay opens/closes (so MiniCall becomes visible)
+  useEffect(() => {
+    onOverlayChange?.(canvasOpen || wbOpen);
+  }, [canvasOpen, wbOpen, onOverlayChange]);
 
   // Devices
   const [audioIn,  setAudioIn]  = useState<MediaDeviceInfo[]>([]);
@@ -2287,21 +2169,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         </div>
       )}
 
-      {/* Floating call PiP — visible whenever a modal covers the video */}
-      {(canvasOpen || wbOpen) && remotePart && (
-        <FloatingCallPiP
-          remoteCamTrack={remoteCamTrack}
-          localCamTrack={localCamTrack}
-          hasRemoteVideo={hasRemoteVideo}
-          isCameraEnabled={isCameraEnabled}
-          isMicrophoneEnabled={isMicrophoneEnabled}
-          otherName={displayOther}
-          otherInit={otherInit}
-          myInit={myInit}
-          elapsed={elapsed}
-          fmt={fmt}
-        />
-      )}
+      {/* MiniCall overlay is handled globally by CallProvider/MiniCall */}
 
       {/* Whiteboard Modal */}
       {wbOpen && (
