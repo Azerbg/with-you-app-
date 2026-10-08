@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   useTracks,
   useLocalParticipant,
@@ -84,7 +85,7 @@ function BarBtn({ active, label, onClick, icon, blue = false }: {
   active: boolean; label: string; onClick: () => void; icon: React.ReactNode; blue?: boolean;
 }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-1 group">
+    <button onClick={onClick} aria-label={label} title={label} className="flex flex-col items-center gap-1 group">
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition border ${
         active && !blue ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]"
         : active && blue ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
@@ -1749,13 +1750,18 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   };
   const DOT_SIZE: Record<number,number> = { 2:4, 4:8, 8:14, 16:22 };
 
-  // Escape key
+  // Escape key — close text input first, then whiteboard
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (textPos) { committingRef.current = true; textVal.current = ""; setTextPos(null); }
+        else onClose();
+      }
+    };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [textPos]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0D0904]">
@@ -1871,7 +1877,7 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
         {textPos && (
           <textarea ref={textareaRef}
             className="absolute bg-white/90 border-2 border-dashed border-blue-500 rounded px-1 resize-none focus:outline-none shadow"
-            style={{ left: textPos.x, top: textPos.y, fontSize: Math.max(12, width * 5), color, fontFamily: "sans-serif", minWidth: 120, minHeight: 36, lineHeight: 1.4 }}
+            style={{ left: textPos.x, top: textPos.y, fontSize: Math.max(12, width * 5), color, fontFamily: "Outfit, sans-serif", minWidth: 120, minHeight: 36, lineHeight: 1.4 }}
             onChange={e => { textVal.current = e.target.value; }}
             onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); }
@@ -1983,6 +1989,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   durationMins?: number; scheduledAt?: string; bookingId?: string;
   isSandbox?: boolean; onLeave: () => void;
 }) {
+  const { lang } = useLanguage();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const room         = useRoomContext();
@@ -2030,6 +2037,38 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     setRemoteQuality(remotePart.connectionQuality);
     return () => { remotePart.off(ParticipantEvent.ConnectionQualityChanged, u); };
   }, [remotePart]);
+
+  // Leave / disconnect
+  const userInitiatedLeaveRef = useRef(false);
+  const [disconnected, setDisconnected] = useState(false);
+
+  async function handleLeave() {
+    userInitiatedLeaveRef.current = true;
+    // Dispose background processor before leaving
+    const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+    const vt  = pub?.videoTrack as LocalVideoTrack | undefined;
+    if (vt) { try { await vt.stopProcessor(); } catch { /* ignore */ } }
+    onLeave();
+  }
+
+  // Fix 10: Disconnect overlay
+  useEffect(() => {
+    const onDisconnect = () => {
+      if (!userInitiatedLeaveRef.current) setDisconnected(true);
+    };
+    room.on(RoomEvent.Disconnected, onDisconnect);
+    return () => { room.off(RoomEvent.Disconnected, onDisconnect); };
+  }, [room]);
+
+  // Mic toast
+  const [micToast, setMicToast] = useState<string | null>(null);
+  function showMicToast(msg: string) {
+    setMicToast(msg);
+    setTimeout(() => setMicToast(null), 3500);
+  }
+
+  // Link copied toast
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Panel / dropdown / canvas state
   const [activePanel,  setActivePanel]  = useState<ActivePanel>(null);
@@ -2131,11 +2170,13 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     if (!videoTrack) return;
     setBgApplying(true);
     try {
+      // Always stop any existing processor first to avoid WebGL context accumulation
+      try { await videoTrack.stopProcessor(); } catch { /* ignore if none */ }
       if (choice === "none") {
-        await videoTrack.stopProcessor();
+        // already stopped above
       } else if (choice === "blur-soft" || choice === "blur-strong") {
         const { BackgroundBlur } = await import("@livekit/track-processors");
-        await videoTrack.setProcessor(BackgroundBlur(choice === "blur-soft" ? 8 : 20));
+        await videoTrack.setProcessor(BackgroundBlur(choice === "blur-soft" ? 10 : 25));
       } else {
         // Solid color hex or custom image data URL
         const { VirtualBackground } = await import("@livekit/track-processors");
@@ -2208,10 +2249,40 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   function sendReaction(emoji: string) { sendData({ type: "reaction", sender: myName, emoji }); addFloat(emoji, myName); setShowPicker(false); }
   async function toggleScreen() { try { await localParticipant.setScreenShareEnabled(!isSharing); } catch { /* cancelled */ } }
 
-  const panelTitles: Record<string, string> = { chat: "Chat", info: "Informations" };
+  const panelTitles: Record<string, string> = { chat: "Chat", info: lang === "fr" ? "Informations" : "Info" };
 
   return (
     <div className="h-screen flex flex-col bg-[#0F0A04] overflow-hidden select-none">
+
+      {/* Disconnect overlay (Fix 10) */}
+      {disconnected && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#1A1209] border border-[#3A2A0E] rounded-2xl px-8 py-8 text-center max-w-sm w-full mx-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M6.343 17.657a9 9 0 010-12.728M9.172 15.536a5 5 0 010-7.072" /></svg>
+            </div>
+            <p className="text-white font-bold text-base mb-1">{lang === "fr" ? "Connexion perdue" : "Connection lost"}</p>
+            <p className="text-white/40 text-sm mb-6">{lang === "fr" ? "Reconnexion en cours…" : "Reconnecting…"}</p>
+            <div className="flex gap-3">
+              <button onClick={() => window.location.reload()}
+                className="flex-1 bg-[#F5C400] text-[#5C3D00] font-bold text-sm py-2.5 rounded-xl hover:bg-[#FFDE59] transition">
+                {lang === "fr" ? "Reconnecter" : "Reconnect"}
+              </button>
+              <button onClick={() => { userInitiatedLeaveRef.current = true; onLeave(); }}
+                className="flex-1 bg-white/5 text-white/60 font-semibold text-sm py-2.5 rounded-xl hover:bg-white/10 transition">
+                {lang === "fr" ? "Quitter" : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mic error toast (Fix 4) */}
+      {micToast && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[150] bg-red-900/90 border border-red-700/50 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xl pointer-events-none">
+          {micToast}
+        </div>
+      )}
 
       {/* Floating call PiP — visible whenever a modal covers the video */}
       {(canvasOpen || wbOpen) && remotePart && (
@@ -2266,17 +2337,17 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           {isSandbox ? (
             <div className="flex items-center gap-2 bg-amber-900/30 border border-amber-700/40 px-3 py-1 rounded-full flex-shrink-0">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-amber-400 text-[11px] font-bold">SALLE DE TEST</span>
+              <span className="text-amber-400 text-[11px] font-bold">{lang === "fr" ? "SALLE DE TEST" : "SANDBOX"}</span>
             </div>
           ) : (
             <>
               <div className="w-px h-5 bg-white/10 flex-shrink-0" />
               <div className="min-w-0">
                 <p className="text-white/70 text-xs font-semibold leading-tight truncate">
-                  Séance avec <span className="text-[#F5C400]">{displayOther}</span>
+                  {lang === "fr" ? "Séance avec" : "Session with"} <span className="text-[#F5C400]">{displayOther}</span>
                 </p>
                 <p className="text-white/25 text-[10px] leading-tight capitalize">
-                  {role === "student" ? "Étudiant" : "Tuteur"}{durationMins ? ` · ${durationMins} min` : ""}
+                  {role === "student" ? (lang === "fr" ? "Étudiant" : "Student") : (lang === "fr" ? "Tuteur" : "Tutor")}{durationMins ? ` · ${durationMins} min` : ""}
                 </p>
               </div>
             </>
@@ -2298,12 +2369,12 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             <QualityBars quality={quality} />
           </div>
         </div>
-        <button onClick={onLeave}
+        <button onClick={handleLeave} aria-label={lang === "fr" ? "Quitter la séance" : "Leave session"}
           className="flex items-center gap-1.5 bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex-shrink-0">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
-          Quitter
+          {lang === "fr" ? "Quitter" : "Leave"}
         </button>
       </div>
 
@@ -2395,10 +2466,20 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                     </div>
                   </div>
                 </div>
-                <p className="text-white/60 text-sm font-semibold">En attente de {displayOther}…</p>
-                <p className="text-white/20 text-xs mt-2">Partage ce lien pour inviter</p>
-                <div className="mt-3 bg-[#1A1209] border border-[#3A2A0E] rounded-xl px-4 py-2 inline-block">
-                  <p className="text-[#9B8A6B] text-xs font-mono">{isSandbox ? "/classroom/sandbox" : `/classroom/${(bookingId ?? "").slice(0,8)}`}</p>
+                <p className="text-white/60 text-sm font-semibold">{lang === "fr" ? "En attente d'un participant…" : "Waiting for a participant…"}</p>
+                <p className="text-white/20 text-xs mt-2">{lang === "fr" ? "Partage ce lien pour inviter" : "Share this link to invite"}</p>
+                <div className="mt-3 bg-[#1A1209] border border-[#3A2A0E] rounded-xl px-3 py-2 inline-flex items-center gap-2 max-w-xs">
+                  <p className="text-[#9B8A6B] text-xs font-mono truncate flex-1">
+                    {typeof window !== "undefined" ? window.location.href : (isSandbox ? "/classroom/sandbox" : `/classroom/${(bookingId ?? "").slice(0,8)}`)}
+                  </p>
+                  <button
+                    onClick={() => {
+                      const url = typeof window !== "undefined" ? window.location.href : "";
+                      navigator.clipboard.writeText(url).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); });
+                    }}
+                    className="flex-shrink-0 text-[10px] font-bold text-[#F5C400] bg-[#F5C400]/10 hover:bg-[#F5C400]/20 px-2 py-1 rounded-lg transition">
+                    {linkCopied ? (lang === "fr" ? "Lien copié" : "Copied!") : (lang === "fr" ? "Copier" : "Copy")}
+                  </button>
                 </div>
               </div>
               {/* Aperçu caméra locale */}
@@ -2427,14 +2508,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             ))}
           </div>
 
-          {showPicker && (
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
-              <div className="bg-[#1A1209] border border-[#3A2A0E] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
-                {REACTIONS.map(e => <button key={e} onClick={() => sendReaction(e)} className="text-2xl hover:scale-125 transition-transform">{e}</button>)}
-              </div>
-              <div className="w-3 h-3 bg-[#1A1209] border-r border-b border-[#3A2A0E] rotate-45 mx-auto -mt-1.5" />
-            </div>
-          )}
+          {/* Reaction picker moved to above Réagir button in control bar */}
         </div>
 
         {/* Side panel */}
@@ -2474,16 +2548,32 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           {/* Micro + chevron */}
           <div className="relative flex items-end gap-px">
-            <button onClick={() => localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)} className="flex flex-col items-center gap-1 group">
+            <button
+              aria-label={isMicrophoneEnabled ? (lang === "fr" ? "Couper le micro" : "Mute microphone") : (lang === "fr" ? "Activer le micro" : "Unmute microphone")}
+              title={isMicrophoneEnabled ? (lang === "fr" ? "Couper le micro" : "Mute microphone") : (lang === "fr" ? "Activer le micro" : "Unmute microphone")}
+              onClick={async () => {
+                try {
+                  await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+                } catch (err: unknown) {
+                  const name = (err as { name?: string })?.name;
+                  if (name === "NotFoundError") showMicToast(lang === "fr" ? "Aucun microphone détecté" : "No microphone found");
+                  else if (name === "NotAllowedError") showMicToast(lang === "fr" ? "Accès au micro refusé" : "Microphone access denied");
+                  else showMicToast(lang === "fr" ? "Impossible d'activer le micro" : "Could not enable microphone");
+                }
+              }}
+              className="flex flex-col items-center gap-1 group">
               <div className={`w-12 h-12 rounded-l-2xl flex items-center justify-center transition border-y border-l ${isMicrophoneEnabled ? "bg-[#2A1F0E] hover:bg-[#3A2A0E] border-[#3A2A0E] text-white" : "bg-red-600/90 hover:bg-red-600 border-transparent text-white"}`}>
                 {isMicrophoneEnabled
                   ? <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                   : <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3zM3 3l18 18" /></svg>
                 }
               </div>
-              <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">{isMicrophoneEnabled ? "Micro" : "Muet"}</span>
+              <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">{isMicrophoneEnabled ? (lang === "fr" ? "Micro" : "Mic") : (lang === "fr" ? "Muet" : "Muted")}</span>
             </button>
-            <button onClick={e => { e.stopPropagation(); loadDevices(); toggleDd("micro"); }}
+            <button
+              aria-label={lang === "fr" ? "Choisir le microphone" : "Choose microphone"}
+              title={lang === "fr" ? "Choisir le microphone" : "Choose microphone"}
+              onClick={e => { e.stopPropagation(); loadDevices(); toggleDd("micro"); }}
               className={`h-12 w-5 rounded-r-xl flex items-center justify-center transition border-y border-r mb-[18px] ${isMicrophoneEnabled ? "bg-[#2A1F0E] hover:bg-[#3A2A0E] border-[#3A2A0E] text-white/40 hover:text-white" : "bg-red-700 hover:bg-red-600 border-transparent text-white/60"}`}>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
             </button>
@@ -2500,16 +2590,23 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           {/* Camera + chevron */}
           <div className="relative flex items-end gap-px">
-            <button onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)} className="flex flex-col items-center gap-1 group">
+            <button
+              aria-label={isCameraEnabled ? (lang === "fr" ? "Couper la caméra" : "Turn off camera") : (lang === "fr" ? "Activer la caméra" : "Turn on camera")}
+              title={isCameraEnabled ? (lang === "fr" ? "Couper la caméra" : "Turn off camera") : (lang === "fr" ? "Activer la caméra" : "Turn on camera")}
+              onClick={() => localParticipant.setCameraEnabled(!isCameraEnabled)}
+              className="flex flex-col items-center gap-1 group">
               <div className={`w-12 h-12 rounded-l-2xl flex items-center justify-center transition border-y border-l ${isCameraEnabled ? "bg-[#2A1F0E] hover:bg-[#3A2A0E] border-[#3A2A0E] text-white" : "bg-red-600/90 hover:bg-red-600 border-transparent text-white"}`}>
                 {isCameraEnabled
                   ? <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                   : <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2zM3 3l18 18" /></svg>
                 }
               </div>
-              <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">{isCameraEnabled ? "Caméra" : "Arrêtée"}</span>
+              <span className="text-[10px] text-white/30 group-hover:text-white/50 transition">{isCameraEnabled ? (lang === "fr" ? "Caméra" : "Camera") : (lang === "fr" ? "Arrêtée" : "Off")}</span>
             </button>
-            <button onClick={e => { e.stopPropagation(); loadDevices(); toggleDd("camera"); }}
+            <button
+              aria-label={lang === "fr" ? "Choisir la caméra" : "Choose camera"}
+              title={lang === "fr" ? "Choisir la caméra" : "Choose camera"}
+              onClick={e => { e.stopPropagation(); loadDevices(); toggleDd("camera"); }}
               className={`h-12 w-5 rounded-r-xl flex items-center justify-center transition border-y border-r mb-[18px] ${isCameraEnabled ? "bg-[#2A1F0E] hover:bg-[#3A2A0E] border-[#3A2A0E] text-white/40 hover:text-white" : "bg-red-700 hover:bg-red-600 border-transparent text-white/60"}`}>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
             </button>
@@ -2523,13 +2620,13 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           <div className="w-px h-10 bg-white/10 mx-1" />
 
           {/* Toile */}
-          <BarBtn active={canvasOpen} label="Toile" onClick={() => setCanvasOpen(v => !v)}
+          <BarBtn active={canvasOpen} label={lang === "fr" ? "Toile" : "Canvas"} onClick={() => setCanvasOpen(v => !v)}
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
           />
 
           {/* Arrière-plan */}
           <div className="relative">
-            <BarBtn active={bgPanelOpen || currentBg !== "none"} label="Fond" onClick={() => setBgPanelOpen(v => !v)}
+            <BarBtn active={bgPanelOpen || currentBg !== "none"} label={lang === "fr" ? "Fond" : "Background"} onClick={() => setBgPanelOpen(v => !v)}
               icon={
                 <div className="relative">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -2544,7 +2641,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
           </div>
 
           {/* Partager */}
-          <BarBtn active={isSharing} label="Partager" onClick={toggleScreen} blue={true}
+          <BarBtn active={isSharing} label={lang === "fr" ? "Partager" : "Share"} onClick={toggleScreen} blue={true}
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
           />
 
@@ -2556,20 +2653,34 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             {unread > 0 && <span className="absolute top-0 right-0 w-5 h-5 bg-[#F5C400] text-[#5C3D00] text-[9px] font-black rounded-full flex items-center justify-center pointer-events-none">{unread > 9 ? "9+" : unread}</span>}
           </div>
 
-          {/* Réagir */}
-          <button onClick={() => { setShowPicker(v => !v); setOpenDropdown(null); }} className="flex flex-col items-center gap-1 group">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition border ${showPicker ? "bg-[#F5C400]/20 border-[#F5C400]/40" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>😊</div>
-            <span className={`text-[10px] transition ${showPicker ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>Réagir</span>
-          </button>
+          {/* Réagir — picker anchored above this button */}
+          <div className="relative flex flex-col items-center">
+            {showPicker && (
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50">
+                <div className="bg-[#1A1209] border border-[#3A2A0E] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl">
+                  {REACTIONS.map(e => <button key={e} onClick={() => sendReaction(e)} aria-label={e} className="text-2xl hover:scale-125 transition-transform">{e}</button>)}
+                </div>
+                <div className="w-3 h-3 bg-[#1A1209] border-r border-b border-[#3A2A0E] rotate-45 mx-auto -mt-1.5" />
+              </div>
+            )}
+            <button
+              aria-label={lang === "fr" ? "Réagir" : "React"}
+              title={lang === "fr" ? "Envoyer une réaction" : "Send a reaction"}
+              onClick={() => { setShowPicker(v => !v); setOpenDropdown(null); }}
+              className="flex flex-col items-center gap-1 group">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition border ${showPicker ? "bg-[#F5C400]/20 border-[#F5C400]/40" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>😊</div>
+              <span className={`text-[10px] transition ${showPicker ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>{lang === "fr" ? "Réagir" : "React"}</span>
+            </button>
+          </div>
 
           <div className="w-px h-10 bg-white/10 mx-1" />
 
           {/* Quitter */}
-          <button onClick={onLeave} className="flex flex-col items-center gap-1 group">
+          <button onClick={handleLeave} aria-label={lang === "fr" ? "Quitter la séance" : "Leave session"} title={lang === "fr" ? "Quitter la séance" : "Leave session"} className="flex flex-col items-center gap-1 group">
             <div className="w-14 h-12 rounded-2xl bg-red-600 hover:bg-red-500 flex items-center justify-center transition shadow-[0_4px_20px_rgba(239,68,68,0.35)]">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
             </div>
-            <span className="text-[10px] text-red-400/60">Quitter</span>
+            <span className="text-[10px] text-red-400/60">{lang === "fr" ? "Quitter" : "Leave"}</span>
           </button>
 
         </div>
