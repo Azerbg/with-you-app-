@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Student {
   id: string;
@@ -212,6 +213,7 @@ function StudentCard({ student, onNoteChange }: { student: Student; onNoteChange
 export default function StudentsClient({ initialStudents }: { initialStudents: Student[] }) {
   const [students, setStudents] = useState(initialStudents);
   const [search, setSearch] = useState("");
+  const { lang } = useLanguage();
 
   function handleNoteChange(studentId: string, note: { content: string; updatedAt: string } | null) {
     setStudents((prev) =>
@@ -262,7 +264,7 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
       {students.length === 0 && (
         <div className="bg-white rounded-2xl border border-black/5 px-8 py-16 text-center">
           <div className="text-5xl mb-4">👥</div>
-          <p className="text-base font-bold text-[#2D1A00]">Aucun étudiant pour l'instant</p>
+          <p className="text-base font-bold text-[#2D1A00]">{lang === "fr" ? "Aucun étudiant pour l'instant" : "No students yet"}</p>
           <p className="text-sm text-[#9B8A6B] mt-2">Vos étudiants apparaîtront ici dès qu'une réservation sera confirmée.</p>
         </div>
       )}
@@ -270,7 +272,7 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
       {/* Search no results */}
       {students.length > 0 && filtered.length === 0 && (
         <div className="bg-white rounded-2xl border border-black/5 px-8 py-12 text-center">
-          <p className="text-sm font-semibold text-[#5C3D00]">Aucun résultat pour « {search} »</p>
+          <p className="text-sm font-semibold text-[#5C3D00]">{lang === "fr" ? `Aucun résultat pour « ${search} »` : `No results for "${search}"`}</p>
         </div>
       )}
 
@@ -287,7 +289,7 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
       {withoutSessions.length > 0 && (
         <div>
           <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">
-            Réservations à venir ({withoutSessions.length})
+            {lang === "fr" ? `Réservations à venir (${withoutSessions.length})` : `Upcoming bookings (${withoutSessions.length})`}
           </p>
           <div className="space-y-4">
             {withoutSessions.map((s) => (

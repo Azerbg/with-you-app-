@@ -111,7 +111,7 @@ export default function HomePage() {
               <nav className="hidden md:flex items-center gap-6 text-[13px] text-gray-500 font-medium">
                 <a href="#how-it-works" className="hover:text-[#5C3D00] transition-colors">{t.nav.howItWorks}</a>
                 <Link href="/tutors/apply" className="hover:text-[#5C3D00] transition-colors">{t.nav.becomeTutor}</Link>
-                <a href="#cta" className="hover:text-[#5C3D00] transition-colors">{lang === "fr" ? "Commencer" : "Get started"}</a>
+                <Link href="/auth/register" className="hover:text-[#5C3D00] transition-colors">{lang === "fr" ? "Commencer" : "Get started"}</Link>
               </nav>
             )}
 
@@ -355,7 +355,7 @@ export default function HomePage() {
           <div className="hidden md:block relative">
             <img
               src="/hero-tutor.jpg"
-              alt="Tuteur WithYou"
+              alt={lang === "fr" ? "Tuteur WithYou" : "WithYou tutor"}
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
             {/* Fade blend on left edge */}
@@ -614,9 +614,9 @@ export default function HomePage() {
               <div className="flex flex-col gap-2">
                 {col.links.map((l, linkIdx) => {
                   const footerHrefs: Record<string, Record<number, string>> = {
-                    "0": { 0: "/find-tutors", 1: "#how-it-works", 2: "#cta", 3: "/onboarding" },
+                    "0": { 0: "/find-tutors", 1: "#how-it-works", 2: "/auth/register", 3: "/onboarding" },
                     "1": { 0: "/tutors/apply", 1: "/tutors/apply", 2: "/tutors/apply" },
-                    "2": { 0: "/legal/cgu", 1: "/legal/privacy", 2: "/legal/cgu" },
+                    "2": { 0: "/about", 1: "/contact", 2: "/legal/privacy", 3: "/legal/cgu" },
                   };
                   const href = footerHrefs[String(colIdx)]?.[linkIdx] ?? "#";
                   return (
@@ -631,10 +631,6 @@ export default function HomePage() {
         </div>
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-white/30">© {new Date().getFullYear()} WithYou. {t.footer.rights}</p>
-          <div className="flex items-center gap-4">
-            <Link href="/legal/cgu" className="text-xs text-white/30 hover:text-white/60 transition">CGU</Link>
-            <Link href="/legal/privacy" className="text-xs text-white/30 hover:text-white/60 transition">Confidentialité</Link>
-          </div>
         </div>
       </footer>
     </div>

@@ -15,7 +15,7 @@ export interface TutorStats {
  *   - upcoming  : scheduledAt > now AND status ≠ CANCELLED
  *   - completed : status = COMPLETED OR (status = CONFIRMED AND endAt < now)
  *   - endAt     : scheduledAt + durationMins (no extra column needed)
- *   - earnings  : use tutorPayoutAmount stored on booking
+ *   - earnings  : tutorPayoutAmount if set; else durationMins/60 × hourlyRate
  */
 export async function getTutorStats(
   tutorId: string,
@@ -24,16 +24,26 @@ export async function getTutorStats(
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const bookings = await db.booking.findMany({
-    where: { tutorId, status: { not: "CANCELLED" } },
-    select: {
-      scheduledAt: true,
-      durationMins: true,
-      status: true,
-      tutorPayoutAmount: true,
-      studentId: true,
-    },
-  });
+  const [bookings, compensation] = await Promise.all([
+    db.booking.findMany({
+      where: { tutorId, status: { not: "CANCELLED" } },
+      select: {
+        scheduledAt: true,
+        durationMins: true,
+        status: true,
+        tutorPayoutAmount: true,
+        studentId: true,
+      },
+    }),
+    db.tutorCompensation.findUnique({
+      where: { userId: tutorId },
+      select: { hourlyRateTnd: true, hourlyRateCad: true },
+    }).catch(() => null),
+  ]);
+
+  const hourlyRate = currency === "CAD"
+    ? (compensation?.hourlyRateCad ?? 0)
+    : (compensation?.hourlyRateTnd ?? 0);
 
   let completed = 0;
   let upcoming = 0;
@@ -51,7 +61,10 @@ export async function getTutorStats(
     if (isDone) {
       completed++;
       activeStudentIds.add(b.studentId);
-      const earn = b.tutorPayoutAmount ?? 0;
+      // Use stored payout amount; fall back to computed rate if missing/zero
+      const earn = (b.tutorPayoutAmount && b.tutorPayoutAmount > 0)
+        ? b.tutorPayoutAmount
+        : Math.round((hourlyRate * (b.durationMins / 60)) * 100) / 100;
       earningsTotal += earn;
       if (b.scheduledAt >= startOfMonth) earningsThisMonth += earn;
     } else if (isUpcoming) {

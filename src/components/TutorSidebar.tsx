@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Props {
   fullName: string;
@@ -11,6 +12,17 @@ interface Props {
   photo: string | null;
   profileComplete: boolean;
 }
+
+const NAV_LABELS: Record<string, { fr: string; en: string }> = {
+  "/dashboard/tutor":                  { fr: "Tableau de bord",  en: "Dashboard" },
+  "/dashboard/tutor/sessions":         { fr: "Mes séances",      en: "Sessions" },
+  "/dashboard/tutor/availability":     { fr: "Disponibilités",   en: "Availability" },
+  "/dashboard/tutor/students":         { fr: "Mes Étudiants",    en: "Students" },
+  "/dashboard/tutor/messages":         { fr: "Messages",         en: "Messages" },
+  "/dashboard/tutor/earnings":         { fr: "Revenus",          en: "Earnings" },
+  "/dashboard/tutor/complete-profile": { fr: "Mon profil",       en: "My profile" },
+  "/dashboard/tutor/settings":         { fr: "Paramètres",       en: "Settings" },
+};
 
 const NAV = [
   {
@@ -92,8 +104,10 @@ const NAV = [
 export default function TutorSidebar({ fullName, initials, photo, profileComplete }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { lang } = useLanguage();
 
   const firstName = fullName.split(" ")[0];
+  const label = (href: string) => NAV_LABELS[href]?.[lang] ?? NAV_LABELS[href]?.fr ?? "";
 
   function isActive(href: string, exact?: boolean) {
     if (exact) return pathname === href;
@@ -126,14 +140,14 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#2D1A00] truncate group-hover:text-[#5C3D00] transition">{firstName}</p>
-            <p className="text-xs text-[#9B8A6B] group-hover:text-[#C49200] transition">Modifier le profil →</p>
+            <p className="text-xs text-[#9B8A6B] group-hover:text-[#C49200] transition">{lang === "fr" ? "Modifier le profil →" : "Edit profile →"}</p>
           </div>
         </Link>
 
         {!profileComplete && (
           <Link href="/dashboard/tutor/complete-profile" className="mt-3 flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400] rounded-xl px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-[#F5C400] flex-shrink-0 animate-pulse" />
-            <p className="text-xs text-[#5C3D00] font-semibold">Compléter le profil</p>
+            <p className="text-xs text-[#5C3D00] font-semibold">{lang === "fr" ? "Compléter le profil" : "Complete profile"}</p>
           </Link>
         )}
       </div>
@@ -154,7 +168,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
               }`}
             >
               {item.icon}
-              {item.label}
+              {label(item.href)}
             </Link>
           );
         })}
@@ -169,7 +183,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
           </svg>
-          Déconnexion
+          {lang === "fr" ? "Déconnexion" : "Sign out"}
         </button>
       </div>
     </div>
