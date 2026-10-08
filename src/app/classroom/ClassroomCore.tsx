@@ -164,7 +164,7 @@ function drawObj(ctx: CanvasRenderingContext2D, obj: CanvasObj) {
     }
   } else if (obj.kind === "text") {
     ctx.fillStyle = obj.color;
-    ctx.font      = `${obj.size}px sans-serif`;
+    ctx.font      = `${obj.size}px Outfit, sans-serif`;
     obj.content.split("\n").forEach((line, i) => ctx.fillText(line, obj.x, obj.y + i * obj.size * 1.35));
   }
   ctx.restore();
@@ -200,6 +200,7 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
   applying: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const { lang } = useLanguage();
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -213,8 +214,8 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
   return (
     <div className="bg-[#0D0904] border border-white/10 rounded-2xl shadow-2xl p-4 w-80">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-white/80 text-sm font-bold">Arrière-plan</p>
-        <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 transition">
+        <p className="text-white/80 text-sm font-bold">{lang === "fr" ? "Arrière-plan" : "Background"}</p>
+        <button onClick={onClose} aria-label={lang === "fr" ? "Fermer" : "Close"} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
@@ -222,7 +223,7 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
       {applying && (
         <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-[#F5C400]/10 rounded-xl">
           <div className="w-3.5 h-3.5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-          <span className="text-[#F5C400] text-xs">Application en cours…</span>
+          <span className="text-[#F5C400] text-xs">{lang === "fr" ? "Application en cours…" : "Applying…"}</span>
         </div>
       )}
 
@@ -233,7 +234,7 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
           <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center" style={{ aspectRatio: "16/9" }}>
             <svg className="w-5 h-5 text-white/40" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
           </div>
-          <span className={`text-[10px] font-semibold ${current === "none" ? "text-[#F5C400]" : "text-white/40"}`}>Aucun</span>
+          <span className={`text-[10px] font-semibold ${current === "none" ? "text-[#F5C400]" : "text-white/40"}`}>{lang === "fr" ? "Aucun" : "None"}</span>
         </button>
 
         {/* Blur soft */}
@@ -241,7 +242,7 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
           <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/9" }}>
             <div className="w-full h-full bg-gradient-to-br from-[#2a1f0e] to-[#0a0703]" style={{ filter: "blur(3px)" }} />
           </div>
-          <span className={`text-[10px] font-semibold ${current === "blur-soft" ? "text-[#F5C400]" : "text-white/40"}`}>Flou léger</span>
+          <span className={`text-[10px] font-semibold ${current === "blur-soft" ? "text-[#F5C400]" : "text-white/40"}`}>{lang === "fr" ? "Flou léger" : "Light blur"}</span>
         </button>
 
         {/* Blur strong */}
@@ -249,12 +250,12 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
           <div className="w-full rounded-lg bg-[#1A1209] flex items-center justify-center overflow-hidden" style={{ aspectRatio: "16/9" }}>
             <div className="w-full h-full bg-gradient-to-br from-[#2a1f0e] to-[#0a0703]" style={{ filter: "blur(8px)" }} />
           </div>
-          <span className={`text-[10px] font-semibold ${current === "blur-strong" ? "text-[#F5C400]" : "text-white/40"}`}>Flou fort</span>
+          <span className={`text-[10px] font-semibold ${current === "blur-strong" ? "text-[#F5C400]" : "text-white/40"}`}>{lang === "fr" ? "Flou fort" : "Strong blur"}</span>
         </button>
       </div>
 
       {/* Solid colors */}
-      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">Couleur unie</p>
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">{lang === "fr" ? "Couleur unie" : "Solid color"}</p>
       <div className="grid grid-cols-8 gap-1.5 mb-4">
         {SOLID_COLORS.map(c => (
           <button
@@ -268,13 +269,13 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
       </div>
 
       {/* Custom image */}
-      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">Image personnalisée</p>
+      <p className="text-white/30 text-[10px] font-bold uppercase tracking-widest mb-2">{lang === "fr" ? "Image personnalisée" : "Custom image"}</p>
       <button
         onClick={() => fileRef.current?.click()}
         className="w-full flex items-center justify-center gap-2 h-9 rounded-xl border border-dashed border-white/20 text-white/40 hover:text-white/70 hover:border-white/40 transition text-xs font-semibold"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-        Choisir une image
+        {lang === "fr" ? "Choisir une image" : "Choose an image"}
       </button>
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>
@@ -440,6 +441,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   incomingRestore: { objects: CanvasObj[]; pageHtml: string } | null;
   incomingPagesSync: { pages: CanvasPage[]; currentPage: number } | null;
 }) {
+  const { lang } = useLanguage();
   const mainRef      = useRef<HTMLCanvasElement>(null);
   const previewRef   = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -455,7 +457,11 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   const [width,  setWidth]  = useState(4);
   const [filled, setFilled] = useState(false);
   const [isPanning,    setIsPanning]    = useState(false);
-  const editorRef     = useRef<HTMLDivElement>(null);
+  const editorRef       = useRef<HTMLDivElement>(null);
+  const tablePopoverRef = useRef<HTMLDivElement>(null);
+  const canvasTextRef   = useRef<HTMLTextAreaElement>(null);
+  const canvasTextValRef = useRef("");
+  const [canvasTextPos, setCanvasTextPos] = useState<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
   const [fmtBar,      setFmtBar]       = useState<{ top: number; left: number } | null>(null);
   const [tableOpen,   setTableOpen]    = useState(false);
   const [tableHover,  setTableHover]   = useState({ r: 0, c: 0 });
@@ -658,19 +664,31 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     if (!isOpen) return;
     const fn = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (canvasTextPos) { canvasTextValRef.current = ""; setCanvasTextPos(null); return; }
         if (tableOpen) { setTableOpen(false); return; }
         if (isFull) onToggleFull(); else onClose();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        // Don't undo canvas objects when focus is in the text editor
-        if (document.activeElement === editorRef.current) return;
+        if (document.activeElement === canvasTextRef.current) return;
         e.preventDefault(); handleUndo();
       }
     };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isFull]);
+  }, [isOpen, isFull, canvasTextPos, tableOpen]);
+
+  // Table popover — close on outside click
+  useEffect(() => {
+    if (!tableOpen) return;
+    const close = (e: MouseEvent) => {
+      if (tablePopoverRef.current && !tablePopoverRef.current.contains(e.target as Node)) {
+        setTableOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [tableOpen]);
 
   // Wheel zoom (must be non-passive to preventDefault)
   useEffect(() => {
@@ -708,8 +726,16 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     activePtrsRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = getPos(e);
 
-    // Text tool: full-page textarea — no canvas interaction
-    if (tool === "text") return;
+    // Text tool: click-to-place textarea at canvas coords
+    if (tool === "text") {
+      const r = containerRef.current!.getBoundingClientRect();
+      const sx = e.clientX - r.left;
+      const sy = e.clientY - r.top;
+      canvasTextValRef.current = "";
+      setCanvasTextPos({ sx, sy, cx: p[0], cy: p[1] });
+      setTimeout(() => canvasTextRef.current?.focus(), 30);
+      return;
+    }
 
     // Pinch: 2+ fingers → zoom instead of draw
     if (activePtrsRef.current.size >= 2) {
@@ -1012,7 +1038,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
   }
   function insertTable(rows: number, cols: number) {
     editorRef.current?.focus();
-    let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0;font-family:Georgia,serif">';
+    let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0;font-family:Outfit,sans-serif">';
     for (let r = 0; r < rows; r++) {
       html += "<tr>";
       for (let c = 0; c < cols; c++) {
@@ -1025,6 +1051,21 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
     syncFromEditor();
     setTableOpen(false);
     setTableHover({ r: 0, c: 0 });
+  }
+
+  function commitCanvasText() {
+    const text = canvasTextValRef.current.trim();
+    canvasTextValRef.current = "";
+    const pos = canvasTextPos;
+    setCanvasTextPos(null);
+    if (!text || !pos) return;
+    const sz = Math.max(14, width * 5);
+    const obj: TextObj = { kind: "text", content: text, x: pos.cx, y: pos.cy, color, size: sz };
+    objectsRef.current.push(obj);
+    redoRef.current = [];
+    drawObjOnMain(obj);
+    onSendData({ type: "canvas-obj", obj });
+    scheduleSave();
   }
 
   const cursors: Record<DrawTool, string> = {
@@ -1045,8 +1086,8 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2 bg-[#2A1E0F] border-b border-white/10 flex-shrink-0">
           <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-          <span className="text-white/90 text-sm font-bold">Toile collaborative</span>
-          <span className="text-white/35 text-xs hidden sm:block">Modifications visibles en temps réel</span>
+          <span className="text-white/90 text-sm font-bold">{lang === "fr" ? "Toile collaborative" : "Collaborative canvas"}</span>
+          <span className="text-white/35 text-xs hidden sm:block">{lang === "fr" ? "Modifications visibles en temps réel" : "Changes visible in real time"}</span>
           <div className="ml-auto flex items-center gap-1">
             {/* Past canvases loader */}
             {bookingId && (
@@ -1128,12 +1169,12 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
               </div>
             )}
 
-            <button onClick={handleExport} title="Exporter PNG"
+            <button onClick={handleExport} title={lang === "fr" ? "Exporter PNG" : "Export PNG"}
               className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              <span className="hidden sm:block">Exporter</span>
+              <span className="hidden sm:block">{lang === "fr" ? "Exporter" : "Export"}</span>
             </button>
             <button onClick={onToggleFull} title={isFull ? "Réduire" : "Plein écran"}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
@@ -1247,7 +1288,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
           </button>
 
           {/* Insert table */}
-          <div className="relative">
+          <div className="relative" ref={tablePopoverRef}>
             <button
               onClick={() => { setTableOpen(v => !v); setTableHover({ r: 0, c: 0 }); }}
               title="Insérer un tableau"
@@ -1267,7 +1308,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                 onMouseLeave={() => setTableHover({ r: 0, c: 0 })}
               >
                 <p className="text-white/40 text-[10px] mb-2 text-center font-mono">
-                  {tableHover.r > 0 ? `${tableHover.c} col × ${tableHover.r} lig` : "Choisir la taille"}
+                  {tableHover.r > 0 ? `${tableHover.c} col × ${tableHover.r} row` : (lang === "fr" ? "Choisir la taille" : "Choose size")}
                 </p>
                 <div className="grid gap-0.5" style={{ gridTemplateColumns: "repeat(8, 1fr)" }}>
                   {Array.from({ length: 64 }).map((_, i) => {
@@ -1291,7 +1332,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                     className="mt-2 w-full py-1.5 rounded-lg bg-[#F5C400]/20 text-[#F5C400] text-xs font-bold hover:bg-[#F5C400]/30 transition"
                     onClick={() => insertTable(tableHover.r, tableHover.c)}
                   >
-                    Insérer {tableHover.c} × {tableHover.r}
+                    {lang === "fr" ? "Insérer" : "Insert"} {tableHover.c} × {tableHover.r}
                   </button>
                 )}
               </div>
@@ -1341,121 +1382,57 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
             className="absolute inset-0 pointer-events-none"
           />
           {/* Barre de formatage flottante (Word-like) */}
-          {fmtBar && tool === "text" && (
-            <div
-              className="absolute z-20 flex items-center gap-0.5 bg-[#1A0F00] border border-white/20 rounded-xl px-2 py-1.5 shadow-2xl"
-              style={{ top: fmtBar.top, left: fmtBar.left }}
-              onMouseDown={e => e.preventDefault()}
-            >
-              {/* Gras */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("bold"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Gras (Ctrl+B)">B</button>
-              {/* Italique */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("italic"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center italic text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Italique (Ctrl+I)">I</button>
-              {/* Souligné */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("underline"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center underline text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Souligné (Ctrl+U)">S</button>
-              {/* Barré */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("strikeThrough"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center line-through text-sm text-white/70 hover:bg-white/10 hover:text-white transition" title="Barré">S</button>
-
-              <div className="w-px h-5 bg-white/15 mx-0.5" />
-
-              {/* Taille de police */}
-              <select
-                className="h-7 px-1 rounded-lg bg-white/5 text-white/70 text-[11px] border border-white/10 focus:outline-none cursor-pointer"
-                defaultValue=""
-                onMouseDown={e => e.stopPropagation()}
-                onChange={e => { e.preventDefault(); setFontSize(e.target.value); e.currentTarget.value = ""; }}
-              >
-                <option value="" disabled>Taille</option>
-                {[10,12,14,16,18,20,24,28,32,36,48,64].map(s => (
-                  <option key={s} value={`${s}px`}>{s}px</option>
-                ))}
-              </select>
-
-              <div className="w-px h-5 bg-white/15 mx-0.5" />
-
-              {/* Couleur texte */}
-              <label className="relative w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition" title="Couleur du texte">
-                <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10M12 3l5 9H7l5-9z"/><path strokeLinecap="round" d="M5 18h14"/></svg>
-                <input type="color" defaultValue="#1a1a1a"
-                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  onChange={e => fmt("foreColor", e.target.value)} />
-              </label>
-              {/* Surlignage */}
-              <label className="relative w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer hover:bg-white/10 transition" title="Surligner">
-                <svg className="w-4 h-4 text-[#F5C400]/70" fill="currentColor" viewBox="0 0 24 24"><rect x="3" y="15" width="18" height="4" rx="1"/><path d="M6 15V6l6-3 6 3v9" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
-                <input type="color" defaultValue="#facc15"
-                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  onChange={e => fmt("hiliteColor", e.target.value)} />
-              </label>
-
-              <div className="w-px h-5 bg-white/15 mx-0.5" />
-
-              {/* Alignement */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("justifyLeft"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Gauche">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M4 11h10M4 16h14"/></svg>
-              </button>
-              <button onMouseDown={e => { e.preventDefault(); fmt("justifyCenter"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Centrer">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M7 11h10M6 16h12"/></svg>
-              </button>
-              <button onMouseDown={e => { e.preventDefault(); fmt("justifyRight"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition" title="Droite">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 6h16M10 11h10M6 16h14"/></svg>
-              </button>
-
-              <div className="w-px h-5 bg-white/15 mx-0.5" />
-
-              {/* Effacer la mise en forme */}
-              <button onMouseDown={e => { e.preventDefault(); fmt("removeFormat"); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:bg-red-500/20 hover:text-red-400 transition" title="Effacer la mise en forme">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-            </div>
-          )}
-
-          {/* Couche texte rich — TOUJOURS visible, éditable seulement en mode texte */}
+          {/* Rich text layer — display-only (syncs page HTML from remote) */}
           {(() => {
             const z      = zoomRef.current;
             const px     = panRef.current.x;
             const py     = panRef.current.y;
             const margin = 60 * z;
-            const active = tool === "text";
             return (
               <div
                 ref={editorRef}
-                contentEditable={active}
+                contentEditable={false}
                 suppressContentEditableWarning
-                className="absolute focus:outline-none bg-transparent overflow-auto"
+                className="absolute bg-transparent overflow-hidden pointer-events-none select-none"
                 style={{
-                  left:         px + margin,
-                  top:          py + margin,
-                  width:        794 * z - margin * 2,
-                  height:       1123 * z - margin * 2,
-                  fontSize:     16 * z,
-                  lineHeight:   1.65,
-                  fontFamily:   "Georgia, serif",
-                  color:        "#1a1a1a",
-                  caretColor:   "#1a1a1a",
-                  whiteSpace:   "pre-wrap",
-                  wordBreak:    "break-word",
-                  pointerEvents: active ? "auto" : "none",
-                  cursor:        active ? "text" : "default",
-                  outline:      active ? "2px solid rgba(59,130,246,0.25)" : "none",
-                  outlineOffset: "2px",
-                  userSelect:   active ? "text" : "none",
-                }}
-                onInput={() => syncFromEditor()}
-                onKeyDown={e => {
-                  if (e.key === "Escape") setTool("pen");
+                  left:       px + margin,
+                  top:        py + margin,
+                  width:      794 * z - margin * 2,
+                  height:     1123 * z - margin * 2,
+                  fontSize:   16 * z,
+                  lineHeight: 1.65,
+                  fontFamily: "Outfit, sans-serif",
+                  color:      "#1a1a1a",
+                  whiteSpace: "pre-wrap",
+                  wordBreak:  "break-word",
                 }}
               />
             );
           })()}
+
+          {/* Click-to-place text textarea */}
+          {canvasTextPos && (
+            <textarea
+              ref={canvasTextRef}
+              className="absolute bg-white/90 border-2 border-dashed border-blue-500 rounded px-1 resize-none focus:outline-none shadow z-10"
+              style={{
+                left: canvasTextPos.sx,
+                top:  canvasTextPos.sy,
+                fontSize:   Math.max(12, width * 5) * zoomRef.current,
+                color,
+                fontFamily: "Outfit, sans-serif",
+                minWidth:   120,
+                minHeight:  36,
+                lineHeight: 1.4,
+              }}
+              onChange={e => { canvasTextValRef.current = e.target.value; }}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitCanvasText(); }
+                if (e.key === "Escape") { canvasTextValRef.current = ""; setCanvasTextPos(null); }
+              }}
+              onBlur={commitCanvasText}
+            />
+          )}
         </div>
 
         {/* Page tabs strip */}
@@ -1473,7 +1450,7 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
                 <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6M9 8h6M9 16h4M5 3h10l4 4v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/>
                 </svg>
-                Feuille {i + 1}
+                {lang === "fr" ? "Feuille" : "Sheet"} {i + 1}
               </button>
               {pageCount > 1 && (
                 <button
@@ -1512,11 +1489,12 @@ function CanvasModal({ isOpen, isFull, onClose, onToggleFull, onSendData, incomi
 
 // ─── Chat Panel ───────────────────────────────────────────────────────────────
 
-function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef }: {
+function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef, lang }: {
   messages: ChatMessage[]; input: string; setInput: (v: string) => void;
   sendMessage: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  lang: string;
 }) {
   return (
     <>
@@ -1524,7 +1502,7 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <p className="text-3xl mb-2">💬</p>
-            <p className="text-white/30 text-xs">Commencez la conversation…</p>
+            <p className="text-white/30 text-xs">{lang === "fr" ? "Commencez la conversation…" : "Start the conversation…"}</p>
           </div>
         ) : messages.map(msg => (
           <div key={msg.id} className={`flex flex-col ${msg.isLocal ? "items-end" : "items-start"}`}>
@@ -1546,7 +1524,7 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
           <input ref={inputRef} type="text" value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="Écrire un message…"
+            placeholder={lang === "fr" ? "Écrire un message…" : "Write a message…"}
             className="flex-1 bg-[#1A1209] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white/85 placeholder-white/20 focus:outline-none focus:border-[#F5C400]/40" />
           <button onClick={sendMessage} disabled={!input.trim()}
             className="w-9 h-9 flex-shrink-0 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] hover:bg-[#FFDE59] transition disabled:opacity-30">
@@ -1567,6 +1545,7 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
   onSendData: (d: object) => void;
   incomingObj: CanvasObj | null; clearCount: number; undoCount: number;
 }) {
+  const { lang } = useLanguage();
   const containerRef  = useRef<HTMLDivElement>(null);
   const mainRef       = useRef<HTMLCanvasElement>(null);
   const previewRef    = useRef<HTMLCanvasElement>(null);
@@ -1769,17 +1748,17 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0703] border-b border-white/5 flex-shrink-0">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-white/85 text-sm font-bold">Tableau blanc</span>
-        <span className="text-white/25 text-xs hidden sm:block">Dessinez, annotez, partagez en temps réel</span>
+        <span className="text-white/85 text-sm font-bold">{lang === "fr" ? "Tableau blanc" : "Whiteboard"}</span>
+        <span className="text-white/25 text-xs hidden sm:block">{lang === "fr" ? "Dessinez, annotez, partagez en temps réel" : "Draw, annotate, share in real time"}</span>
         <div className="ml-auto flex items-center gap-1">
-          <button onClick={wbExport} title="Exporter PNG"
+          <button onClick={wbExport} title={lang === "fr" ? "Exporter PNG" : "Export PNG"}
             className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition text-xs">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span className="hidden sm:block">Exporter</span>
+            <span className="hidden sm:block">{lang === "fr" ? "Exporter" : "Export"}</span>
           </button>
-          <button onClick={onToggleFull} title={isFull ? "Réduire" : "Plein écran"}
+          <button onClick={onToggleFull} title={isFull ? (lang === "fr" ? "Réduire" : "Minimize") : (lang === "fr" ? "Plein écran" : "Full screen")}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition">
             {isFull
               ? <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M15 9h4.5M15 9V4.5M9 15v4.5M9 15H4.5M15 15h4.5M15 15v4.5" /></svg>
@@ -1811,19 +1790,19 @@ function WhiteboardModal({ isOpen, onClose, isFull, onToggleFull, onSendData, in
             </button>
           ))}
           <div className="w-px h-5 bg-white/10 mx-0.5 flex-shrink-0" />
-          <button onClick={wbUndo} title="Annuler"
+          <button onClick={wbUndo} title={lang === "fr" ? "Annuler" : "Undo"}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 010 11H11" /></svg>
           </button>
-          <button onClick={wbRedo} title="Rétablir"
+          <button onClick={wbRedo} title={lang === "fr" ? "Rétablir" : "Redo"}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 14l5-5-5-5M19 9H8.5a5.5 5.5 0 100 11H13" /></svg>
           </button>
-          <button onClick={wbExport} title="Exporter PNG"
+          <button onClick={wbExport} title={lang === "fr" ? "Exporter PNG" : "Export PNG"}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
           </button>
-          <button onClick={wbClear} title="Tout effacer"
+          <button onClick={wbClear} title={lang === "fr" ? "Tout effacer" : "Clear all"}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:bg-red-500/20 hover:text-red-400 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </button>
@@ -2079,7 +2058,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [wbOpen,       setWbOpen]       = useState(false);
   const [wbFull,       setWbFull]       = useState(true);
 
-  function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); }
+  function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); setShowPicker(false); setBgPanelOpen(false); }
   function toggleDd(dd: Exclude<Dropdown, null>) { setOpenDropdown(prev => prev === dd ? null : dd); }
 
   useEffect(() => {
@@ -2088,6 +2067,23 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     document.addEventListener("click", close, true);
     return () => document.removeEventListener("click", close, true);
   }, [openDropdown]);
+
+  // Close all popovers on Escape; opening one closes others
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenDropdown(null);
+        setShowPicker(false);
+        setBgPanelOpen(false);
+      }
+    };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, []);
+
+  // Opening bgPanel or picker closes the other
+  function openBgPanel() { setBgPanelOpen(v => !v); setShowPicker(false); setOpenDropdown(null); }
+  function openPicker()  { setShowPicker(v => !v);  setBgPanelOpen(false); setOpenDropdown(null); }
 
   // Devices
   const [audioIn,  setAudioIn]  = useState<MediaDeviceInfo[]>([]);
@@ -2277,9 +2273,9 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         </div>
       )}
 
-      {/* Mic error toast (Fix 4) */}
+      {/* Mic error toast (Fix 4) — placed at top to avoid overlapping dropdown */}
       {micToast && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[150] bg-red-900/90 border border-red-700/50 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xl pointer-events-none">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[150] bg-red-900/90 border border-red-700/50 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-xl pointer-events-none">
           {micToast}
         </div>
       )}
@@ -2492,7 +2488,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                     <div className="w-12 h-12 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold">{myInit}</div>
                   </div>
                 )}
-                <span className="absolute bottom-2 left-2.5 text-white/60 text-[10px] font-semibold bg-black/40 px-1.5 py-0.5 rounded-md">Vous</span>
+                <span className="absolute bottom-2 left-2.5 text-white/60 text-[10px] font-semibold bg-black/40 px-1.5 py-0.5 rounded-md">{lang === "fr" ? "Vous" : "You"}</span>
               </div>
             </div>
           )}
@@ -2523,7 +2519,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
               </button>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
-              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} />}
+              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} lang={lang} />}
               {activePanel === "info" && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
             </div>
           </div>
@@ -2579,11 +2575,13 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             </button>
             {openDropdown === "micro" && (
               <div className="absolute bottom-full mb-2 left-0 bg-[#1A1209] border border-[#3A2A0E] rounded-2xl shadow-2xl py-2 min-w-[220px] z-50" onClick={e => e.stopPropagation()}>
-                {audioIn.length > 0 && <><p className="text-white/30 text-[10px] font-bold uppercase tracking-wider px-4 pt-1 pb-2">Microphone</p>
-                  {audioIn.map(d => <button key={d.deviceId} onClick={() => { room.switchActiveDevice("audioinput", d.deviceId); setOpenDropdown(null); }} className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition truncate">{d.label || `Micro ${d.deviceId.slice(0,6)}`}</button>)}</>}
-                {audioOut.length > 0 && <><div className="border-t border-white/5 my-1.5" /><p className="text-white/30 text-[10px] font-bold uppercase tracking-wider px-4 pb-2">Haut-parleur</p>
-                  {audioOut.map(d => <button key={d.deviceId} onClick={() => { room.switchActiveDevice("audiooutput", d.deviceId); setOpenDropdown(null); }} className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition truncate">{d.label || `Haut-parleur ${d.deviceId.slice(0,6)}`}</button>)}</>}
-                {audioIn.length === 0 && audioOut.length === 0 && <p className="text-white/30 text-sm px-4 py-3">Aucun périphérique trouvé</p>}
+                <p className="text-white/30 text-[10px] font-bold uppercase tracking-wider px-4 pt-1 pb-2">{lang === "fr" ? "Microphone" : "Microphone"}</p>
+                {audioIn.length > 0
+                  ? audioIn.map(d => <button key={d.deviceId} onClick={() => { room.switchActiveDevice("audioinput", d.deviceId); setOpenDropdown(null); }} className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition truncate">{d.label || `Micro ${d.deviceId.slice(0,6)}`}</button>)
+                  : <p className="text-white/30 text-xs px-4 pb-2">{lang === "fr" ? "Aucun microphone trouvé" : "No microphone found"}</p>
+                }
+                {audioOut.length > 0 && <><div className="border-t border-white/5 my-1.5" /><p className="text-white/30 text-[10px] font-bold uppercase tracking-wider px-4 pb-2">{lang === "fr" ? "Haut-parleur" : "Speaker"}</p>
+                  {audioOut.map(d => <button key={d.deviceId} onClick={() => { room.switchActiveDevice("audiooutput", d.deviceId); setOpenDropdown(null); }} className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 transition truncate">{d.label || (lang === "fr" ? `Haut-parleur ${d.deviceId.slice(0,6)}` : `Speaker ${d.deviceId.slice(0,6)}`)}</button>)}</>}
               </div>
             )}
           </div>
@@ -2626,7 +2624,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           {/* Arrière-plan */}
           <div className="relative">
-            <BarBtn active={bgPanelOpen || currentBg !== "none"} label={lang === "fr" ? "Fond" : "Background"} onClick={() => setBgPanelOpen(v => !v)}
+            <BarBtn active={bgPanelOpen || currentBg !== "none"} label={lang === "fr" ? "Fond" : "Background"} onClick={openBgPanel}
               icon={
                 <div className="relative">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -2666,7 +2664,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             <button
               aria-label={lang === "fr" ? "Réagir" : "React"}
               title={lang === "fr" ? "Envoyer une réaction" : "Send a reaction"}
-              onClick={() => { setShowPicker(v => !v); setOpenDropdown(null); }}
+              onClick={openPicker}
               className="flex flex-col items-center gap-1 group">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition border ${showPicker ? "bg-[#F5C400]/20 border-[#F5C400]/40" : "bg-[#2A1F0E] border-[#3A2A0E] text-white/70 hover:text-white hover:bg-[#3A2A0E]"}`}>😊</div>
               <span className={`text-[10px] transition ${showPicker ? "text-[#F5C400]/80" : "text-white/30 group-hover:text-white/50"}`}>{lang === "fr" ? "Réagir" : "React"}</span>
