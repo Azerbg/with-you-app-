@@ -15,6 +15,10 @@ export async function POST(req: NextRequest) {
   const alreadyReferred = await db.referral.findUnique({ where: { referredId: userId } });
   if (alreadyReferred) return NextResponse.json({ error: "ALREADY_APPLIED" }, { status: 409 });
 
+  // Can only apply before making any booking
+  const hasBooking = await db.booking.findFirst({ where: { studentId: userId }, select: { id: true } });
+  if (hasBooking) return NextResponse.json({ error: "TOO_LATE" }, { status: 409 });
+
   // Find referrer by code
   const referrer = await db.user.findUnique({
     where: { referralCode: code.trim().toUpperCase() },

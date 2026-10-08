@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Booking {
   id: string;
@@ -29,12 +29,20 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
+const STATUS_LABEL_FR: Record<string, { label: string; cls: string }> = {
   CONFIRMED:  { label: "Confirmée",  cls: "bg-green-100 text-green-700" },
   PENDING:    { label: "En attente", cls: "bg-yellow-100 text-yellow-700" },
   COMPLETED:  { label: "Terminée",   cls: "bg-blue-100 text-blue-700" },
   CANCELLED:  { label: "Annulée",    cls: "bg-red-100 text-red-600" },
   NO_SHOW:    { label: "Absent",     cls: "bg-gray-100 text-gray-500" },
+};
+
+const STATUS_LABEL_EN: Record<string, { label: string; cls: string }> = {
+  CONFIRMED:  { label: "Confirmed",  cls: "bg-green-100 text-green-700" },
+  PENDING:    { label: "Pending",    cls: "bg-yellow-100 text-yellow-700" },
+  COMPLETED:  { label: "Completed",  cls: "bg-blue-100 text-blue-700" },
+  CANCELLED:  { label: "Cancelled",  cls: "bg-red-100 text-red-600" },
+  NO_SHOW:    { label: "No-show",    cls: "bg-gray-100 text-gray-500" },
 };
 
 export default function SessionsClient({
@@ -45,6 +53,9 @@ export default function SessionsClient({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
+  const STATUS_LABEL = lang === "en" ? STATUS_LABEL_EN : STATUS_LABEL_FR;
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelResult, setCancelResult] = useState<{ type: "FULL" | "CREDIT" | "NONE"; amount: number } | null>(null);
@@ -89,12 +100,6 @@ export default function SessionsClient({
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-      {/* Top bar */}
-      <div className="h-14 border-b border-black/5 bg-white flex items-center justify-between px-8 flex-shrink-0">
-        <h1 className="text-base font-bold text-[#5C3D00]">Mes séances</h1>
-        <LanguageSwitcher />
-      </div>
-
       <div className="flex-1 overflow-auto p-8 space-y-8">
 
         {/* Policy info */}
@@ -103,11 +108,11 @@ export default function SessionsClient({
             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
           </svg>
           <div>
-            <p className="text-sm font-bold text-[#5C3D00] mb-1">Politique d&apos;annulation</p>
+            <p className="text-sm font-bold text-[#5C3D00] mb-1">{t("Politique d'annulation", "Cancellation Policy")}</p>
             <p className="text-xs text-[#6B5E44] leading-relaxed">
-              <strong>Plus de 24h avant la séance</strong> : remboursement intégral sur votre carte.<br />
-              <strong>Entre 24h et 12h avant la séance</strong> : le montant est converti en crédit WithYou pour votre prochaine réservation.<br />
-              <strong>Moins de 12h avant la séance</strong> : aucun remboursement — la séance est considérée comme due et payée.
+              <strong>{t("Plus de 24h avant la séance", "More than 24h before the session")}</strong>{t(" : remboursement intégral sur votre carte.", ": full refund to your card.")}<br />
+              <strong>{t("Entre 24h et 12h avant la séance", "Between 12–24h before")}</strong>{t(" : le montant est converti en crédit WithYou pour votre prochaine réservation.", ": converted to WithYou credit for your next booking.")}<br />
+              <strong>{t("Moins de 12h avant la séance", "Less than 12h before")}</strong>{t(" : aucun remboursement — la séance est considérée comme due et payée.", ": no refund — the session is considered used and paid.")}
             </p>
           </div>
         </div>
@@ -115,15 +120,15 @@ export default function SessionsClient({
         {/* Upcoming */}
         <div>
           <h2 className="text-sm font-bold text-[#5C3D00] uppercase tracking-widest mb-4">
-            Séances à venir ({upcoming.length})
+            {t("Séances à venir", "Upcoming sessions")} ({upcoming.length})
           </h2>
           {upcoming.length === 0 ? (
             <div className="bg-white border border-black/5 rounded-2xl p-10 text-center">
               <p className="text-4xl mb-3">📅</p>
-              <p className="font-semibold text-[#5C3D00]">Aucune séance planifiée</p>
-              <p className="text-sm text-[#9B8A6B] mt-1 mb-5">Réservez une séance de découverte avec un tuteur.</p>
+              <p className="font-semibold text-[#5C3D00]">{t("Aucune séance planifiée", "No sessions scheduled")}</p>
+              <p className="text-sm text-[#9B8A6B] mt-1 mb-5">{t("Réservez une séance de découverte avec un tuteur.", "Book a discovery session with a tutor.")}</p>
               <Link href="/find-tutors" className="inline-block bg-[#F5C400] text-[#5C3D00] px-5 py-2.5 rounded-full font-bold text-sm hover:bg-[#FFDE59] transition">
-                Trouver un tuteur
+                {t("Trouver un tuteur", "Find a tutor")}
               </Link>
             </div>
           ) : (
@@ -133,10 +138,10 @@ export default function SessionsClient({
                 const canCancel = (localStatuses[b.id] ?? b.status) === "CONFIRMED";
                 const policyLabel =
                   hrs >= 24
-                    ? "Remboursement complet si annulé maintenant"
+                    ? t("Remboursement complet si annulé maintenant", "Full refund if cancelled now")
                     : hrs >= 12
-                    ? "Crédit WithYou uniquement si annulé maintenant"
-                    : "Non remboursable — moins de 12h avant la séance";
+                    ? t("Crédit WithYou uniquement si annulé maintenant", "WithYou credit only if cancelled now")
+                    : t("Non remboursable — moins de 12h avant la séance", "Non-refundable — less than 12h before session");
                 const policyColor =
                   hrs >= 24 ? "text-green-600" : hrs >= 12 ? "text-orange-500" : "text-red-500";
 
@@ -152,10 +157,9 @@ export default function SessionsClient({
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-[#2D1A00]">{b.tutorName}</p>
                       <p className="text-sm text-[#6B5E44]">
-                        {new Date(b.scheduledAt).toLocaleString("fr-FR", {
+                        {new Date(b.scheduledAt).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
                           weekday: "long", day: "numeric", month: "long",
                           hour: "2-digit", minute: "2-digit",
-                          timeZone: "Africa/Tunis",
                         })}
                         {" · "}{b.durationMins} min
                       </p>
@@ -165,7 +169,7 @@ export default function SessionsClient({
                       <a
                         href={`/api/bookings/${b.id}/ical`}
                         download
-                        title="Ajouter au calendrier"
+                        title={t("Ajouter au calendrier", "Add to calendar")}
                         className="w-9 h-9 rounded-xl border border-[#D9D0C3] flex items-center justify-center text-[#6B5E44] hover:bg-[#FAF8F0] transition"
                       >
                         <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -177,7 +181,7 @@ export default function SessionsClient({
                           onClick={() => setCancelTarget(b)}
                           className="px-4 py-2 text-xs font-bold border border-red-200 text-red-500 rounded-xl hover:bg-red-50 transition"
                         >
-                          Annuler
+                          {t("Annuler", "Cancel")}
                         </button>
                       )}
                     </div>
@@ -192,7 +196,7 @@ export default function SessionsClient({
         {past.length > 0 && (
           <div>
             <h2 className="text-sm font-bold text-[#5C3D00] uppercase tracking-widest mb-4">
-              Historique ({past.length})
+              {t("Historique", "History")} ({past.length})
             </h2>
             <div className="space-y-3">
               {past.map((b) => {
@@ -210,16 +214,18 @@ export default function SessionsClient({
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-[#2D1A00]">{b.tutorName}</p>
                       <p className="text-sm text-[#6B5E44]">
-                        {new Date(b.scheduledAt).toLocaleString("fr-FR", {
+                        {new Date(b.scheduledAt).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
                           weekday: "long", day: "numeric", month: "long",
                           hour: "2-digit", minute: "2-digit",
-                          timeZone: "Africa/Tunis",
                         })}
                         {" · "}{b.durationMins} min
                       </p>
                       {status === "CANCELLED" && b.cancelledBy && (
                         <p className="text-xs text-[#9B8A6B] mt-0.5">
-                          Annulée par {b.cancelledBy === "STUDENT" ? "vous" : "le tuteur"}
+                          {t(
+                            `Annulée par ${b.cancelledBy === "STUDENT" ? "vous" : "le tuteur"}`,
+                            `Cancelled by ${b.cancelledBy === "STUDENT" ? "you" : "the tutor"}`
+                          )}
                         </p>
                       )}
                     </div>
@@ -230,7 +236,7 @@ export default function SessionsClient({
                       {status === "COMPLETED" && b.hasCanvas && (
                         <a
                           href={`/classroom/${b.id}/canvas`}
-                          title="Voir la Toile de la séance"
+                          title={t("Voir la Toile de la séance", "View session canvas")}
                           className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#6B5E44] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
                         >
                           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
@@ -244,7 +250,7 @@ export default function SessionsClient({
                           href={`/api/bookings/${b.id}/receipt`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title="Télécharger le reçu"
+                          title={t("Télécharger le reçu", "Download receipt")}
                           className="w-8 h-8 rounded-lg border border-[#D9D0C3] flex items-center justify-center text-[#6B5E44] hover:bg-[#FFF3B0] hover:border-[#F5C400] hover:text-[#5C3D00] transition"
                         >
                           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -265,28 +271,27 @@ export default function SessionsClient({
       {cancelTarget && !cancelResult && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-bold text-[#2D1A00] mb-2">Annuler la séance ?</h3>
+            <h3 className="text-lg font-bold text-[#2D1A00] mb-2">{t("Annuler la séance ?", "Cancel the session?")}</h3>
             <p className="text-sm text-[#6B5E44] mb-4">
-              Séance avec <strong>{cancelTarget.tutorName}</strong> le{" "}
-              {new Date(cancelTarget.scheduledAt).toLocaleString("fr-FR", {
+              {t("Séance avec", "Session with")} <strong>{cancelTarget.tutorName}</strong> {t("le", "on")}{" "}
+              {new Date(cancelTarget.scheduledAt).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
                 day: "numeric", month: "long",
                 hour: "2-digit", minute: "2-digit",
-                timeZone: "Africa/Tunis",
               })}
             </p>
 
             {/* Refund info */}
             {hoursUntil(cancelTarget.scheduledAt) >= 24 ? (
               <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-5 text-sm text-green-700">
-                <strong>Remboursement complet</strong> — La séance est dans plus de 24h, vous serez remboursé intégralement.
+                <strong>{t("Remboursement complet", "Full refund")}</strong>{t(" — La séance est dans plus de 24h, vous serez remboursé intégralement.", " — The session is more than 24h away, you will be fully refunded.")}
               </div>
             ) : hoursUntil(cancelTarget.scheduledAt) >= 12 ? (
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-5 text-sm text-orange-700">
-                <strong>Crédit WithYou uniquement</strong> — La séance est dans moins de 24h. Le montant sera converti en crédit pour votre prochaine réservation.
+                <strong>{t("Crédit WithYou uniquement", "WithYou credit only")}</strong>{t(" — La séance est dans moins de 24h. Le montant sera converti en crédit pour votre prochaine réservation.", " — The session is less than 24h away. The amount will be converted to credit for your next booking.")}
               </div>
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5 text-sm text-red-700">
-                <strong>Non remboursable</strong> — La séance est dans moins de 12h. Aucun remboursement ni crédit ne sera accordé.
+                <strong>{t("Non remboursable", "Non-refundable")}</strong>{t(" — La séance est dans moins de 12h. Aucun remboursement ni crédit ne sera accordé.", " — The session is less than 12h away. No refund or credit will be issued.")}
               </div>
             )}
 
@@ -295,14 +300,14 @@ export default function SessionsClient({
                 onClick={() => setCancelTarget(null)}
                 className="flex-1 py-2.5 rounded-xl border border-[#D9D0C3] text-sm font-semibold text-[#6B5E44] hover:bg-[#FAF8F0] transition"
               >
-                Garder la séance
+                {t("Garder la séance", "Keep the session")}
               </button>
               <button
                 onClick={confirmCancel}
                 disabled={cancelling}
                 className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition disabled:opacity-50"
               >
-                {cancelling ? "Annulation…" : "Confirmer l'annulation"}
+                {cancelling ? t("Annulation…", "Cancelling…") : t("Confirmer l'annulation", "Confirm cancellation")}
               </button>
             </div>
           </div>
@@ -318,20 +323,20 @@ export default function SessionsClient({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-lg font-bold text-[#2D1A00] mb-2">Séance annulée</h3>
+            <h3 className="text-lg font-bold text-[#2D1A00] mb-2">{t("Séance annulée", "Session cancelled")}</h3>
             {cancelResult.type === "FULL" && (
               <p className="text-sm text-[#6B5E44]">
-                Un remboursement de <strong>{cancelResult.amount} USD</strong> a été initié sur votre carte. Il apparaîtra dans 5 à 10 jours ouvrables.
+                {t("Un remboursement de", "A refund of")} <strong>{cancelResult.amount} USD</strong> {t("a été initié sur votre carte. Il apparaîtra dans 5 à 10 jours ouvrables.", "has been initiated to your card. It will appear within 5–10 business days.")}
               </p>
             )}
             {cancelResult.type === "CREDIT" && (
               <p className="text-sm text-[#6B5E44]">
-                <strong>{cancelResult.amount} USD</strong> ont été ajoutés à votre crédit WithYou. Utilisez-le lors de votre prochaine réservation.
+                <strong>{cancelResult.amount} USD</strong> {t("ont été ajoutés à votre crédit WithYou. Utilisez-le lors de votre prochaine réservation.", "have been added to your WithYou credit. Use it on your next booking.")}
               </p>
             )}
             {cancelResult.type === "NONE" && (
               <p className="text-sm text-[#6B5E44]">
-                Votre séance a été annulée. Aucun remboursement n&apos;est accordé car elle était dans moins de 12h.
+                {t("Votre séance a été annulée. Aucun remboursement n'est accordé car elle était dans moins de 12h.", "Your session has been cancelled. No refund is issued as it was less than 12h away.")}
               </p>
             )}
             <button

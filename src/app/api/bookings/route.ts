@@ -152,7 +152,17 @@ export async function GET(_req: NextRequest) {
   const bookings = await db.booking.findMany({
     where: { studentId: session.user.id },
     orderBy: { scheduledAt: "asc" },
-    include: {
+    select: {
+      id: true,
+      status: true,
+      sessionType: true,
+      scheduledAt: true,
+      durationMins: true,
+      studentPriceUsd: true,
+      studentCurrency: true,
+      cancelledAt: true,
+      cancelledBy: true,
+      reviewLeft: true,
       tutor: {
         select: {
           id: true,
