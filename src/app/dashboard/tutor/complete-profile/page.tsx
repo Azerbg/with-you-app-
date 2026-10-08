@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import CompleteProfileWizard from "./CompleteProfileWizard";
+import ProfileEditClient from "./ProfileEditClient";
 
 export default async function CompleteProfilePage() {
   const session = await auth();
@@ -32,20 +33,31 @@ export default async function CompleteProfilePage() {
     }).catch(() => null),
   ]);
 
-  return (
-    <CompleteProfileWizard
-      existing={profile}
-      pendingChange={
-        pendingChange
-          ? {
-              id: pendingChange.id,
-              status: pendingChange.status as "PENDING" | "REJECTED",
-              hrNote: pendingChange.hrNote,
-              changes: pendingChange.changes as Record<string, unknown>,
-              createdAt: pendingChange.createdAt.toISOString(),
-            }
-          : null
+  const pendingChangeProp = pendingChange
+    ? {
+        id: pendingChange.id,
+        status: pendingChange.status as "PENDING" | "REJECTED",
+        hrNote: pendingChange.hrNote,
+        changes: pendingChange.changes as Record<string, unknown>,
+        createdAt: pendingChange.createdAt.toISOString(),
       }
+    : null;
+
+  // First-time setup: bio not filled yet → show onboarding wizard
+  // Returning tutor: show single-page edit form
+  if (!profile?.bio) {
+    return (
+      <CompleteProfileWizard
+        existing={profile}
+        pendingChange={pendingChangeProp}
+      />
+    );
+  }
+
+  return (
+    <ProfileEditClient
+      existing={profile}
+      pendingChange={pendingChangeProp}
     />
   );
 }

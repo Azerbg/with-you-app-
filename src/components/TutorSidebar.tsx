@@ -130,7 +130,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
 
       {/* Avatar */}
       <div className="px-5 py-5 border-b border-[#F0EAD8]">
-        <Link href="/dashboard/tutor/complete-profile" className="flex items-center gap-3 group">
+        <Link href="/dashboard/tutor/complete-profile" prefetch={false} className="flex items-center gap-3 group">
           {photo ? (
             <img src={photo} alt={fullName} className="w-10 h-10 rounded-xl object-cover flex-shrink-0 ring-2 ring-transparent group-hover:ring-[#F5C400] transition" />
           ) : (
@@ -145,7 +145,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
         </Link>
 
         {!profileComplete && (
-          <Link href="/dashboard/tutor/complete-profile" className="mt-3 flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400] rounded-xl px-3 py-2">
+          <Link href="/dashboard/tutor/complete-profile" prefetch={false} className="mt-3 flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400] rounded-xl px-3 py-2">
             <div className="w-1.5 h-1.5 rounded-full bg-[#F5C400] flex-shrink-0 animate-pulse" />
             <p className="text-xs text-[#5C3D00] font-semibold">{lang === "fr" ? "Compléter le profil" : "Complete profile"}</p>
           </Link>
@@ -160,6 +160,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={() => setOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
                 active

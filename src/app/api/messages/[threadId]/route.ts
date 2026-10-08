@@ -17,6 +17,12 @@ function containsContactInfo(text: string): boolean {
   return BYPASS_PATTERNS.some(p => p.test(text));
 }
 
+function maskContactInfo(text: string): string {
+  return text
+    .replace(/\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b/gi, "[masked]")
+    .replace(/(\+?[\d\s\-().]{7,15}\d)/g, "[masked]");
+}
+
 async function getIsLocked(threadId: string, studentId: string, tutorId: string): Promise<boolean> {
   const [tutorReplied, hasBooking] = await Promise.all([
     db.message.count({ where: { threadId, senderId: tutorId } }),
@@ -62,7 +68,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ thr
       : Promise.resolve(false),
   ]);
 
-  return NextResponse.json({ messages, isLocked });
+  const safeMessages = messages.map(m => ({ ...m, content: maskContactInfo(m.content) }));
+  return NextResponse.json({ messages: safeMessages, isLocked });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {

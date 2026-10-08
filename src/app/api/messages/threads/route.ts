@@ -15,8 +15,8 @@ export async function GET() {
       : { studentId: userId },
     orderBy: { lastMessageAt: "desc" },
     include: {
-      student: { select: { id: true, firstName: true, lastName: true, email: true } },
-      tutor:   { select: { id: true, firstName: true, lastName: true, email: true, hrApplication: { select: { fullName: true } } } },
+      student: { select: { id: true, firstName: true, lastName: true, image: true } },
+      tutor:   { select: { id: true, firstName: true, lastName: true, image: true } },
       messages: {
         orderBy: { createdAt: "desc" },
         take: 1,

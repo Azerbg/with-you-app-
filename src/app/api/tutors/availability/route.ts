@@ -12,6 +12,7 @@ const slotSchema = z.object({
 const bodySchema = z.object({
   slots:        z.array(slotSchema),
   blockedDates: z.array(z.string()).default([]), // ISO date strings
+  timezone:     z.string().max(100).optional(),  // IANA timezone string
 });
 
 export async function GET() {
@@ -91,6 +92,14 @@ export async function POST(req: NextRequest) {
           blockedDate: new Date(d),
           isRecurring: false,
         })),
+      });
+    }
+
+    // Persist timezone to user record
+    if (data.timezone) {
+      await db.user.update({
+        where: { id: session.user.id },
+        data:  { timezone: data.timezone },
       });
     }
 

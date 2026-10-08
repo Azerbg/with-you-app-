@@ -17,6 +17,7 @@ export async function GET(
           firstName: true,
           lastName: true,
           image: true,
+          timezone: true,
           hrApplication: { select: { fullName: true, status: true } },
         },
       },
@@ -64,5 +65,6 @@ export async function GET(
     totalReviews: profile.totalReviews,
     verificationTier: profile.verificationTier,
     availableSlots: slots.map(s => s.utc.toISOString()),
+    tutorTimezone: profile.user.timezone ?? "Africa/Tunis",
   });
 }

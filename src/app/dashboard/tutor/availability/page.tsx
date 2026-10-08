@@ -8,16 +8,13 @@ export default async function AvailabilityPage() {
   if (!session?.user) redirect("/auth/login");
   if (session.user.role !== "TUTOR") redirect("/dashboard");
 
-  const app = await db.hrApplication.findUnique({
-    where: { userId: session.user.id },
-    select: { status: true },
-  });
-  if (app?.status !== "ACTIVE") redirect("/dashboard/tutor");
+  const [app, user, profile] = await Promise.all([
+    db.hrApplication.findUnique({ where: { userId: session.user.id }, select: { status: true } }),
+    db.user.findUnique({ where: { id: session.user.id }, select: { timezone: true } }),
+    db.tutorProfile.findUnique({ where: { userId: session.user.id }, include: { availability: true } }),
+  ]);
 
-  const profile = await db.tutorProfile.findUnique({
-    where: { userId: session.user.id },
-    include: { availability: true },
-  });
+  if (app?.status !== "ACTIVE") redirect("/dashboard/tutor");
   if (!profile) redirect("/dashboard/tutor");
 
   const existingSlots = profile.availability
@@ -28,5 +25,11 @@ export default async function AvailabilityPage() {
     .filter(a => !a.isRecurring && a.blockedDate !== null)
     .map(a => a.blockedDate!.toISOString().slice(0, 10));
 
-  return <AvailabilityManager existingSlots={existingSlots} existingBlocked={existingBlocked} />;
+  return (
+    <AvailabilityManager
+      existingSlots={existingSlots}
+      existingBlocked={existingBlocked}
+      tutorTimezone={user?.timezone || "Africa/Tunis"}
+    />
+  );
 }

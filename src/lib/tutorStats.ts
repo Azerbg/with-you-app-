@@ -9,12 +9,72 @@ export interface TutorStats {
   currency: string;
 }
 
+export interface TutorEarnings {
+  thisMonth: number;
+  total: number;
+  currency: string;
+}
+
+/**
+ * Accrued earnings from completed bookings (not payouts table).
+ * Shared by Dashboard, Sessions and Earnings pages.
+ */
+export async function getTutorEarnings(
+  tutorId: string,
+  currency: string,
+): Promise<TutorEarnings> {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [bookings, compensation] = await Promise.all([
+    db.booking.findMany({
+      where: { tutorId, status: { not: "CANCELLED" } },
+      select: {
+        scheduledAt:      true,
+        durationMins:     true,
+        status:           true,
+        tutorPayoutAmount: true,
+      },
+    }),
+    db.tutorCompensation.findUnique({
+      where: { userId: tutorId },
+      select: { hourlyRateTnd: true, hourlyRateCad: true },
+    }).catch(() => null),
+  ]);
+
+  const hourlyRate = currency === "CAD"
+    ? (compensation?.hourlyRateCad ?? 0)
+    : (compensation?.hourlyRateTnd ?? 0);
+
+  let thisMonth = 0;
+  let total = 0;
+
+  for (const b of bookings) {
+    const durationMins = Math.min(240, b.durationMins);
+    const endAt = new Date(b.scheduledAt.getTime() + durationMins * 60_000);
+    const isDone =
+      b.status === "COMPLETED" ||
+      (b.status === "CONFIRMED" && endAt < now);
+
+    if (!isDone) continue;
+
+    const earn = (b.tutorPayoutAmount && b.tutorPayoutAmount > 0)
+      ? b.tutorPayoutAmount
+      : Math.round((hourlyRate * (durationMins / 60)) * 100) / 100;
+
+    total += earn;
+    if (b.scheduledAt >= startOfMonth) thisMonth += earn;
+  }
+
+  return { thisMonth, total, currency };
+}
+
 /**
  * Single source of truth for tutor statistics.
  * Rules:
  *   - upcoming  : scheduledAt > now AND status ≠ CANCELLED
  *   - completed : status = COMPLETED OR (status = CONFIRMED AND endAt < now)
- *   - endAt     : scheduledAt + durationMins (no extra column needed)
+ *   - endAt     : scheduledAt + min(240, durationMins)
  *   - earnings  : tutorPayoutAmount if set; else durationMins/60 × hourlyRate
  */
 export async function getTutorStats(
@@ -28,11 +88,11 @@ export async function getTutorStats(
     db.booking.findMany({
       where: { tutorId, status: { not: "CANCELLED" } },
       select: {
-        scheduledAt: true,
-        durationMins: true,
-        status: true,
+        scheduledAt:       true,
+        durationMins:      true,
+        status:            true,
         tutorPayoutAmount: true,
-        studentId: true,
+        studentId:         true,
       },
     }),
     db.tutorCompensation.findUnique({
@@ -52,7 +112,8 @@ export async function getTutorStats(
   const activeStudentIds = new Set<string>();
 
   for (const b of bookings) {
-    const endAt = new Date(b.scheduledAt.getTime() + b.durationMins * 60 * 1000);
+    const durationMins = Math.min(240, b.durationMins);
+    const endAt = new Date(b.scheduledAt.getTime() + durationMins * 60_000);
     const isDone =
       b.status === "COMPLETED" ||
       (b.status === "CONFIRMED" && endAt < now);
@@ -61,10 +122,9 @@ export async function getTutorStats(
     if (isDone) {
       completed++;
       activeStudentIds.add(b.studentId);
-      // Use stored payout amount; fall back to computed rate if missing/zero
       const earn = (b.tutorPayoutAmount && b.tutorPayoutAmount > 0)
         ? b.tutorPayoutAmount
-        : Math.round((hourlyRate * (b.durationMins / 60)) * 100) / 100;
+        : Math.round((hourlyRate * (durationMins / 60)) * 100) / 100;
       earningsTotal += earn;
       if (b.scheduledAt >= startOfMonth) earningsThisMonth += earn;
     } else if (isUpcoming) {

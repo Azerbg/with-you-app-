@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { TutorStats } from "@/lib/tutorStats";
 import { useLanguage } from "@/context/LanguageContext";
+import { fmtMoney } from "@/lib/money";
 
 interface Session {
   id: string;
@@ -334,7 +335,7 @@ export default function SessionsClient({
           <div className="bg-[#5C3D00] rounded-2xl p-5">
             <p className="text-xs text-white/50 mb-1">{lang === "fr" ? "Revenus totaux" : "Total earnings"}</p>
             <p className="text-3xl font-bold text-[#F5C400]">
-              {tutorStats.earningsTotal.toFixed(2)} {currency ?? "TND"}
+              {fmtMoney(tutorStats.earningsTotal, currency ?? "TND")}
             </p>
           </div>
         </div>

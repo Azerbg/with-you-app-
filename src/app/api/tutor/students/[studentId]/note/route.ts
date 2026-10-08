@@ -1,10 +1,15 @@
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+const schema = z.object({
+  content: z.string().max(5000),
+});
+
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ studentId: string }> }
+  { params }: { params: Promise<{ studentId: string }> },
 ) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,8 +18,14 @@ export async function POST(
   }
 
   const { studentId } = await params;
-  const body = await req.json();
-  const content: string = (body.content ?? "").trim();
+
+  const body = await req.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const content = parsed.data.content.trim();
 
   // Verify the tutor has at least one booking with this student
   const booking = await db.booking.findFirst({
@@ -24,7 +35,6 @@ export async function POST(
   if (!booking) return NextResponse.json({ error: "Student not found" }, { status: 404 });
 
   if (!content) {
-    // Delete note if empty
     await db.tutorStudentNote.deleteMany({
       where: { tutorId: session.user.id, studentId },
     });

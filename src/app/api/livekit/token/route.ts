@@ -46,12 +46,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (booking.status !== "CONFIRMED" && booking.status !== "COMPLETED") {
+  if (booking.status !== "CONFIRMED") {
     return NextResponse.json(
       { error: "Session is not available" },
-      { status: 400 }
+      { status: 403 }
     );
   }
+
+  // Enforce time window: scheduledAt - 15min to scheduledAt + durationMins + 15min
+  const now    = Date.now();
+  const startAt = booking.scheduledAt.getTime();
+  const endAt   = startAt + booking.durationMins * 60_000;
+  const GRACE   = 15 * 60_000; // 15 minutes
+
+  if (now < startAt - GRACE || now > endAt + GRACE) {
+    return NextResponse.json(
+      { error: "Session is not currently active" },
+      { status: 403 }
+    );
+  }
+
+  const ttlSec = Math.min(7200, Math.max(60, Math.floor((endAt + GRACE - now) / 1000)));
 
   const apiKey = process.env.LIVEKIT_API_KEY!;
   const apiSecret = process.env.LIVEKIT_API_SECRET!;
@@ -71,7 +86,7 @@ export async function GET(req: NextRequest) {
   const token = new AccessToken(apiKey, apiSecret, {
     identity: userId,
     name: displayName,
-    ttl: 7200, // 2 hours in seconds
+    ttl: ttlSec,
   });
 
   token.addGrant({

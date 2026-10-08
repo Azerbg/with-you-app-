@@ -35,12 +35,14 @@ export async function GET() {
   const token = new AccessToken(apiKey, apiSecret, {
     identity: session.user.id,
     name: displayName,
-    ttl: 86400, // 24h — refresh on page reload
+    ttl: 3600, // 1h
   });
+
+  const sandboxRoom = `sandbox-${session.user.id}`;
 
   token.addGrant({
     roomJoin: true,
-    room: "withyou-sandbox",
+    room: sandboxRoom,
     canPublish: true,
     canSubscribe: true,
     canPublishData: true,
@@ -48,7 +50,7 @@ export async function GET() {
 
   return NextResponse.json({
     token: await token.toJwt(),
-    roomName: "withyou-sandbox",
+    roomName: sandboxRoom,
     displayName,
     role: user?.role?.toLowerCase() ?? "student",
   });

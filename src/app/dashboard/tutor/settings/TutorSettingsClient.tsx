@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import NotifPreferencesTab from "@/components/NotifPreferencesTab";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Contact {
   fullName: string;
@@ -20,6 +21,8 @@ interface Props {
 type Tab = "compte" | "contact" | "notifications";
 
 export default function TutorSettingsClient({ email, hasPassword, isHidden: initialHidden, contact }: Props) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [tab, setTab] = useState<Tab>("compte");
 
   // Visibility
@@ -50,9 +53,11 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
       });
       if (!res.ok) throw new Error();
       setIsHidden((v) => !v);
-      setVisibilityMsg(!isHidden ? "Profil masqué aux étudiants." : "Profil visible aux étudiants.");
+      setVisibilityMsg(!isHidden
+        ? t("Profil masqué aux étudiants.", "Profile hidden from students.")
+        : t("Profil visible aux étudiants.", "Profile visible to students."));
     } catch {
-      setVisibilityMsg("Une erreur est survenue.");
+      setVisibilityMsg(t("Une erreur est survenue.", "An error occurred."));
     } finally {
       setVisibilityLoading(false);
     }
@@ -62,11 +67,11 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
     e.preventDefault();
     setPwMsg(null);
     if (newPw !== confirmPw) {
-      setPwMsg({ text: "Les mots de passe ne correspondent pas.", ok: false });
+      setPwMsg({ text: t("Les mots de passe ne correspondent pas.", "Passwords do not match."), ok: false });
       return;
     }
     if (newPw.length < 8) {
-      setPwMsg({ text: "Le mot de passe doit contenir au moins 8 caractères.", ok: false });
+      setPwMsg({ text: t("Le mot de passe doit contenir au moins 8 caractères.", "Password must be at least 8 characters."), ok: false });
       return;
     }
     setPwLoading(true);
@@ -78,13 +83,13 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
       });
       const data = await res.json();
       if (!res.ok) {
-        setPwMsg({ text: data.error ?? "Erreur.", ok: false });
+        setPwMsg({ text: data.error ?? t("Erreur.", "Error."), ok: false });
       } else {
-        setPwMsg({ text: "Mot de passe mis à jour.", ok: true });
+        setPwMsg({ text: t("Mot de passe mis à jour.", "Password updated."), ok: true });
         setCurrentPw(""); setNewPw(""); setConfirmPw("");
       }
     } catch {
-      setPwMsg({ text: "Une erreur est survenue.", ok: false });
+      setPwMsg({ text: t("Une erreur est survenue.", "An error occurred."), ok: false });
     } finally {
       setPwLoading(false);
     }
@@ -104,18 +109,24 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
         }),
       });
       if (!res.ok) throw new Error();
-      setDeactivateMsg("Votre demande a été envoyée à l'équipe WithYou. Nous vous contacterons sous 48h.");
+      setDeactivateMsg(t(
+        "Votre demande a été envoyée à l'équipe WithYou. Nous vous contacterons sous 48h.",
+        "Your request has been sent to the WithYou team. We will contact you within 48h."
+      ));
       setDeactivateConfirm(false);
     } catch {
-      setDeactivateMsg("Une erreur est survenue. Contactez support@withyou.com directement.");
+      setDeactivateMsg(t(
+        "Une erreur est survenue. Contactez support@withyou.com directement.",
+        "An error occurred. Please contact support@withyou.com directly."
+      ));
     } finally {
       setDeactivateLoading(false);
     }
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: "compte", label: "Compte" },
-    { key: "contact", label: "Informations de contact" },
+    { key: "compte", label: t("Compte", "Account") },
+    { key: "contact", label: t("Informations de contact", "Contact") },
     { key: "notifications", label: "Notifications" },
   ];
 
@@ -123,7 +134,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
       {/* Top bar */}
       <div className="h-14 border-b border-black/5 bg-white flex items-center px-8 flex-shrink-0">
-        <h1 className="text-base font-bold text-[#5C3D00]">Paramètres</h1>
+        <h1 className="text-base font-bold text-[#5C3D00]">{t("Paramètres", "Settings")}</h1>
       </div>
 
       <div className="flex-1 overflow-auto p-8">
@@ -154,11 +165,11 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
               <div className="bg-white border border-black/5 rounded-2xl p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#2D1A00] text-sm mb-1">Visibilité du profil</p>
+                    <p className="font-bold text-[#2D1A00] text-sm mb-1">{t("Visibilité du profil", "Profile visibility")}</p>
                     <p className="text-xs text-[#6B5E44] leading-relaxed">
                       {isHidden
-                        ? "Votre profil est masqué. Les étudiants ne peuvent pas vous trouver dans la recherche."
-                        : "Votre profil est visible. Les étudiants peuvent vous trouver et vous contacter."}
+                        ? t("Votre profil est masqué. Les étudiants ne peuvent pas vous trouver dans la recherche.", "Your profile is hidden. Students cannot find you in search.")
+                        : t("Votre profil est visible. Les étudiants peuvent vous trouver et vous contacter.", "Your profile is visible. Students can find and contact you.")}
                     </p>
                     {visibilityMsg && (
                       <p className="text-xs text-[#C49200] mt-2 font-semibold">{visibilityMsg}</p>
@@ -185,10 +196,10 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
               {/* Change password */}
               {hasPassword && (
                 <div className="bg-white border border-black/5 rounded-2xl p-6">
-                  <p className="font-bold text-[#2D1A00] text-sm mb-4">Changer le mot de passe</p>
+                  <p className="font-bold text-[#2D1A00] text-sm mb-4">{t("Changer le mot de passe", "Change password")}</p>
                   <form onSubmit={handleChangePassword} className="space-y-3">
                     <div>
-                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">Mot de passe actuel</label>
+                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Mot de passe actuel", "Current password")}</label>
                       <input
                         type="password"
                         value={currentPw}
@@ -199,7 +210,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">Nouveau mot de passe</label>
+                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Nouveau mot de passe", "New password")}</label>
                       <input
                         type="password"
                         value={newPw}
@@ -207,11 +218,11 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                         required
                         minLength={8}
                         className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20"
-                        placeholder="Min. 8 caractères"
+                        placeholder={t("Min. 8 caractères", "Min. 8 characters")}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">Confirmer le nouveau mot de passe</label>
+                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Confirmer le nouveau mot de passe", "Confirm new password")}</label>
                       <input
                         type="password"
                         value={confirmPw}
@@ -231,7 +242,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                       disabled={pwLoading}
                       className="mt-1 px-5 py-2.5 bg-[#5C3D00] text-[#F5C400] font-bold text-sm rounded-xl hover:bg-[#3d2900] transition disabled:opacity-50"
                     >
-                      {pwLoading ? "Enregistrement…" : "Mettre à jour"}
+                      {pwLoading ? t("Enregistrement…", "Saving…") : t("Mettre à jour", "Update")}
                     </button>
                   </form>
                 </div>
@@ -239,19 +250,24 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
 
               {!hasPassword && (
                 <div className="bg-white border border-black/5 rounded-2xl p-6">
-                  <p className="font-bold text-[#2D1A00] text-sm mb-1">Mot de passe</p>
+                  <p className="font-bold text-[#2D1A00] text-sm mb-1">{t("Mot de passe", "Password")}</p>
                   <p className="text-xs text-[#6B5E44]">
-                    Vous utilisez la connexion Google. Aucun mot de passe n&apos;est défini sur ce compte.
+                    {t(
+                      "Vous utilisez la connexion Google. Aucun mot de passe n'est défini sur ce compte.",
+                      "You use Google sign-in. No password is set on this account."
+                    )}
                   </p>
                 </div>
               )}
 
               {/* Deactivate account */}
               <div className="bg-white border border-red-100 rounded-2xl p-6">
-                <p className="font-bold text-red-700 text-sm mb-1">Désactiver mon compte</p>
+                <p className="font-bold text-red-700 text-sm mb-1">{t("Désactiver mon compte", "Deactivate my account")}</p>
                 <p className="text-xs text-[#6B5E44] mb-4 leading-relaxed">
-                  En désactivant votre compte, votre profil sera masqué et aucune nouvelle réservation ne sera possible.
-                  Les séances déjà planifiées seront maintenues. Vous pouvez réactiver votre compte à tout moment en contactant l&apos;équipe WithYou.
+                  {t(
+                    "En désactivant votre compte, votre profil sera masqué et aucune nouvelle réservation ne sera possible. Les séances déjà planifiées seront maintenues. Vous pouvez réactiver votre compte à tout moment en contactant l'équipe WithYou.",
+                    "By deactivating your account, your profile will be hidden and no new bookings will be possible. Already scheduled sessions will be maintained. You can reactivate your account at any time by contacting the WithYou team."
+                  )}
                 </p>
                 {deactivateMsg ? (
                   <p className="text-xs text-green-700 font-semibold bg-green-50 border border-green-200 rounded-xl px-4 py-3">
@@ -264,13 +280,13 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                       disabled={deactivateLoading}
                       className="px-4 py-2 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
                     >
-                      {deactivateLoading ? "Envoi…" : "Confirmer la demande"}
+                      {deactivateLoading ? t("Envoi…", "Sending…") : t("Confirmer la demande", "Confirm request")}
                     </button>
                     <button
                       onClick={() => setDeactivateConfirm(false)}
                       className="px-4 py-2 text-sm text-[#6B5E44] hover:text-[#5C3D00] font-semibold"
                     >
-                      Annuler
+                      {t("Annuler", "Cancel")}
                     </button>
                   </div>
                 ) : (
@@ -278,7 +294,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                     onClick={() => setDeactivateConfirm(true)}
                     className="px-4 py-2 border border-red-200 text-red-600 font-semibold text-sm rounded-xl hover:bg-red-50 transition"
                   >
-                    Demander la désactivation
+                    {t("Demander la désactivation", "Request deactivation")}
                   </button>
                 )}
               </div>
@@ -291,16 +307,16 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
             <div className="space-y-5">
               <div className="bg-white border border-black/5 rounded-2xl p-6">
                 <div className="flex items-start justify-between mb-5">
-                  <p className="font-bold text-[#2D1A00] text-sm">Informations personnelles</p>
-                  <span className="text-xs text-[#9B8A6B] bg-[#F7F5F0] px-2.5 py-1 rounded-lg">Lecture seule</span>
+                  <p className="font-bold text-[#2D1A00] text-sm">{t("Informations personnelles", "Personal information")}</p>
+                  <span className="text-xs text-[#9B8A6B] bg-[#F7F5F0] px-2.5 py-1 rounded-lg">{t("Lecture seule", "Read only")}</span>
                 </div>
                 <div className="space-y-4">
                   {[
-                    { label: "Nom complet", value: contact.fullName || "—" },
-                    { label: "Adresse e-mail", value: email },
-                    { label: "Téléphone", value: contact.phone || "—" },
-                    { label: "Ville", value: contact.city || "—" },
-                    { label: "Pays", value: contact.country || "—" },
+                    { label: t("Nom complet", "Full name"), value: contact.fullName || "—" },
+                    { label: t("Adresse e-mail", "Email address"), value: email },
+                    { label: t("Téléphone", "Phone"), value: contact.phone || "—" },
+                    { label: t("Ville", "City"), value: contact.city || "—" },
+                    { label: t("Pays", "Country"), value: contact.country || "—" },
                   ].map((row) => (
                     <div key={row.label} className="grid grid-cols-2 gap-4 py-3 border-b border-black/4 last:border-0">
                       <p className="text-xs font-medium text-[#6B5E44]/70 uppercase tracking-wide">{row.label}</p>
@@ -315,8 +331,12 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
                 <p className="text-xs text-[#5C3D00] leading-relaxed">
-                  Pour modifier vos informations personnelles (nom, téléphone, adresse), contactez l&apos;équipe WithYou à{" "}
-                  <span className="font-bold">support@withyou.com</span>. Toute modification est soumise à validation RH.
+                  {t(
+                    "Pour modifier vos informations personnelles (nom, téléphone, adresse), contactez l'équipe WithYou à",
+                    "To update your personal information (name, phone, address), contact the WithYou team at"
+                  )}{" "}
+                  <span className="font-bold">support@withyou.com</span>.{" "}
+                  {t("Toute modification est soumise à validation RH.", "All changes are subject to HR review.")}
                 </p>
               </div>
             </div>

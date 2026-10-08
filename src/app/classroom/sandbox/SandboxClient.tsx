@@ -68,7 +68,7 @@ export default function SandboxClient() {
         await joinCall({
           serverUrl,
           token:    d.token,
-          roomId:   "sandbox",
+          roomId:   d.roomName ?? "sandbox",
           myName:   name,
           otherName:"Participant",
           role:     r,

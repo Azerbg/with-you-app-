@@ -30,14 +30,16 @@ function getDisplayName(s: Student) {
   return s.email.split("@")[0]; // never show full email in lists
 }
 
-function formatDate(iso: string | null) {
+function formatDate(iso: string | null, lang: string) {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("fr-FR", {
+  return new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "fr-FR", {
     day: "numeric", month: "short", year: "numeric",
   });
 }
 
 function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange: (studentId: string, note: { content: string; updatedAt: string } | null) => void }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(student.note?.content ?? "");
   const [saving, setSaving] = useState(false);
@@ -59,7 +61,7 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: draft }),
       });
-      if (!res.ok) { setError("Erreur lors de la sauvegarde"); return; }
+      if (!res.ok) { setError(t("Erreur lors de la sauvegarde", "Failed to save")); return; }
       const data = await res.json();
       if (data.deleted) {
         onNoteChange(student.id, null);
@@ -68,7 +70,7 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
       }
       setOpen(false);
     } catch {
-      setError("Erreur réseau");
+      setError(t("Erreur réseau", "Network error"));
     } finally {
       setSaving(false);
     }
@@ -93,11 +95,11 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-[#6B5E44] line-clamp-2 leading-relaxed">{student.note.content}</p>
                   <p className="text-[10px] text-[#9B8A6B] mt-1">
-                    Modifié le {formatDate(student.note.updatedAt)}
+                    {t("Modifié le", "Edited")} {formatDate(student.note.updatedAt, lang)}
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-[#C49200] bg-[#F5C400]/20 px-2 py-0.5 rounded-full flex-shrink-0 group-hover:bg-[#F5C400]/40 transition">
-                  Modifier
+                  {t("Modifier", "Edit")}
                 </span>
               </div>
             </div>
@@ -106,19 +108,19 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-[#C4BAA8] group-hover:text-[#C49200] transition flex-shrink-0">
                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
               </svg>
-              <span className="text-xs text-[#9B8A6B] group-hover:text-[#5C3D00] transition">Ajouter une note privée…</span>
+              <span className="text-xs text-[#9B8A6B] group-hover:text-[#5C3D00] transition">{t("Ajouter une note privée…", "Add a private note…")}</span>
             </div>
           )}
         </button>
       ) : (
         <div className="bg-white border-2 border-[#F5C400] rounded-xl overflow-hidden">
           <div className="px-4 pt-3 pb-1">
-            <p className="text-[10px] font-bold text-[#C49200] uppercase tracking-widest mb-2">Note privée (visible uniquement par vous)</p>
+            <p className="text-[10px] font-bold text-[#C49200] uppercase tracking-widest mb-2">{t("Note privée (visible uniquement par vous)", "Private note (only visible to you)")}</p>
             <textarea
               ref={textareaRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Points forts, axes d'amélioration, vocabulaire à revoir, objectifs personnels…"
+              placeholder={t("Points forts, axes d'amélioration, vocabulaire à revoir, objectifs personnels…", "Strengths, areas to improve, vocabulary to review, personal goals…")}
               rows={4}
               className="w-full text-sm text-[#2D1A00] bg-transparent resize-none focus:outline-none placeholder:text-[#C4BAA8] leading-relaxed"
             />
@@ -126,7 +128,7 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
           {error && <p className="px-4 pb-2 text-xs text-red-600">{error}</p>}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-[#F5C400]/20 bg-[#FFFBEA]">
             {draft.trim() && draft.trim() !== (student.note?.content ?? "") && (
-              <span className="text-[10px] text-[#9B8A6B] flex-1">Modifications non sauvegardées</span>
+              <span className="text-[10px] text-[#9B8A6B] flex-1">{t("Modifications non sauvegardées", "Unsaved changes")}</span>
             )}
             <div className="flex gap-2 ml-auto">
               {student.note && (
@@ -134,21 +136,21 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
                   onClick={() => { setDraft(""); }}
                   className="text-xs text-red-500 hover:text-red-700 transition px-2 py-1"
                 >
-                  Supprimer
+                  {t("Supprimer", "Delete")}
                 </button>
               )}
               <button
                 onClick={handleCancel}
                 className="text-xs font-semibold text-[#6B5E44] hover:text-[#5C3D00] transition px-3 py-1.5 rounded-lg hover:bg-white"
               >
-                Annuler
+                {t("Annuler", "Cancel")}
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
                 className="text-xs font-bold bg-[#5C3D00] text-[#F5C400] px-4 py-1.5 rounded-lg hover:bg-[#3d2900] disabled:opacity-50 transition"
               >
-                {saving ? "Sauvegarde…" : "Sauvegarder"}
+                {saving ? t("Sauvegarde…", "Saving…") : t("Sauvegarder", "Save")}
               </button>
             </div>
           </div>
@@ -159,6 +161,8 @@ function NoteEditor({ student, onNoteChange }: { student: Student; onNoteChange:
 }
 
 function StudentCard({ student, onNoteChange }: { student: Student; onNoteChange: (id: string, note: { content: string; updatedAt: string } | null) => void }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const initials = getInitials(student);
   const name = getDisplayName(student);
 
@@ -191,12 +195,12 @@ function StudentCard({ student, onNoteChange }: { student: Student; onNoteChange
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="text-center">
             <p className="text-lg font-bold text-[#2D1A00]">{student.completedSessions}</p>
-            <p className="text-[10px] text-[#9B8A6B] leading-tight">séances</p>
+            <p className="text-[10px] text-[#9B8A6B] leading-tight">{t("séances", "sessions")}</p>
           </div>
           {student.lastSessionAt && (
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-semibold text-[#6B5E44]">{formatDate(student.lastSessionAt)}</p>
-              <p className="text-[10px] text-[#9B8A6B]">dernière séance</p>
+              <p className="text-xs font-semibold text-[#6B5E44]">{formatDate(student.lastSessionAt, lang)}</p>
+              <p className="text-[10px] text-[#9B8A6B]">{t("dernière séance", "last session")}</p>
             </div>
           )}
         </div>
@@ -214,6 +218,7 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
   const [students, setStudents] = useState(initialStudents);
   const [search, setSearch] = useState("");
   const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
 
   function handleNoteChange(studentId: string, note: { content: string; updatedAt: string } | null) {
     setStudents((prev) =>
@@ -236,10 +241,12 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D1A00]">Mes Étudiants</h1>
+          <h1 className="text-2xl font-bold text-[#2D1A00]">{t("Mes Étudiants", "My Students")}</h1>
           <p className="text-sm text-[#9B8A6B] mt-0.5">
-            {students.length} étudiant{students.length > 1 ? "s" : ""} au total ·{" "}
-            {students.filter(s => s.completedSessions > 0).length} avec séances complétées
+            {students.length} {lang === "en"
+              ? `student${students.length > 1 ? "s" : ""} total · ${students.filter(s => s.completedSessions > 0).length} with completed sessions`
+              : `étudiant${students.length > 1 ? "s" : ""} au total · ${students.filter(s => s.completedSessions > 0).length} avec séances complétées`
+            }
           </p>
         </div>
 
@@ -253,7 +260,7 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher un étudiant…"
+              placeholder={t("Rechercher un étudiant…", "Search a student…")}
               className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-black/5 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F5C400]/40 focus:border-[#F5C400] transition text-[#2D1A00] placeholder:text-[#C4BAA8]"
             />
           </div>
@@ -264,8 +271,8 @@ export default function StudentsClient({ initialStudents }: { initialStudents: S
       {students.length === 0 && (
         <div className="bg-white rounded-2xl border border-black/5 px-8 py-16 text-center">
           <div className="text-5xl mb-4">👥</div>
-          <p className="text-base font-bold text-[#2D1A00]">{lang === "fr" ? "Aucun étudiant pour l'instant" : "No students yet"}</p>
-          <p className="text-sm text-[#9B8A6B] mt-2">Vos étudiants apparaîtront ici dès qu'une réservation sera confirmée.</p>
+          <p className="text-base font-bold text-[#2D1A00]">{t("Aucun étudiant pour l'instant", "No students yet")}</p>
+          <p className="text-sm text-[#9B8A6B] mt-2">{t("Vos étudiants apparaîtront ici dès qu'une réservation sera confirmée.", "Your students will appear here once a booking is confirmed.")}</p>
         </div>
       )}
 

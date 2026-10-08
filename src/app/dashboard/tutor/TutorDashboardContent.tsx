@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/context/LanguageContext";
+import { fmtMoney } from "@/lib/money";
 
 
 interface UpcomingSession {
@@ -78,7 +79,7 @@ export default function TutorDashboardContent({
     },
     {
       label: lang === "fr" ? "Revenus ce mois" : "Earnings this month",
-      value: `${stats.earningsThisMonth.toFixed(2)} ${cur}`,
+      value: fmtMoney(stats.earningsThisMonth, cur),
       icon: "💰",
       light: "bg-[#FFF3B0] text-[#5C3D00]",
     },
