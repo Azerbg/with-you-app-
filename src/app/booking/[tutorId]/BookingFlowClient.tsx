@@ -88,6 +88,39 @@ function formatTzLabel(tz: string): string {
   return tz.replace(/_/g, " ");
 }
 
+// ─── Stripe load-error listener ──────────────────────────────────────────────
+// Must be rendered inside <Elements>; listens to the underlying elements instance.
+function StripeLoadErrorListener({
+  lang,
+  onError,
+}: {
+  lang: string;
+  onError: (msg: string) => void;
+}) {
+  const elements = useElements();
+  useEffect(() => {
+    if (!elements) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = elements as any;
+    const handler = (event: { error: { message: string } }) => {
+      console.error("[Stripe] Elements loaderror:", event.error.message);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const Sentry = (globalThis as any).__SENTRY__;
+        if (Sentry?.captureException) Sentry.captureException(new Error(event.error.message));
+      } catch { /* Sentry not available */ }
+      onError(
+        lang === "en"
+          ? "Payment is temporarily unavailable. Please try again later or contact support."
+          : "Le paiement est temporairement indisponible. Veuillez réessayer plus tard ou contacter le support.",
+      );
+    };
+    el.on?.("loaderror", handler);
+    return () => { el.off?.("loaderror", handler); };
+  }, [elements, lang, onError]);
+  return null;
+}
+
 const BRAND_LABELS: Record<string, string> = {
   visa: "Visa", mastercard: "MC", amex: "Amex",
   discover: "Disc", jcb: "JCB", unionpay: "UP", card: "Card",
@@ -232,6 +265,7 @@ export default function BookingFlowClient({
 
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
 
   // ── Load saved cards once ──
   useEffect(() => {
@@ -618,25 +652,35 @@ export default function BookingFlowClient({
                       </button>
                     </div>
                   ) : stripePromise ? (
-                    <Elements
-                      stripe={stripePromise}
-                      options={{
-                        clientSecret,
-                        appearance: {
-                          theme: "stripe",
-                          variables: { colorPrimary: "#F5C400", colorText: "#2D1A00", borderRadius: "10px" },
-                        },
-                      }}
-                    >
-                      <NewCardForm
-                        clientSecret={clientSecret}
-                        amountUsd={amountUsd}
-                        displayPrice={`$${amountUsd.toFixed(2)}`}
-                        onSuccess={confirmBooking}
-                        onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
-                        lang={lang}
-                      />
-                    </Elements>
+                    <>
+                      {stripeLoadError && (
+                        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                          {stripeLoadError}
+                        </div>
+                      )}
+                      {!stripeLoadError && (
+                        <Elements
+                          stripe={stripePromise}
+                          options={{
+                            clientSecret,
+                            appearance: {
+                              theme: "stripe",
+                              variables: { colorPrimary: "#F5C400", colorText: "#2D1A00", borderRadius: "10px" },
+                            },
+                          }}
+                        >
+                          <StripeLoadErrorListener lang={lang} onError={setStripeLoadError} />
+                          <NewCardForm
+                            clientSecret={clientSecret}
+                            amountUsd={amountUsd}
+                            displayPrice={`$${amountUsd.toFixed(2)}`}
+                            onSuccess={confirmBooking}
+                            onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
+                            lang={lang}
+                          />
+                        </Elements>
+                      )}
+                    </>
                   ) : null}
                 </div>
               ) : null}
