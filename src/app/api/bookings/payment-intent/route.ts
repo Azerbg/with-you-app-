@@ -106,40 +106,46 @@ export async function POST(req: NextRequest) {
     })
   )?.stripeCustomerId;
 
-  if (!stripeCustomerId) {
-    const customer = await stripe.customers.create({
-      email: session.user.email ?? undefined,
-      metadata: { userId: session.user.id },
-    });
-    stripeCustomerId = customer.id;
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { stripeCustomerId },
-    });
-  }
+  try {
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: session.user.email ?? undefined,
+        metadata: { userId: session.user.id },
+      });
+      stripeCustomerId = customer.id;
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { stripeCustomerId },
+      });
+    }
 
-  // Create PaymentIntent
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountCents,
-    currency: "usd",
-    customer: stripeCustomerId,
-    payment_method_types: ["card"],
-    metadata: {
-      studentId: session.user.id,
-      tutorId,
-      scheduledAt: slotDate.toISOString(),
+    // Create PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: "usd",
+      customer: stripeCustomerId,
+      payment_method_types: ["card"],
+      metadata: {
+        studentId: session.user.id,
+        tutorId,
+        scheduledAt: slotDate.toISOString(),
+        sessionType,
+        amountCents: String(amountCents),
+        creditAppliedTnd: String(creditAppliedTnd),
+      },
+    });
+
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amountUsd: amountCents / 100,
+      baseAmountUsd: baseCents / 100,
+      creditAppliedTnd,
       sessionType,
-      amountCents: String(amountCents),
-      creditAppliedTnd: String(creditAppliedTnd),
-    },
-  });
-
-  return NextResponse.json({
-    clientSecret: paymentIntent.client_secret,
-    paymentIntentId: paymentIntent.id,
-    amountUsd: amountCents / 100,
-    baseAmountUsd: baseCents / 100,
-    creditAppliedTnd,
-    sessionType,
-  });
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[payment-intent] Stripe error:", message);
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }
