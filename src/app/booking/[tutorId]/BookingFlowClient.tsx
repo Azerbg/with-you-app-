@@ -254,7 +254,7 @@ export default function BookingFlowClient({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProductType | null>(null);
 
-  const [amountUsd, setAmountUsd] = useState<number>(15);
+  const [amountUsd, setAmountUsd] = useState<number>(0);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadingIntent, setLoadingIntent] = useState(false);
   const [intentError, setIntentError] = useState<string | null>(null);
@@ -308,7 +308,9 @@ export default function BookingFlowClient({
   // ── Select product → fetch intent ──
   const handleSelectProduct = useCallback(
     async (product: ProductType) => {
+      const fallbackUsd = product === "SINGLE" ? sessionPriceUsd : discoveryPriceUsd;
       setSelectedProduct(product);
+      setAmountUsd(fallbackUsd);
       setClientSecret(null);
       setIntentError(null);
       setPayError(null);
@@ -327,7 +329,7 @@ export default function BookingFlowClient({
           return;
         }
         setClientSecret(data.clientSecret);
-        setAmountUsd(data.amountUsd ?? 15);
+        setAmountUsd(data.amountUsd ?? fallbackUsd);
       } catch {
         setIntentError(t("Impossible de contacter le serveur de paiement", "Could not reach the payment server"));
       } finally {
