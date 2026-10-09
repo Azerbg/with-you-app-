@@ -169,7 +169,6 @@ export async function GET(_req: NextRequest) {
           firstName: true,
           lastName: true,
           image: true,
-          hrApplication: { select: { fullName: true } },
           tutorProfile: { select: { profilePhotoUrl: true } },
         },
       },

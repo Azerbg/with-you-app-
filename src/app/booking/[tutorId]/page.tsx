@@ -48,19 +48,19 @@ export default async function BookingPage({ params }: Props) {
 
   if (!profile || profile.user.hrApplication?.status !== "ACTIVE") notFound();
 
-  // Check if student already has a discovery session with this tutor
-  const [existingDiscovery, studentProfile] = await Promise.all([
+  // Check if student already has any session with this tutor (blocks discovery)
+  const [existingSession, studentProfile] = await Promise.all([
     db.booking.findFirst({
       where: {
         studentId: session.user.id,
         tutorId,
-        sessionType: "DISCOVERY",
         status: { not: "CANCELLED" },
       },
+      select: { id: true },
     }),
     db.studentProfile.findUnique({
       where: { userId: session.user.id },
-      select: { country: true },
+      select: { country: true, user: { select: { timezone: true } } },
     }),
   ]);
 
@@ -69,7 +69,7 @@ export default async function BookingPage({ params }: Props) {
     select: { scheduledAt: true },
   });
 
-  const slots = generateAvailableSlots(profile.availability, bookings.map((b) => b.scheduledAt), 14);
+  const slots = generateAvailableSlots(profile.availability, bookings.map((b) => b.scheduledAt), 28);
 
   const displayName =
     profile.user.firstName && profile.user.lastName
@@ -89,10 +89,11 @@ export default async function BookingPage({ params }: Props) {
       tutorPhoto={photoUrl ?? null}
       availableSlots={slots.map((s) => s.utc.toISOString())}
       stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
-      alreadyHadDiscovery={!!existingDiscovery}
+      alreadyHadSession={!!existingSession}
       sessionPriceUsd={sessionPriceUsd}
       discoveryPriceUsd={discoveryPriceUsd}
       studentCountry={studentProfile?.country ?? "US"}
+      studentTimezone={studentProfile?.user?.timezone ?? null}
     />
   );
 }

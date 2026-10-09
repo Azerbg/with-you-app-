@@ -69,19 +69,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Slot not available" }, { status: 409 });
   }
 
-  // For DISCOVERY: enforce 1-per-tutor limit
+  // For DISCOVERY: only allow if student has no prior session of any type with this tutor
   if (sessionType === "DISCOVERY") {
-    const existing = await db.booking.findFirst({
+    const existingSession = await db.booking.findFirst({
       where: {
         studentId: session.user.id,
         tutorId,
-        sessionType: "DISCOVERY",
         status: { not: "CANCELLED" },
       },
     });
-    if (existing) {
+    if (existingSession) {
       return NextResponse.json(
-        { error: "You have already booked a discovery session with this tutor" },
+        { error: "Discovery sessions are only available for new tutor relationships" },
         { status: 409 },
       );
     }

@@ -71,8 +71,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  // Only the tutor on this booking may mark it complete
-  if (booking.tutorId !== session.user.id) {
+  // Only the tutor or student on this booking may call this
+  const isParticipant = booking.tutorId === session.user.id || booking.studentId === session.user.id;
+  if (!isParticipant) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -88,7 +89,7 @@ export async function PATCH(
   const durationMins = Math.min(240, booking.durationMins);
   const endAt = new Date(booking.scheduledAt.getTime() + durationMins * 60_000);
   if (new Date() < endAt) {
-    return NextResponse.json({ error: "Session has not ended yet" }, { status: 400 });
+    return NextResponse.json({ error: "Session has not ended yet" }, { status: 403 });
   }
 
   await db.booking.update({

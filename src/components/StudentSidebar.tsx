@@ -47,6 +47,7 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
     pathname.startsWith("/dashboard/student/billing") ? "billing" :
     pathname.startsWith("/dashboard/student/referral") ? "referral" :
     pathname.startsWith("/dashboard/student/settings") ? "settings" :
+    pathname.startsWith("/booking/") ? "tutors" :
     "overview";
 
   const currentPage = activePage ?? detectedPage;

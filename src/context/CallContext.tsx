@@ -147,13 +147,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
   const leaveCall = useCallback(async () => {
     intentionalLeaveRef.current = true;
-    // Call booking-complete API (real sessions only)
-    if (bookingId && !isSandbox) {
-      try { await fetch(`/api/bookings/${bookingId}/complete`, { method: "PATCH" }); } catch { /* best-effort */ }
-    }
+    // Completion is handled server-side by the cron job — do not call /complete here
     await room.disconnect();
     // ConnectionStateChanged → Disconnected will reset state
-  }, [room, bookingId, isSandbox]);
+  }, [room]);
 
   // Show MiniCall when in a call AND (not on classroom page OR overlay is open)
   const pathname     = usePathname();
