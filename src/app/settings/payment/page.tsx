@@ -13,7 +13,5 @@ export default async function PaymentSettingsPage({ searchParams }: Props) {
 
   const params = await searchParams;
   const setupComplete = params.setup_complete === "true";
-  const locale = (session.user as { locale?: string }).locale ?? "en";
-
-  return <PaymentSetupClient lang={locale} setupComplete={setupComplete} />;
+  return <PaymentSetupClient setupComplete={setupComplete} />;
 }

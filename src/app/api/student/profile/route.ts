@@ -16,6 +16,7 @@ const schema = z.object({
   timeWindowPreference: z.array(z.string()).optional(),
   country:              z.string().optional(),
   timezone:             z.string().optional(),
+  preferredCurrency:    z.enum(["USD", "EUR", "CAD"]).optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -48,6 +49,7 @@ export async function PATCH(req: Request) {
     if (d.availabilityDays     !== undefined) profileUpdate.availabilityDays     = d.availabilityDays;
     if (d.timeWindowPreference !== undefined) profileUpdate.timeWindowPreference = d.timeWindowPreference;
     if (d.country              !== undefined) profileUpdate.country              = d.country || null;
+    if (d.preferredCurrency    !== undefined) profileUpdate.preferredCurrency    = d.preferredCurrency;
 
     if (Object.keys(profileUpdate).length > 0) {
       await db.studentProfile.update({ where: { userId: session.user.id }, data: profileUpdate });

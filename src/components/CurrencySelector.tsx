@@ -13,9 +13,10 @@ const CURRENCY_NAMES: Record<string, string> = {
 interface Props {
   className?: string;
   onChanged?: () => void;
+  saveToProfile?: boolean;
 }
 
-export default function CurrencySelector({ className = "", onChanged }: Props) {
+export default function CurrencySelector({ className = "", onChanged, saveToProfile }: Props) {
   const [currency, setCurrency] = useState("USD");
   const [open, setOpen] = useState(false);
 
@@ -45,6 +46,13 @@ export default function CurrencySelector({ className = "", onChanged }: Props) {
     setCurrency(c);
     setOpen(false);
     onChanged?.();
+    if (saveToProfile && ["USD", "EUR", "CAD"].includes(c)) {
+      fetch("/api/student/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferredCurrency: c }),
+      });
+    }
   }
 
   const zone = ZONES[currency] ?? ZONES.USD;

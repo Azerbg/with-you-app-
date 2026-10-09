@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface SavedCard {
   id: string;
@@ -10,18 +11,48 @@ interface SavedCard {
   expYear: number;
 }
 
+interface PaymentHistoryItem {
+  id: string;
+  scheduledAt: string;
+  sessionType: string;
+  tutorName: string;
+  amountUsd: number;
+  currency: string;
+  creditAppliedTnd: number;
+}
+
 const BRAND_LABELS: Record<string, string> = {
   visa: "Visa", mastercard: "Mastercard", amex: "Amex",
   discover: "Discover", jcb: "JCB", unionpay: "UnionPay", card: "Card",
 };
 
-interface Props {
-  lang: string;
-  setupComplete: boolean;
+const SESSION_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
+  DISCOVERY: { fr: "Découverte",   en: "Discovery"  },
+  SINGLE:    { fr: "Séance 50min", en: "50min session" },
+  PACK:      { fr: "Pack",         en: "Pack"        },
+};
+
+// Display amount in student's currency (fixed psychological prices — USD is the charge currency)
+function formatAmount(amountUsd: number, currency: string): string {
+  const RATES: Record<string, { rate: number; symbol: string }> = {
+    USD: { rate: 1,    symbol: "$"   },
+    EUR: { rate: 0.91, symbol: "€"   },
+    CAD: { rate: 1.36, symbol: "CA$" },
+    GBP: { rate: 0.79, symbol: "£"   },
+  };
+  const zone = RATES[currency] ?? RATES.USD;
+  return `${zone.symbol}${(amountUsd * zone.rate).toFixed(0)}`;
 }
 
-export default function PaymentSetupClient({ lang, setupComplete }: Props) {
-  const isFr = lang === "fr";
+interface Props {
+  setupComplete: boolean;
+  paymentHistory?: PaymentHistoryItem[];
+}
+
+export default function PaymentSetupClient({ setupComplete, paymentHistory = [] }: Props) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
+
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -53,10 +84,10 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
     try {
       const res = await fetch("/api/stripe/setup-checkout", { method: "POST" });
       const data = await res.json();
-      if (!res.ok || !data.url) { setAddError(data.error ?? "Erreur"); setAdding(false); return; }
+      if (!res.ok || !data.url) { setAddError(data.error ?? t("Erreur", "Error")); setAdding(false); return; }
       window.location.href = data.url;
     } catch {
-      setAddError(isFr ? "Impossible de contacter Stripe" : "Could not reach Stripe");
+      setAddError(t("Impossible de contacter Stripe", "Could not reach Stripe"));
       setAdding(false);
     }
   }
@@ -77,33 +108,26 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
 
   return (
     <div className="min-h-screen p-6 md:p-10" style={{ background: "#F2EFE9" }}>
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-xl mx-auto space-y-6">
 
         {/* Header */}
-        <a href="/dashboard/student" className="inline-flex items-center gap-2 text-sm text-[#6B5E44] hover:text-[#5C3D00] mb-6 transition">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          {isFr ? "Retour au tableau de bord" : "Back to dashboard"}
-        </a>
-
-        <h1 className="text-2xl font-bold text-[#5C3D00] mb-1">
-          {isFr ? "Moyen de paiement" : "Payment method"}
-        </h1>
-        <p className="text-sm text-[#6B5E44] mb-8">
-          {isFr
-            ? "Enregistrez une carte pour réserver des séances en toute simplicité."
-            : "Save a card to book sessions quickly and securely."}
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold text-[#5C3D00] mb-1">
+            {t("Facturation", "Billing")}
+          </h1>
+          <p className="text-sm text-[#6B5E44]">
+            {t("Gérez vos moyens de paiement et consultez votre historique.", "Manage your payment methods and view your history.")}
+          </p>
+        </div>
 
         {/* Success banner */}
         {banner && (
-          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-5 py-4 mb-6">
+          <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-5 py-4">
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-green-600 flex-shrink-0">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <p className="text-sm font-medium text-green-800">
-              {isFr ? "Carte enregistrée avec succès !" : "Card saved successfully!"}
+              {t("Carte enregistrée avec succès !", "Card saved successfully!")}
             </p>
             <button onClick={() => setBanner(false)} className="ml-auto text-green-500 hover:text-green-700">
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -114,10 +138,10 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
         )}
 
         {/* Saved cards */}
-        <div className="bg-white border border-black/5 rounded-2xl overflow-hidden mb-4">
+        <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-black/5">
             <p className="font-bold text-[#5C3D00]">
-              {isFr ? "Cartes enregistrées" : "Saved cards"}
+              {t("Cartes enregistrées", "Saved cards")}
             </p>
           </div>
 
@@ -128,7 +152,7 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
           ) : cards.length === 0 ? (
             <div className="px-6 py-8 text-center">
               <p className="text-sm text-[#9B8A6B] mb-4">
-                {isFr ? "Aucune carte enregistrée." : "No card saved yet."}
+                {t("Aucune carte enregistrée.", "No card saved yet.")}
               </p>
             </div>
           ) : (
@@ -142,7 +166,7 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
                     <div>
                       <p className="text-sm font-semibold text-[#5C3D00]">•••• {card.last4}</p>
                       <p className="text-xs text-[#9B8A6B]">
-                        {isFr ? "Expire" : "Expires"} {String(card.expMonth).padStart(2, "0")}/{card.expYear}
+                        {t("Expire", "Expires")} {String(card.expMonth).padStart(2, "0")}/{card.expYear}
                       </p>
                     </div>
                   </div>
@@ -152,8 +176,8 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
                     className="text-xs text-red-400 hover:text-red-600 font-semibold transition disabled:opacity-50"
                   >
                     {removing === card.id
-                      ? (isFr ? "Suppression…" : "Removing…")
-                      : (isFr ? "Supprimer" : "Remove")}
+                      ? t("Suppression…", "Removing…")
+                      : t("Supprimer", "Remove")}
                   </button>
                 </div>
               ))}
@@ -163,26 +187,78 @@ export default function PaymentSetupClient({ lang, setupComplete }: Props) {
 
         {/* Add card button */}
         {addError && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{addError}</p>
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{addError}</p>
         )}
         <button
           onClick={handleAddCard}
           disabled={adding}
-          className="w-full border-2 border-dashed border-[#F5C400]/40 text-[#C49200] font-semibold py-3 rounded-2xl hover:bg-[#FFFBEA] hover:border-[#F5C400] transition text-sm mb-4 disabled:opacity-50"
+          className="w-full border-2 border-dashed border-[#F5C400]/40 text-[#C49200] font-semibold py-3 rounded-2xl hover:bg-[#FFFBEA] hover:border-[#F5C400] transition text-sm disabled:opacity-50"
         >
           {adding
-            ? (isFr ? "Redirection vers Stripe…" : "Redirecting to Stripe…")
-            : (isFr ? "+ Ajouter une carte" : "+ Add a card")}
+            ? t("Redirection vers Stripe…", "Redirecting to Stripe…")
+            : t("+ Ajouter une carte", "+ Add a card")}
         </button>
 
+        {/* Payment history */}
+        {paymentHistory.length > 0 && (
+          <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/5">
+              <p className="font-bold text-[#5C3D00]">
+                {t("Historique des paiements", "Payment history")}
+              </p>
+            </div>
+            <div className="divide-y divide-black/4">
+              {paymentHistory.map((item) => {
+                const date = new Date(item.scheduledAt);
+                const dateStr = date.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
+                  day: "numeric", month: "short", year: "numeric",
+                });
+                const typeLabel = SESSION_TYPE_LABELS[item.sessionType]?.[lang as "fr" | "en"] ?? item.sessionType;
+                return (
+                  <div key={item.id} className="flex items-center gap-4 px-6 py-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#2D1A00] truncate">{item.tutorName}</p>
+                      <p className="text-xs text-[#9B8A6B] mt-0.5">
+                        {dateStr} · {typeLabel}
+                        {item.creditAppliedTnd > 0 && (
+                          <span className="ml-1.5 text-[#C49200]">
+                            (−{item.creditAppliedTnd.toFixed(0)} TND {t("crédit", "credit")})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-sm font-bold text-[#2D1A00]">
+                        {formatAmount(item.amountUsd, item.currency)}
+                      </span>
+                      <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                        {t("Payé", "Paid")}
+                      </span>
+                      <a
+                        href={`/api/bookings/${item.id}/receipt`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-[#9B8A6B] hover:text-[#C49200] transition font-medium"
+                      >
+                        {t("Reçu →", "Receipt →")}
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Security note */}
-        <p className="text-xs text-center text-[#9B8A6B] mt-6 flex items-center justify-center gap-1.5">
+        <p className="text-xs text-center text-[#9B8A6B] flex items-center justify-center gap-1.5">
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
-          {isFr
-            ? "Paiements sécurisés par Stripe. Vos données de carte ne nous sont jamais transmises."
-            : "Payments secured by Stripe. Your card details are never sent to our servers."}
+          {t(
+            "Paiements sécurisés par Stripe. Vos données de carte ne nous sont jamais transmises.",
+            "Payments secured by Stripe. Your card details are never sent to our servers."
+          )}
         </p>
       </div>
     </div>

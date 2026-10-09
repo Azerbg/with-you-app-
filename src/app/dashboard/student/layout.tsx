@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import StudentSidebar from "@/components/StudentSidebar";
 import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CurrencyInit from "@/components/CurrencyInit";
+import CurrencySelector from "@/components/CurrencySelector";
 
 export default async function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -53,7 +55,9 @@ export default async function StudentDashboardLayout({ children }: { children: R
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
+        <CurrencyInit currency={profile.preferredCurrency} />
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0 gap-3">
+          <CurrencySelector saveToProfile className="mr-1" />
           <LanguageSwitcher />
 
           {/* Messages */}

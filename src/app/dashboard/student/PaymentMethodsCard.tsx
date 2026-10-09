@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface SavedCard {
   id: string;
@@ -17,6 +18,8 @@ const BRAND_ICONS: Record<string, string> = {
 };
 
 export default function PaymentMethodsCard() {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -49,10 +52,10 @@ export default function PaymentMethodsCard() {
     try {
       const res = await fetch("/api/stripe/setup-checkout", { method: "POST" });
       const data = await res.json();
-      if (!res.ok || !data.url) { setError(data.error ?? "Erreur"); setAdding(false); return; }
+      if (!res.ok || !data.url) { setError(data.error ?? t("Erreur", "Error")); setAdding(false); return; }
       window.location.href = data.url;
     } catch {
-      setError("Impossible de contacter Stripe");
+      setError(t("Impossible de contacter Stripe", "Could not reach Stripe"));
       setAdding(false);
     }
   }
@@ -74,13 +77,13 @@ export default function PaymentMethodsCard() {
   return (
     <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
       <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
-        <p className="font-bold text-[#5C3D00] text-sm">Moyens de paiement</p>
+        <p className="font-bold text-[#5C3D00] text-sm">{t("Moyens de paiement", "Payment methods")}</p>
         <button
           onClick={handleAddCard}
           disabled={adding}
           className="text-xs font-bold text-[#5C3D00] bg-[#F5C400]/20 hover:bg-[#F5C400]/40 px-3 py-1 rounded-full transition disabled:opacity-50"
         >
-          {adding ? "Redirection..." : "+ Ajouter"}
+          {adding ? t("Redirection...", "Redirecting...") : `+ ${t("Ajouter", "Add")}`}
         </button>
       </div>
 
@@ -88,7 +91,7 @@ export default function PaymentMethodsCard() {
 
         {justAdded && (
           <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-            ✓ Carte ajoutée avec succès
+            ✓ {t("Carte ajoutée avec succès", "Card added successfully")}
           </p>
         )}
 
@@ -107,9 +110,9 @@ export default function PaymentMethodsCard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
             </div>
-            <p className="text-xs text-[#9B8A6B]">Aucune carte enregistrée</p>
+            <p className="text-xs text-[#9B8A6B]">{t("Aucune carte enregistrée", "No card saved yet")}</p>
             <button onClick={handleAddCard} className="mt-2 text-xs font-semibold text-[#5C3D00] hover:underline">
-              Ajouter une carte →
+              {t("Ajouter une carte →", "Add a card →")}
             </button>
           </div>
         ) : (
@@ -122,14 +125,14 @@ export default function PaymentMethodsCard() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-[#2D1A00]">•••• {card.last4}</p>
                   <p className="text-[10px] text-[#9B8A6B]">
-                    Expire {String(card.expMonth).padStart(2, "0")}/{card.expYear}
+                    {t("Expire", "Expires")} {String(card.expMonth).padStart(2, "0")}/{card.expYear}
                   </p>
                 </div>
                 <button
                   onClick={() => handleDelete(card.id)}
                   disabled={deletingId === card.id}
                   className="text-[#C4BAA8] hover:text-red-500 transition disabled:opacity-50 flex-shrink-0"
-                  title="Supprimer"
+                  title={t("Supprimer", "Remove")}
                 >
                   {deletingId === card.id ? (
                     <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
@@ -145,7 +148,7 @@ export default function PaymentMethodsCard() {
         )}
 
         <p className="text-[10px] text-[#9B8A6B] text-center">
-          Sécurisé par Stripe — vos données ne sont jamais stockées sur nos serveurs
+          {t("Sécurisé par Stripe — vos données ne sont jamais stockées sur nos serveurs", "Secured by Stripe — your card details are never stored on our servers")}
         </p>
       </div>
     </div>

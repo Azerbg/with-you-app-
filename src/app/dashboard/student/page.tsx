@@ -12,12 +12,12 @@ const TIER_BADGE: Record<ProgramTier, { cls: string }> = {
   INTENSIVE: { cls: "bg-[#5C3D00]/10 text-[#5C3D00]" },
 };
 
-// weekly target minutes by frequency
+// weekly target minutes by frequency (50 min per standard session)
 const FREQ_TARGET: Record<string, number> = {
-  ONCE:        45,
-  TWICE:       90,
-  THREE_TIMES: 135,
-  INTENSIVE:   225,
+  ONCE:        50,   // 1 × 50 min
+  TWICE:       100,  // 2 × 50 min
+  THREE_TIMES: 150,  // 3 × 50 min
+  INTENSIVE:   200,  // 4 × 50 min
 };
 
 function getWeekStart(d: Date): Date {

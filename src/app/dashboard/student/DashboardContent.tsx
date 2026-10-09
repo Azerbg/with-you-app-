@@ -72,12 +72,13 @@ function useCountdown(targetIso: string) {
   return diff;
 }
 
-function CountdownBadge({ scheduledAt, durationMins }: { scheduledAt: string; durationMins: number }) {
+function CountdownBadge({ scheduledAt, durationMins, lang }: { scheduledAt: string; durationMins: number; lang: string }) {
   const diff = useCountdown(scheduledAt);
   const endDiff = diff + durationMins * 60 * 1000;
+  const isFr = lang !== "en";
 
   if (diff < 0 && endDiff > 0) {
-    return <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full animate-pulse">En cours</span>;
+    return <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full animate-pulse">{isFr ? "En cours" : "Live"}</span>;
   }
   if (diff < 0) return null;
 
@@ -85,18 +86,19 @@ function CountdownBadge({ scheduledAt, durationMins }: { scheduledAt: string; du
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
+  const inLabel = isFr ? "Dans" : "In";
 
   if (h > 24) {
     const days = Math.floor(h / 24);
-    return <span className="text-[10px] text-[#9B8A6B]">Dans {days}j {h % 24}h</span>;
+    return <span className="text-[10px] text-[#9B8A6B]">{inLabel} {days}{isFr ? "j" : "d"} {h % 24}h</span>;
   }
   if (h > 0) {
-    return <span className="text-[10px] font-semibold text-[#C49200]">Dans {h}h {String(m).padStart(2,"0")}min</span>;
+    return <span className="text-[10px] font-semibold text-[#C49200]">{inLabel} {h}h {String(m).padStart(2,"0")}min</span>;
   }
   if (m >= 5) {
-    return <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Dans {m}min</span>;
+    return <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">{inLabel} {m}min</span>;
   }
-  return <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full animate-pulse">Dans {m}m {String(s).padStart(2,"0")}s</span>;
+  return <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full animate-pulse">{inLabel} {m}m {String(s).padStart(2,"0")}s</span>;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -104,6 +106,7 @@ function CountdownBadge({ scheduledAt, durationMins }: { scheduledAt: string; du
 export default function DashboardContent(p: Props) {
   const { lang } = useLanguage();
   const t = T[lang].dashboard;
+  const tx = (fr: string, en: string) => lang === "en" ? en : fr;
   const [editOpen, setEditOpen] = useState(false);
   const [firstName, setFirstName] = useState(p.firstName ?? null);
   const [lastName,  setLastName]  = useState(p.lastName  ?? null);
@@ -147,8 +150,8 @@ export default function DashboardContent(p: Props) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-bold text-green-800">Avis envoyé, merci !</p>
-                <p className="text-xs text-green-600 mt-0.5">Votre retour aide la communauté WithYou à grandir.</p>
+                <p className="text-sm font-bold text-green-800">{tx("Avis envoyé, merci !", "Review sent, thank you!")}</p>
+                <p className="text-xs text-green-600 mt-0.5">{tx("Votre retour aide la communauté WithYou à grandir.", "Your feedback helps the WithYou community grow.")}</p>
               </div>
             </div>
           )}
@@ -158,12 +161,12 @@ export default function DashboardContent(p: Props) {
             <div className="mb-6 flex items-center gap-4 bg-[#FFF3B0] border border-[#F5C400]/60 rounded-2xl px-5 py-4">
               <span className="text-2xl flex-shrink-0">📋</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#5C3D00]">Complétez votre test de niveau</p>
-                <p className="text-xs text-[#7A6B55] mt-0.5">Votre niveau n&apos;a pas encore été défini.</p>
+                <p className="text-sm font-bold text-[#5C3D00]">{tx("Complétez votre test de niveau", "Complete your placement test")}</p>
+                <p className="text-xs text-[#7A6B55] mt-0.5">{tx("Votre niveau n'a pas encore été défini.", "Your level hasn't been set yet.")}</p>
               </div>
               <a href="/placement-test"
                 className="flex-shrink-0 px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-xs rounded-xl hover:bg-[#FFDE59] transition whitespace-nowrap">
-                Passer le test →
+                {tx("Passer le test →", "Take the test →")}
               </a>
             </div>
           )}
@@ -177,7 +180,7 @@ export default function DashboardContent(p: Props) {
           {/* ── Bee Progress Bar ────────────────────────────────────────────── */}
           <div className="bg-white rounded-2xl border border-black/5 px-6 py-5 mb-8">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-widest">Ma progression</p>
+              <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-widest">{tx("Ma progression", "My progress")}</p>
               <span className="text-xs font-bold text-[#C49200]">{p.completedCount > 0 ? `${Math.min(p.completedCount * 5, 100)}%` : "5%"}</span>
             </div>
             <div className="relative h-2.5 bg-[#F2EFE9] rounded-full overflow-visible">
@@ -242,10 +245,10 @@ export default function DashboardContent(p: Props) {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
-                  <p className="text-sm font-bold text-[#5C3D00]">Objectif de la semaine</p>
+                  <p className="text-sm font-bold text-[#5C3D00]">{tx("Objectif de la semaine", "Weekly goal")}</p>
                 </div>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${weeklyPct >= 100 ? "bg-green-100 text-green-700" : "bg-[#FFF3B0] text-[#C49200]"}`}>
-                  {weeklyPct >= 100 ? "✓ Atteint !" : `${weeklyPct}%`}
+                  {weeklyPct >= 100 ? `✓ ${tx("Atteint !", "Reached!")}` : `${weeklyPct}%`}
                 </span>
               </div>
               <div className="flex items-end gap-2 mb-3">
@@ -258,8 +261,11 @@ export default function DashboardContent(p: Props) {
               </div>
               <p className="text-xs text-[#9B8A6B] mt-2">
                 {weeklyPct >= 100
-                  ? "Excellent ! Objectif de la semaine atteint."
-                  : `${p.weeklyTargetMins - p.weeklyMinutes} min restantes pour atteindre l'objectif.`}
+                  ? tx("Excellent ! Objectif de la semaine atteint.", "Excellent! Weekly goal reached.")
+                  : tx(
+                      `${p.weeklyTargetMins - p.weeklyMinutes} min restantes pour atteindre l'objectif.`,
+                      `${p.weeklyTargetMins - p.weeklyMinutes} min remaining to reach your goal.`
+                    )}
               </p>
             </div>
 
@@ -267,20 +273,24 @@ export default function DashboardContent(p: Props) {
             <div className="bg-white border border-black/5 rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 bg-orange-50 text-orange-500 rounded-lg flex items-center justify-center text-base">🔥</div>
-                <p className="text-sm font-bold text-[#5C3D00]">Série d&apos;apprentissage</p>
+                <p className="text-sm font-bold text-[#5C3D00]">{tx("Série d'apprentissage", "Learning streak")}</p>
               </div>
               <div className="flex items-end gap-2 mb-2">
                 <span className="text-5xl font-bold text-[#5C3D00]">{p.streakWeeks}</span>
-                <span className="text-sm text-[#9B8A6B] mb-2">semaine{p.streakWeeks > 1 ? "s" : ""} consécutive{p.streakWeeks > 1 ? "s" : ""}</span>
+                <span className="text-sm text-[#9B8A6B] mb-2">
+                  {lang === "en"
+                    ? `consecutive week${p.streakWeeks !== 1 ? "s" : ""}`
+                    : `semaine${p.streakWeeks > 1 ? "s" : ""} consécutive${p.streakWeeks > 1 ? "s" : ""}`}
+                </span>
               </div>
               <p className="text-xs text-[#9B8A6B]">
                 {p.streakWeeks === 0
-                  ? "Commencez votre première semaine avec une séance !"
+                  ? tx("Commencez votre première semaine avec une séance !", "Start your first week with a session!")
                   : p.streakWeeks < 4
-                  ? "Continuez ! Chaque semaine compte."
+                  ? tx("Continuez ! Chaque semaine compte.", "Keep going! Every week counts.")
                   : p.streakWeeks < 12
-                  ? "🎉 Belle constance ! Gardez le rythme."
-                  : "🏆 Incroyable régularité — vous êtes un exemple !"}
+                  ? tx("🎉 Belle constance ! Gardez le rythme.", "🎉 Great consistency! Keep the pace.")
+                  : tx("🏆 Incroyable régularité — vous êtes un exemple !", "🏆 Incredible consistency — you're an inspiration!")}
               </p>
               {p.streakWeeks >= 1 && (
                 <div className="flex gap-1 mt-3">
@@ -352,10 +362,10 @@ export default function DashboardContent(p: Props) {
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium mb-2">{t.timeWindows}</p>
                       <div className="flex gap-2">
                         {p.timeWindowPreference.map((w) => {
-                          const TW_FR: Record<string, string> = { MORNING: "Matin", AFTERNOON: "Après-midi", EVENING: "Soirée" };
+                          const label = (t.timeWindowLabels as Record<string, string>)[w] ?? (w.charAt(0) + w.slice(1).toLowerCase());
                           return (
                             <span key={w} className="px-3 py-1.5 bg-[#FFF3B0] text-[#C49200] text-xs font-bold rounded-lg border border-[#F5C400]/30">
-                              {TW_FR[w] ?? (w.charAt(0) + w.slice(1).toLowerCase())}
+                              {label}
                             </span>
                           );
                         })}
@@ -387,17 +397,17 @@ export default function DashboardContent(p: Props) {
               {p.upcomingBookings && p.upcomingBookings.length > 0 && (
                 <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
                   <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-                    <p className="font-bold text-[#5C3D00]">Prochaines séances</p>
+                    <p className="font-bold text-[#5C3D00]">{tx("Prochaines séances", "Upcoming sessions")}</p>
                     <Link href="/dashboard/student/sessions" className="text-xs text-[#C49200] font-semibold hover:underline">
-                      Voir tout →
+                      {tx("Voir tout →", "See all →")}
                     </Link>
                   </div>
                   <div className="divide-y divide-black/4">
                     {p.upcomingBookings.map((b) => {
                       const date = new Date(b.scheduledAt);
-                      const dateStr = date.toLocaleString("fr-FR", {
+                      const dateStr = date.toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
                         weekday: "short", day: "numeric", month: "short",
-                        hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis",
+                        hour: "2-digit", minute: "2-digit",
                       });
                       const initials = b.tutorName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
                       const now = Date.now();
@@ -413,18 +423,18 @@ export default function DashboardContent(p: Props) {
                             <p className="font-semibold text-[#2D1A00] text-sm truncate">{b.tutorName}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <p className="text-xs text-[#6B5E44] capitalize">{dateStr} · {b.durationMins} min</p>
-                              <CountdownBadge scheduledAt={b.scheduledAt} durationMins={b.durationMins} />
+                              <CountdownBadge scheduledAt={b.scheduledAt} durationMins={b.durationMins} lang={lang} />
                             </div>
                           </div>
                           {canJoin ? (
                             <a href={`/classroom/${b.id}`}
                               className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#FFDE59] transition shadow-[0_2px_10px_rgba(245,196,0,0.4)]">
-                              Rejoindre →
+                              {tx("Rejoindre →", "Join →")}
                             </a>
                           ) : (
                             <a href={`/classroom/${b.id}`}
                               className="flex-shrink-0 text-xs text-[#9B8A6B] bg-[#FAF8F0] px-3 py-1.5 rounded-xl border border-[#E8E0D4] hover:bg-[#F0EAD8] transition">
-                              Salle →
+                              {tx("Salle →", "Room →")}
                             </a>
                           )}
                         </div>
@@ -438,17 +448,17 @@ export default function DashboardContent(p: Props) {
               {p.recentSessions.length > 0 && (
                 <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
                   <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-                    <p className="font-bold text-[#5C3D00]">Historique récent</p>
+                    <p className="font-bold text-[#5C3D00]">{tx("Historique récent", "Recent history")}</p>
                     <Link href="/dashboard/student/sessions" className="text-xs text-[#C49200] font-semibold hover:underline">
-                      Voir tout →
+                      {tx("Voir tout →", "See all →")}
                     </Link>
                   </div>
                   <div className="divide-y divide-black/4">
                     {p.recentSessions.map((s) => {
                       const date = new Date(s.scheduledAt);
-                      const dateStr = date.toLocaleString("fr-FR", {
+                      const dateStr = date.toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
                         day: "numeric", month: "short", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis",
+                        hour: "2-digit", minute: "2-digit",
                       });
                       const initials = s.tutorName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
                       return (
@@ -462,14 +472,14 @@ export default function DashboardContent(p: Props) {
                             <p className="text-xs text-[#9B8A6B]">{dateStr} · {s.durationMins} min</p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Terminée</span>
+                            <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{tx("Terminée", "Completed")}</span>
                             <a
                               href={`/api/bookings/${s.id}/receipt`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-[10px] text-[#9B8A6B] hover:text-[#C49200] transition font-medium"
                             >
-                              Reçu →
+                              {tx("Reçu →", "Receipt →")}
                             </a>
                           </div>
                         </div>
@@ -538,7 +548,7 @@ export default function DashboardContent(p: Props) {
                   <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
                 </div>
                 <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">
-                  {t.discoverySub.replace(/\.$/, "")} <span className="font-bold text-[#5C3D00]">à petit prix</span>.
+                  {t.discoverySub.replace(/\.$/, "")} <span className="font-bold text-[#5C3D00]">{tx("à petit prix", "at a great price")}</span>.
                 </p>
                 <Link href="/find-tutors"
                   className="block w-full text-center bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition">

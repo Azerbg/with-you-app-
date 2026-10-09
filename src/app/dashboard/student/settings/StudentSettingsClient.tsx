@@ -99,7 +99,7 @@ export default function StudentSettingsClient() {
         </div>
 
         {/* Notifications tab */}
-        {tab === "notifications" && <NotifPreferencesTab />}
+        {tab === "notifications" && <NotifPreferencesTab isStudent />}
 
         {/* Security tab */}
         {tab === "security" && (

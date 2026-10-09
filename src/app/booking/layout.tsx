@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import StudentSidebar from "@/components/StudentSidebar";
 import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import CurrencyInit from "@/components/CurrencyInit";
 
 export default async function BookingLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -52,6 +53,7 @@ export default async function BookingLayout({ children }: { children: React.Reac
         image={profile.user.image ?? null}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <CurrencyInit currency={profile.preferredCurrency} />
         {/* Top bar — same as dashboard layout */}
         <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0 gap-3">
           <LanguageSwitcher />
