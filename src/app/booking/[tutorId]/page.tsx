@@ -86,9 +86,9 @@ export default async function BookingPage({ params }: Props) {
   const sessionPriceUsd   = STANDARD_SESSION_USD;
   const discoveryPriceUsd = DISCOVERY_SESSION_USD;
 
-  const pubKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
-  if (!pubKey) console.error("[Booking] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set.");
-  else if (!pubKey.startsWith("pk_")) console.error(`[Booking] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY doesn't start with pk_ — Payment Element will reject it.`);
+  const pubKey = process.env.STRIPE_PUBLISHABLE_KEY ?? "";
+  if (!pubKey) console.error("[Booking] STRIPE_PUBLISHABLE_KEY is not set.");
+  else if (!pubKey.startsWith("pk_")) console.error(`[Booking] STRIPE_PUBLISHABLE_KEY doesn't start with pk_ — Payment Element will reject it.`);
 
   return (
     <BookingFlowClient
@@ -96,7 +96,7 @@ export default async function BookingPage({ params }: Props) {
       tutorName={displayName}
       tutorPhoto={photoUrl ?? null}
       availableSlots={slots.map((s) => s.utc.toISOString())}
-      stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""}
+      stripePublishableKey={process.env.STRIPE_PUBLISHABLE_KEY ?? ""}
       alreadyHadSession={!!existingSession}
       sessionPriceUsd={sessionPriceUsd}
       discoveryPriceUsd={discoveryPriceUsd}

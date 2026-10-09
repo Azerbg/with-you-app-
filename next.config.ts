@@ -53,15 +53,15 @@ const nextConfig: NextConfig = {
 
 // Wrap with Sentry only if properly installed and configured
 async function buildConfig() {
-  const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  const stripeKey = process.env.STRIPE_PUBLISHABLE_KEY;
   if (!stripeKey) {
     throw new Error(
-      "[next.config] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set. Must start with pk_test_ or pk_live_.",
+      "[next.config] STRIPE_PUBLISHABLE_KEY is not set. Must start with pk_test_ or pk_live_.",
     );
   }
   if (!stripeKey.startsWith("pk_")) {
     throw new Error(
-      `[next.config] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is invalid (got "${stripeKey.slice(0, 7)}…"). Must start with pk_test_ or pk_live_.`,
+      `[next.config] STRIPE_PUBLISHABLE_KEY is invalid (got "${stripeKey.slice(0, 7)}…"). Must start with pk_test_ or pk_live_.`,
     );
   }
 
