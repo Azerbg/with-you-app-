@@ -15,5 +15,5 @@ export default async function OnboardingPage() {
 
   if (profile?.onboardingCompleted) redirect("/dashboard/student");
 
-  return <OnboardingWizard stripeKey={process.env.STRIPE_PUBLISHABLE_KEY ?? ""} />;
+  return <OnboardingWizard stripeKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""} />;
 }
