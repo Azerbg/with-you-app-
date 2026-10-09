@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { generateAvailableSlots } from "@/lib/slots";
+import { DISCOVERY_SESSION_CENTS, STANDARD_SESSION_CENTS } from "@/lib/pricing";
 
-// Pricing by session type + tutor tier (in USD cents)
-const DISCOVERY_PRICE_CENTS = 1500; // $15.00 — fixed regardless of tier
-
-const SINGLE_PRICE_CENTS: Record<string, number> = {
-  BASIC:     2500, // $25.00
-  VERIFIED:  3000, // $30.00
-  TOP_TUTOR: 3500, // $35.00
-};
+const schema = z.object({
+  tutorId:     z.string().min(1),
+  scheduledAt: z.string().min(1),
+  sessionType: z.enum(["DISCOVERY", "SINGLE"]).default("DISCOVERY"),
+});
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -19,16 +18,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await req.json();
-  const { tutorId, scheduledAt, sessionType = "DISCOVERY" } = body as {
-    tutorId?: string;
-    scheduledAt?: string;
-    sessionType?: "DISCOVERY" | "SINGLE";
-  };
-
-  if (!tutorId || !scheduledAt) {
-    return NextResponse.json({ error: "tutorId and scheduledAt are required" }, { status: 400 });
+  const body = await req.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
   }
+
+  const { tutorId, scheduledAt, sessionType } = parsed.data;
 
   const slotDate = new Date(scheduledAt);
   if (isNaN(slotDate.getTime())) {
@@ -86,11 +82,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Compute price
-  const baseCents =
-    sessionType === "DISCOVERY"
-      ? DISCOVERY_PRICE_CENTS
-      : (SINGLE_PRICE_CENTS[profile.verificationTier] ?? SINGLE_PRICE_CENTS.BASIC);
+  // Compute price (shared with booking UI via lib/pricing.ts)
+  const baseCents = sessionType === "DISCOVERY" ? DISCOVERY_SESSION_CENTS : STANDARD_SESSION_CENTS;
 
   // Apply platform credits (TND → USD cents, fixed rate: 1 TND = 32 cents)
   const TND_TO_CENTS = 32;

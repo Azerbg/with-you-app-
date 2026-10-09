@@ -38,14 +38,19 @@ export async function checkRateLimit(
   key: string,
   requests = 5,
   windowSec = 900,
+  lang: "fr" | "en" = "fr",
 ): Promise<NextResponse | null> {
   const limiter = getLimiter(prefix, requests, windowSec);
   if (!limiter) return null;
 
   const { success } = await limiter.limit(key);
   if (!success) {
+    const mins = Math.round(windowSec / 60);
+    const msg = lang === "en"
+      ? `Too many attempts. Please try again in ${mins} minute${mins !== 1 ? "s" : ""}.`
+      : `Trop de tentatives. Réessayez dans ${mins} minute${mins !== 1 ? "s" : ""}.`;
     return NextResponse.json(
-      { error: "Trop de tentatives. Réessayez dans 15 minutes." },
+      { error: msg },
       { status: 429, headers: { "Retry-After": String(windowSec) } },
     );
   }

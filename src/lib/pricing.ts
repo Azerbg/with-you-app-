@@ -136,3 +136,15 @@ export function formatPrice(amount: number, currency: Currency): string {
 function round(n: number) {
   return Math.round(n * 100) / 100;
 }
+
+// ─── Ad-hoc session pricing — single source of truth ──────────────────────────
+// Used by both the booking UI (booking/[tutorId]/page.tsx) and the
+// payment-intent API route. Stripe always charges in USD.
+
+/** 30-min Discovery session — fixed introductory price */
+export const DISCOVERY_SESSION_CENTS = 1500; // $15.00
+/** 50-min Standard session — Phase 1: flat rate (matches ZONES.USD.session) */
+export const STANDARD_SESSION_CENTS  = 2200; // $22.00
+
+export const DISCOVERY_SESSION_USD = DISCOVERY_SESSION_CENTS / 100; // 15
+export const STANDARD_SESSION_USD  = STANDARD_SESSION_CENTS / 100;  // 22

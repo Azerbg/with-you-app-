@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
   const slotDate = new Date(scheduledAt);
 
   // Verify the payment was successful
-  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  let paymentIntent;
+  try {
+    paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch {
+    return NextResponse.json({ error: "Invalid payment intent ID" }, { status: 400 });
+  }
 
   if (paymentIntent.status !== "succeeded") {
     return NextResponse.json({ error: "Payment not confirmed" }, { status: 402 });

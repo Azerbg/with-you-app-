@@ -41,6 +41,8 @@ async function applyRateLimit(req: NextRequest): Promise<NextResponse | null> {
   }
   // Only rate limit mutating requests
   if (req.method === "GET" || req.method === "HEAD") return null;
+  // Stripe webhooks use their own signature verification — never rate-limit them
+  if (req.nextUrl.pathname.startsWith("/api/webhooks/")) return null;
 
   const { pathname } = req.nextUrl;
 
@@ -62,8 +64,12 @@ async function applyRateLimit(req: NextRequest): Promise<NextResponse | null> {
 
       if (!success) {
         const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+        const lang = req.cookies.get("wy_lang")?.value === "en" ? "en" : "fr";
+        const msg = lang === "en"
+          ? "Too many requests. Please try again in a few minutes."
+          : "Trop de tentatives. Veuillez réessayer dans quelques minutes.";
         return NextResponse.json(
-          { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." },
+          { error: msg },
           { status: 429, headers: { "Retry-After": String(retryAfter) } }
         );
       }

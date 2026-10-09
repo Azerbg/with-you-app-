@@ -558,7 +558,7 @@ export default function BookingFlowClient({
                     ? t("Séance de découverte (30 min)", "Discovery session (30 min)")
                     : t("Séance complète (50 min)", "Full session (50 min)")}
                 </span>
-                <span className="font-bold text-[#2D1A00]">{p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}</span>
+                <span className="font-bold text-[#2D1A00]">${amountUsd.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs text-[#9B8A6B]">
                 <span>{t("Créneau", "Slot")}</span>
@@ -610,7 +610,7 @@ export default function BookingFlowClient({
                             {t("Traitement en cours...", "Processing...")}
                           </span>
                         ) : (
-                          `${t("Payer", "Pay")} ${p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}`
+                          `${t("Payer", "Pay")} $${amountUsd.toFixed(2)}`
                         )}
                       </button>
                       <button onClick={() => setUseNewCard(true)} className="w-full text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition py-1">
@@ -631,7 +631,7 @@ export default function BookingFlowClient({
                       <NewCardForm
                         clientSecret={clientSecret}
                         amountUsd={amountUsd}
-                        displayPrice={p(selectedProduct === "DISCOVERY" ? zone.discovery : zone.session, zone)}
+                        displayPrice={`$${amountUsd.toFixed(2)}`}
                         onSuccess={confirmBooking}
                         onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
                         lang={lang}

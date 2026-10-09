@@ -5,6 +5,7 @@ import { generateAvailableSlots } from "@/lib/slots";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import BookingFlowClient from "./BookingFlowClient";
+import { DISCOVERY_SESSION_USD, STANDARD_SESSION_USD } from "@/lib/pricing";
 
 interface Props { params: Promise<{ tutorId: string }> }
 
@@ -81,9 +82,13 @@ export default async function BookingPage({ params }: Props) {
 
   const photoUrl = profile.user.image ?? profile.profilePhotoUrl;
 
-  // Fixed USD amount charged by Stripe (display currency handled client-side per zone)
-  const sessionPriceUsd = 22;
-  const discoveryPriceUsd = 15;
+  // USD amounts charged by Stripe — shared with payment-intent route via lib/pricing.ts
+  const sessionPriceUsd   = STANDARD_SESSION_USD;
+  const discoveryPriceUsd = DISCOVERY_SESSION_USD;
+
+  const pubKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+  if (!pubKey) console.error("[Booking] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set.");
+  else if (!pubKey.startsWith("pk_")) console.error(`[Booking] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY doesn't start with pk_ — Payment Element will reject it.`);
 
   return (
     <BookingFlowClient
