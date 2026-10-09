@@ -15,10 +15,13 @@ interface PaymentHistoryItem {
   id: string;
   scheduledAt: string;
   sessionType: string;
+  durationMins: number;
   tutorName: string;
+  hasPayment: boolean;
   amountUsd: number;
   stripeStatus?: string;
   creditAppliedTnd: number;
+  receiptUrl?: string | null;
 }
 
 const BRAND_LABELS: Record<string, string> = {
@@ -26,20 +29,17 @@ const BRAND_LABELS: Record<string, string> = {
   discover: "Discover", jcb: "JCB", unionpay: "UnionPay", card: "Card",
 };
 
-const SESSION_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
-  DISCOVERY: { fr: "Découverte",   en: "Discovery"  },
-  SINGLE:    { fr: "Séance 50min", en: "50min session" },
-  PACK:      { fr: "Pack",         en: "Pack"        },
-};
 
 function stripeStatusLabel(status: string, lang: string): { label: string; cls: string } {
   const isFr = lang !== "en";
   switch (status) {
-    case "succeeded":         return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"   };
+    case "succeeded":         return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"    };
+    case "refunded":          return { label: isFr ? "Remboursé"  : "Refunded",    cls: "bg-blue-50 text-blue-700"      };
+    case "no_charge":         return { label: isFr ? "Gratuit"    : "No charge",   cls: "bg-gray-100 text-gray-500"     };
     case "requires_payment_method":
-    case "requires_action":   return { label: isFr ? "En attente" : "Pending",     cls: "bg-amber-50 text-amber-700"   };
-    case "canceled":          return { label: isFr ? "Annulé"     : "Cancelled",   cls: "bg-gray-100 text-gray-500"    };
-    default:                  return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"   };
+    case "requires_action":   return { label: isFr ? "En attente" : "Pending",     cls: "bg-amber-50 text-amber-700"    };
+    case "canceled":          return { label: isFr ? "Annulé"     : "Cancelled",   cls: "bg-gray-100 text-gray-500"     };
+    default:                  return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"    };
   }
 }
 
@@ -212,13 +212,15 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
                 const dateStr = date.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
                   day: "numeric", month: "short", year: "numeric",
                 });
-                const typeLabel = SESSION_TYPE_LABELS[item.sessionType]?.[lang as "fr" | "en"] ?? item.sessionType;
+                const statusKey = item.hasPayment ? (item.stripeStatus ?? "succeeded") : "no_charge";
+                const st = stripeStatusLabel(statusKey, lang);
+                const receiptHref = item.receiptUrl ?? `/api/bookings/${item.id}/receipt`;
                 return (
                   <div key={item.id} className="flex items-center gap-4 px-6 py-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[#2D1A00] truncate">{item.tutorName}</p>
                       <p className="text-xs text-[#9B8A6B] mt-0.5">
-                        {dateStr} · {typeLabel}
+                        {dateStr} · {item.durationMins} min
                         {item.creditAppliedTnd > 0 && (
                           <span className="ml-1.5 text-[#C49200]">
                             (−{item.creditAppliedTnd.toFixed(0)} TND {t("crédit", "credit")})
@@ -227,21 +229,27 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-sm font-bold text-[#2D1A00]">
-                        ${item.amountUsd.toFixed(2)}
-                        <span className="text-[10px] font-normal text-[#9B8A6B] ml-1">USD</span>
-                      </span>
-                      {(() => { const st = stripeStatusLabel(item.stripeStatus ?? "succeeded", lang); return (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
-                      ); })()}
-                      <a
-                        href={`/api/bookings/${item.id}/receipt`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-[#9B8A6B] hover:text-[#C49200] transition font-medium"
-                      >
-                        {t("Reçu →", "Receipt →")}
-                      </a>
+                      {item.hasPayment ? (
+                        <span className="text-sm font-bold text-[#2D1A00]">
+                          ${item.amountUsd.toFixed(2)}
+                          <span className="text-[10px] font-normal text-[#9B8A6B] ml-1">USD</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-[#9B8A6B]">
+                          {t("Gratuit", "No charge")}
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                      {item.hasPayment && (
+                        <a
+                          href={receiptHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#9B8A6B] hover:text-[#C49200] transition font-medium"
+                        >
+                          {t("Reçu →", "Receipt →")}
+                        </a>
+                      )}
                     </div>
                   </div>
                 );

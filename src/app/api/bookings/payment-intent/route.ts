@@ -11,6 +11,7 @@ const schema = z.object({
   tutorId:     z.string().min(1),
   scheduledAt: z.string().min(1),
   sessionType: z.enum(["DISCOVERY", "SINGLE"]).default("DISCOVERY"),
+  saveCard:    z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { tutorId, scheduledAt, sessionType } = parsed.data;
+  const { tutorId, scheduledAt, sessionType, saveCard } = parsed.data;
 
   const slotDate = new Date(scheduledAt);
   if (isNaN(slotDate.getTime())) {
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
       currency: "usd",
       customer: stripeCustomerId,
       payment_method_types: ["card"],
+      ...(saveCard ? { setup_future_usage: "off_session" } : {}),
       metadata: {
         studentId: session.user.id,
         tutorId,

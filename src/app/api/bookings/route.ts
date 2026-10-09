@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
@@ -133,8 +134,6 @@ export async function POST(req: NextRequest) {
   ]);
 
   if (student?.email && tutorUser) {
-    const tutorName = tutorUser.hrApplication?.fullName ?? "Votre tuteur";
-
     sendBookingConfirmationEmail({
       studentEmail: student.email,
       tutorEmail: tutorUser.email,
@@ -144,6 +143,13 @@ export async function POST(req: NextRequest) {
       meetingUrl: null,
     }).catch(console.error);
   }
+
+  // Revalidate all pages that show booking or payment data
+  revalidatePath("/dashboard/student");
+  revalidatePath("/dashboard/student/sessions");
+  revalidatePath("/dashboard/student/billing");
+  revalidatePath("/dashboard/tutor");
+  revalidatePath("/dashboard/tutor/sessions");
 
   return NextResponse.json(booking, { status: 201 });
 }

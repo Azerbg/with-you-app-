@@ -136,6 +136,8 @@ function NewCardForm({
   clientSecret,
   amountUsd,
   displayPrice,
+  saveCard,
+  onSaveCardChange,
   onSuccess,
   onCancel,
   lang,
@@ -143,6 +145,8 @@ function NewCardForm({
   clientSecret: string;
   amountUsd: number;
   displayPrice: string;
+  saveCard: boolean;
+  onSaveCardChange: (val: boolean) => void;
   onSuccess: (paymentIntentId: string) => Promise<void>;
   onCancel?: () => void;
   lang: string;
@@ -181,6 +185,20 @@ function NewCardForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement />
+      <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+        <input
+          type="checkbox"
+          checked={saveCard}
+          onChange={(e) => onSaveCardChange(e.target.checked)}
+          className="w-4 h-4 rounded border-[#D9D0C3] text-[#F5C400] accent-[#F5C400] cursor-pointer"
+        />
+        <span className="text-xs text-[#6B5E44] group-hover:text-[#5C3D00] transition">
+          {t(
+            "Enregistrer cette carte pour mes prochaines séances",
+            "Save this card for future sessions",
+          )}
+        </span>
+      </label>
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{error}</div>
       )}
@@ -266,6 +284,7 @@ export default function BookingFlowClient({
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
+  const [saveCard, setSaveCard] = useState(false);
 
   // ── Load saved cards once ──
   useEffect(() => {
@@ -307,7 +326,7 @@ export default function BookingFlowClient({
 
   // ── Select product → fetch intent ──
   const handleSelectProduct = useCallback(
-    async (product: ProductType) => {
+    async (product: ProductType, saveCd = false) => {
       const fallbackUsd = product === "SINGLE" ? sessionPriceUsd : discoveryPriceUsd;
       setSelectedProduct(product);
       setAmountUsd(fallbackUsd);
@@ -315,13 +334,14 @@ export default function BookingFlowClient({
       setIntentError(null);
       setPayError(null);
       setUseNewCard(false);
+      setStripeLoadError(null);
       setLoadingIntent(true);
 
       try {
         const res = await fetch("/api/bookings/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tutorId, scheduledAt: selectedSlot, sessionType: product }),
+          body: JSON.stringify({ tutorId, scheduledAt: selectedSlot, sessionType: product, saveCard: saveCd }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -336,8 +356,14 @@ export default function BookingFlowClient({
         setLoadingIntent(false);
       }
     },
-    [tutorId, selectedSlot],
+    [tutorId, selectedSlot, sessionPriceUsd, discoveryPriceUsd],
   );
+
+  // When "Save card" checkbox changes, recreate the PaymentIntent with the new flag
+  const handleSaveCardToggle = useCallback((checked: boolean) => {
+    setSaveCard(checked);
+    if (selectedProduct) handleSelectProduct(selectedProduct, checked);
+  }, [selectedProduct, handleSelectProduct]);
 
   // ── Pay with saved card ──
   const handlePayWithSavedCard = async () => {
@@ -676,6 +702,8 @@ export default function BookingFlowClient({
                             clientSecret={clientSecret}
                             amountUsd={amountUsd}
                             displayPrice={`$${amountUsd.toFixed(2)}`}
+                            saveCard={saveCard}
+                            onSaveCardChange={handleSaveCardToggle}
                             onSuccess={confirmBooking}
                             onCancel={hasSavedCard ? () => setUseNewCard(false) : undefined}
                             lang={lang}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
+import { revalidatePath } from "next/cache";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { sendBookingConfirmationEmail } from "@/lib/email";
@@ -135,4 +136,10 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
       meetingUrl:   null,
     }).catch(console.error);
   }
+
+  revalidatePath("/dashboard/student");
+  revalidatePath("/dashboard/student/sessions");
+  revalidatePath("/dashboard/student/billing");
+  revalidatePath("/dashboard/tutor");
+  revalidatePath("/dashboard/tutor/sessions");
 }
