@@ -123,6 +123,12 @@ export default function DashboardContent(p: Props) {
     THREE_TIMES: { fr: "12 séances / mois", en: "12 sessions/month" },
     INTENSIVE:   { fr: "16 séances / mois", en: "16 sessions/month" },
   };
+  // Plan → sessions/month (for consistency check with frequency)
+  const TIER_MONTHLY: Record<string, number> = { STARTER: 4, CORE: 8, INTENSIVE: 12 };
+  const FREQ_MONTHLY_NUM: Record<string, number> = { ONCE: 4, TWICE: 8, THREE_TIMES: 12, INTENSIVE: 16 };
+  const tierMonthlyCount = p.tierKey ? (TIER_MONTHLY[p.tierKey] ?? 0) : 0;
+  const freqMonthlyCount = p.sessionFrequency ? (FREQ_MONTHLY_NUM[p.sessionFrequency] ?? 0) : 0;
+  const showUpgradeNudge = tierMonthlyCount > 0 && freqMonthlyCount > tierMonthlyCount;
   const objLabel  = p.learningObjective ? (t.objectives as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
   const freqLabel = p.sessionFrequency  ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
   const freqMonthly = p.sessionFrequency ? (FREQ_MONTHLY[p.sessionFrequency]?.[lang] ?? "") : "";
@@ -240,6 +246,25 @@ export default function DashboardContent(p: Props) {
               </div>
             ))}
           </div>
+
+          {/* ── Plan / frequency mismatch nudge ──────────────────────────── */}
+          {showUpgradeNudge && (
+            <div className="mb-8 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+              <span className="text-lg flex-shrink-0">⚡</span>
+              <div>
+                <p className="text-sm font-bold text-amber-800">
+                  {tx(
+                    `Votre fréquence (${freqMonthlyCount} séances/mois) dépasse votre plan ${tierLabel} (${tierMonthlyCount} séances/mois).`,
+                    `Your frequency (${freqMonthlyCount} sessions/month) exceeds your ${tierLabel} plan (${tierMonthlyCount} sessions/month).`
+                  )}
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  {tx("Passez au plan supérieur pour y accéder.", "Upgrade your plan to match your rhythm.")}{" "}
+                  <a href="mailto:support@withyou.com" className="font-semibold underline">support@withyou.com</a>
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Weekly objective + streak ─────────────────────────────────── */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-8">

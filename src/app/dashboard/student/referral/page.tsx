@@ -2,6 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useZone, ZONES } from "@/app/tutors/[id]/PricingCard";
+import type { PriceZone } from "@/app/tutors/[id]/PricingCard";
+
+// Fixed display reward amounts per zone (credits are stored in TND server-side)
+const REFERRAL_REWARDS: Record<string, { referrer: number; referee: number }> = {
+  TND: { referrer: 15, referee: 10 },
+  USD: { referrer: 5,  referee: 3  },
+  EUR: { referrer: 5,  referee: 3  },
+  CAD: { referrer: 7,  referee: 4  },
+  GBP: { referrer: 4,  referee: 3  },
+};
+
+// Format an amount in the given zone (e.g. "5 $", "5 €", "15 TND ")
+function fmt(amount: number, zone: PriceZone): string {
+  return `${amount}\u00a0${zone.symbol}`;
+}
+
+// Convert a TND credit balance to the display zone using session-price ratio
+function creditDisplay(tndAmount: number, zone: PriceZone): string {
+  const converted = Math.round(tndAmount * zone.session / ZONES.TND.session);
+  return `${converted}\u00a0${zone.symbol}`;
+}
 
 interface ReferralData {
   code: string;
@@ -17,6 +39,8 @@ interface ReferralData {
 export default function ReferralPage() {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "en" ? en : fr;
+  const zone = useZone();
+  const rewards = REFERRAL_REWARDS[zone.code] ?? REFERRAL_REWARDS.USD;
 
   const [data, setData] = useState<ReferralData | null>(null);
   const [copied, setCopied] = useState(false);
@@ -55,8 +79,8 @@ export default function ReferralPage() {
     const d = await res.json();
     if (res.ok) {
       setApplyMsg({ type: "success", text: t(
-        "Code appliqué ! Vous recevrez +10 TND après votre première séance.",
-        "Code applied! You'll receive +10 TND after your first session."
+        `Code appliqué ! Vous recevrez +${fmt(rewards.referee, zone)} après votre première séance.`,
+        `Code applied! You'll receive +${fmt(rewards.referee, zone)} after your first session.`
       )});
       setApplyCode("");
       const fresh = await fetch("/api/referral").then(r => r.json());
@@ -102,7 +126,7 @@ export default function ReferralPage() {
                 "Partagez votre code. Quand votre filleul complète sa première séance :",
                 "Share your code. When your referral completes their first session:"
               )}<br />
-              <strong className="text-[#F5C400]">+15 TND</strong> {t("pour vous", "for you")} · <strong className="text-[#F5C400]">+10 TND</strong> {t("pour lui", "for them")}
+              <strong className="text-[#F5C400]">+{fmt(rewards.referrer, zone)}</strong> {t("pour vous", "for you")} · <strong className="text-[#F5C400]">+{fmt(rewards.referee, zone)}</strong> {t("pour lui", "for them")}
             </p>
 
             {/* Code display */}
@@ -130,7 +154,7 @@ export default function ReferralPage() {
           {[
             { label: t("Invités", "Referred"),       value: data.totalReferred },
             { label: t("Récompensés", "Rewarded"),   value: data.rewarded },
-            { label: t("Solde crédits", "Credits"),  value: `${data.creditBalance.toFixed(0)} TND` },
+            { label: t("Solde crédits", "Credits"),  value: creditDisplay(data.creditBalance, zone) },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-black/5 p-5 text-center">
               <p className="text-2xl font-bold text-[#2D1A00]">{s.value}</p>
@@ -145,8 +169,8 @@ export default function ReferralPage() {
             <p className="font-bold text-[#2D1A00] mb-1">{t("Vous avez un code de parrainage ?", "Have a referral code?")}</p>
             <p className="text-xs text-[#9B8A6B] mb-4">
               {t(
-                "Entrez le code d'un ami pour recevoir +10 TND après votre première séance.",
-                "Enter a friend's code to receive +10 TND after your first session."
+                `Entrez le code d'un ami pour recevoir +${fmt(rewards.referee, zone)} après votre première séance.`,
+                `Enter a friend's code to receive +${fmt(rewards.referee, zone)} after your first session.`
               )}
             </p>
             <div className="flex gap-3">
@@ -174,8 +198,8 @@ export default function ReferralPage() {
             <p className="text-sm font-semibold text-emerald-700">
               ✓ {t("Vous avez été parrainé.", "You've been referred.")}
               {data.myReferralStatus === "REWARDED"
-                ? ` ${t("Votre bonus de +10 TND a été crédité !", "Your +10 TND bonus has been credited!")}`
-                : ` ${t("Complétez votre première séance pour recevoir +10 TND.", "Complete your first session to receive +10 TND.")}`}
+                ? ` ${t(`Votre bonus de +${fmt(rewards.referee, zone)} a été crédité !`, `Your +${fmt(rewards.referee, zone)} bonus has been credited!`)}`
+                : ` ${t(`Complétez votre première séance pour recevoir +${fmt(rewards.referee, zone)}.`, `Complete your first session to receive +${fmt(rewards.referee, zone)}.`)}`}
             </p>
           </div>
         )}
@@ -198,7 +222,7 @@ export default function ReferralPage() {
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                     r.status === "REWARDED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                   }`}>
-                    {r.status === "REWARDED" ? `+15 TND ${t("crédité", "credited")}` : t("En attente", "Pending")}
+                    {r.status === "REWARDED" ? `+${fmt(rewards.referrer, zone)} ${t("crédité", "credited")}` : t("En attente", "Pending")}
                   </span>
                 </div>
               ))}
