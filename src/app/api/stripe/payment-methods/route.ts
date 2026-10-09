@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
+import { resolveStripeCustomer, friendlyStripeError } from "@/lib/stripe-customer";
 
 /** GET — list saved payment methods for current user */
 export async function GET() {
@@ -10,12 +11,13 @@ export async function GET() {
 
   try {
     const user = await db.user.findUnique({ where: { id: session.user.id } });
-    if (!user?.stripeCustomerId) return NextResponse.json({ paymentMethods: [] });
-
-    const list = await stripe.paymentMethods.list({
-      customer: user.stripeCustomerId,
-      type: "card",
+    const customerId = await resolveStripeCustomer({
+      userId: session.user.id,
+      email: user?.email,
+      name: [user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined,
     });
+
+    const list = await stripe.paymentMethods.list({ customer: customerId, type: "card" });
 
     const paymentMethods = list.data.map((pm) => ({
       id: pm.id,
@@ -27,8 +29,8 @@ export async function GET() {
 
     return NextResponse.json({ paymentMethods });
   } catch (error) {
-    console.error("[STRIPE_PAYMENT_METHODS_GET]", error);
-    return NextResponse.json({ error: "Stripe error" }, { status: 500 });
+    console.error("[STRIPE_PAYMENT_METHODS_GET]", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: friendlyStripeError() }, { status: 500 });
   }
 }
 

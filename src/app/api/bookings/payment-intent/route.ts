@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { generateAvailableSlots } from "@/lib/slots";
 import { DISCOVERY_SESSION_CENTS, STANDARD_SESSION_CENTS } from "@/lib/pricing";
+import { resolveStripeCustomer, friendlyStripeError } from "@/lib/stripe-customer";
 
 const schema = z.object({
   tutorId:     z.string().min(1),
@@ -98,28 +99,12 @@ export async function POST(req: NextRequest) {
   const creditAppliedTnd = creditDiscountCents > 0 ? creditDiscountCents / TND_TO_CENTS : 0;
   const amountCents = baseCents - creditDiscountCents;
 
-  // Get or create Stripe customer
-  let stripeCustomerId = (
-    await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { stripeCustomerId: true },
-    })
-  )?.stripeCustomerId;
-
   try {
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: session.user.email ?? undefined,
-        metadata: { userId: session.user.id },
-      });
-      stripeCustomerId = customer.id;
-      await db.user.update({
-        where: { id: session.user.id },
-        data: { stripeCustomerId },
-      });
-    }
+    const stripeCustomerId = await resolveStripeCustomer({
+      userId: session.user.id,
+      email: session.user.email,
+    });
 
-    // Create PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: "usd",
@@ -144,8 +129,7 @@ export async function POST(req: NextRequest) {
       sessionType,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[payment-intent] Stripe error:", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("[payment-intent] Stripe error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: friendlyStripeError() }, { status: 502 });
   }
 }

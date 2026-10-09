@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import { headers } from "next/headers";
+import { resolveStripeCustomer, friendlyStripeError } from "@/lib/stripe-customer";
 
 export async function POST() {
   const session = await auth();
@@ -22,15 +23,11 @@ export async function POST() {
     const user = await db.user.findUnique({ where: { id: session.user.id } });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    let customerId = user.stripeCustomerId;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
-      });
-      customerId = customer.id;
-      await db.user.update({ where: { id: user.id }, data: { stripeCustomerId: customerId } });
-    }
+    const customerId = await resolveStripeCustomer({
+      userId: user.id,
+      email: user.email,
+      name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
+    });
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "setup",
@@ -42,8 +39,7 @@ export async function POST() {
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[STRIPE_SETUP_CHECKOUT]", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[STRIPE_SETUP_CHECKOUT]", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: friendlyStripeError() }, { status: 500 });
   }
 }
