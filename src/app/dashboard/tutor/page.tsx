@@ -8,6 +8,12 @@ import VideoSubmissionPanel from "./VideoSubmissionPanel";
 import OfferAcceptancePanel from "./OfferAcceptancePanel";
 import SupportPanel from "./SupportPanel";
 import { getTutorStats } from "@/lib/tutorStats";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Dashboard — WithYou" : "Tableau de bord — WithYou" };
+}
 
 const STAGE_INFO: Record<string, { label: string; desc: string; color: string; step: number }> = {
   INCOMPLETE:          { label: "Dossier incomplet",        desc: "Votre dossier est incomplet. Veuillez le compléter pour continuer.",           color: "bg-gray-50 border-gray-300 text-gray-700",    step: 1 },

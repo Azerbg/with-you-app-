@@ -3,6 +3,12 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import SessionsClient from "./SessionsClient";
 import { getTutorStats } from "@/lib/tutorStats";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Sessions — WithYou" : "Mes séances — WithYou" };
+}
 
 export default async function TutorSessionsPage() {
   const session = await auth();

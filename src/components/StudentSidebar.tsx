@@ -9,9 +9,9 @@ import { T } from "@/lib/translations";
 import { useMobileMenu } from "@/components/MobileMenuContext";
 
 const TIER_LABELS: Record<string, { fr: string; en: string }> = {
-  STARTER:   { fr: "Débutant",  en: "Starter"   },
-  CORE:      { fr: "Essentiel", en: "Core"       },
-  INTENSIVE: { fr: "Intensif",  en: "Intensive"  },
+  STARTER:   { fr: "Starter",   en: "Starter"   },
+  CORE:      { fr: "Core",      en: "Core"       },
+  INTENSIVE: { fr: "Intensive", en: "Intensive"  },
 };
 
 type ActivePage = "overview" | "sessions" | "tutors" | "flashcards" | "messages" | "billing" | "profile" | "referral" | "notifications" | "settings";

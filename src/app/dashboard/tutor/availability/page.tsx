@@ -2,6 +2,12 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import AvailabilityManager from "./AvailabilityManager";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Availability — WithYou" : "Disponibilités — WithYou" };
+}
 
 export default async function AvailabilityPage() {
   const session = await auth();

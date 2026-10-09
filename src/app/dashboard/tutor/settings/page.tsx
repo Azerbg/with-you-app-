@@ -2,6 +2,12 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import TutorSettingsClient from "./TutorSettingsClient";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Settings — WithYou" : "Paramètres — WithYou" };
+}
 
 export default async function TutorSettingsPage() {
   const session = await auth();

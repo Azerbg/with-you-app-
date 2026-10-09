@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getTutorEarnings } from "@/lib/tutorStats";
 import EarningsClient from "./EarningsClient";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Earnings — WithYou" : "Revenus — WithYou" };
+}
 
 export default async function EarningsPage() {
   const session = await auth();

@@ -2,6 +2,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import StudentsClient from "./StudentsClient";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Students — WithYou" : "Mes étudiants — WithYou" };
+}
 
 export const dynamic = "force-dynamic";
 

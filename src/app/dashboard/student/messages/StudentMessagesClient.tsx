@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ThreadUser {
   id: string;
@@ -254,6 +255,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
 }
 
 export default function StudentMessagesClient({ currentUserId }: { currentUserId: string }) {
+  const { lang } = useLanguage();
   const searchParams = useSearchParams();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(searchParams.get("thread"));
@@ -282,7 +284,7 @@ export default function StudentMessagesClient({ currentUserId }: { currentUserId
         </div>
         <div className="flex-1 overflow-y-auto">
           {loading && (
-            <div className="flex items-center justify-center h-32 text-[#9B8A6B] text-sm">Chargement…</div>
+            <div className="flex items-center justify-center h-32 text-[#9B8A6B] text-sm">{lang === "en" ? "Loading…" : "Chargement…"}</div>
           )}
           {!loading && threads.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">

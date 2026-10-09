@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Review {
   id: string;
@@ -33,6 +34,7 @@ interface Props {
 const PAGE_SIZE = 8;
 
 export default function TutorProfileClient({ reviews: initial, tutorId, totalReviews }: Props) {
+  const { lang } = useLanguage();
   const [reviews, setReviews] = useState<Review[]>(initial);
   const [loading, setLoading] = useState(false);
 
@@ -101,7 +103,7 @@ export default function TutorProfileClient({ reviews: initial, tutorId, totalRev
           className="w-full py-2.5 rounded-xl border border-[#D9D0C3] text-sm font-semibold text-[#6B5E44] hover:bg-[#FAF8F0] disabled:opacity-60 transition"
         >
           {loading
-            ? "Chargement…"
+            ? (lang === "en" ? "Loading…" : "Chargement…")
             : `Voir les ${totalReviews - reviews.length} avis suivants`}
         </button>
       )}

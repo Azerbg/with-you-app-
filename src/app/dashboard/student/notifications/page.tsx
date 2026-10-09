@@ -2,6 +2,12 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import NotificationsClient from "@/app/dashboard/tutor/notifications/NotificationsClient";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Notifications — WithYou" : "Notifications — WithYou" };
+}
 
 export default async function StudentNotificationsPage() {
   const session = await auth();

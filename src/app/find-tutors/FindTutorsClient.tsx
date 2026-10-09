@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Tutor {
   userId: string;
@@ -427,6 +428,7 @@ export default function FindTutorsClient({
   }>;
   studentCefrLevel: string | null;
 }) {
+  const { lang } = useLanguage();
   const searchParams = use(searchParamsPromise);
   const router = useRouter();
   const pathname = usePathname();
@@ -601,7 +603,7 @@ export default function FindTutorsClient({
             Trouver un tuteur
           </h1>
           <p className="text-sm text-[#6B5E44]">
-            {loading ? "Chargement…" : `${tutors.length} tuteur${tutors.length !== 1 ? "s" : ""} disponible${tutors.length !== 1 ? "s" : ""}`}
+            {loading ? (lang === "en" ? "Loading…" : "Chargement…") : `${tutors.length} tuteur${tutors.length !== 1 ? "s" : ""} disponible${tutors.length !== 1 ? "s" : ""}`}
           {!loading && rawTutors.length !== tutors.length && (
             <span className="ml-1 text-[#9B8A6B]">· filtres appliqués</span>
           )}

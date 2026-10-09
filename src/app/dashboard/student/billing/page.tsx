@@ -3,6 +3,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 import PaymentSetupClient from "@/app/settings/payment/PaymentSetupClient";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Billing — WithYou" : "Facturation — WithYou" };
+}
 
 interface Props {
   searchParams: Promise<{ setup_complete?: string }>;

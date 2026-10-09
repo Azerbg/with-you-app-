@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,6 +273,7 @@ function ChatPanel({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function MessagesClient({ currentUserId }: { currentUserId: string }) {
+  const { lang } = useLanguage();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -301,7 +303,7 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
 
         <div className="flex-1 overflow-y-auto">
           {loading && (
-            <div className="flex items-center justify-center h-32 text-[#9B8A6B] text-sm">Chargement…</div>
+            <div className="flex items-center justify-center h-32 text-[#9B8A6B] text-sm">{lang === "en" ? "Loading…" : "Chargement…"}</div>
           )}
           {!loading && threads.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Existing {
   bio: string | null;
@@ -41,6 +42,7 @@ export default function CompleteProfileWizard({
   existing: Existing | null;
   pendingChange: PendingChange | null;
 }) {
+  const { lang } = useLanguage();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -256,7 +258,7 @@ export default function CompleteProfileWizard({
                   <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                 </svg>
                 <span className="text-sm text-[#5C3D00] font-medium">
-                  {photoLoading ? "Chargement…" : photoUrl ? "Changer la photo" : "Choisir une photo (JPG / PNG / WebP · max 5 Mo)"}
+                  {photoLoading ? (lang === "en" ? "Loading…" : "Chargement…") : photoUrl ? "Changer la photo" : "Choisir une photo (JPG / PNG / WebP · max 5 Mo)"}
                 </span>
                 <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
               </label>
@@ -283,7 +285,7 @@ export default function CompleteProfileWizard({
                   <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                 </svg>
                 <span className="text-sm text-[#5C3D00] font-medium">
-                  {videoLoading ? "Chargement…" : videoUrl ? "Changer la vidéo" : "Choisir une vidéo (MP4 / MOV · max 150 Mo)"}
+                  {videoLoading ? (lang === "en" ? "Loading…" : "Chargement…") : videoUrl ? "Changer la vidéo" : "Choisir une vidéo (MP4 / MOV · max 150 Mo)"}
                 </span>
                 <input type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden" onChange={handleVideoChange} />
               </label>

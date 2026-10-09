@@ -3,6 +3,12 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { ProgramTier } from "@prisma/client";
 import DashboardContent from "./DashboardContent";
+import { cookies } from "next/headers";
+
+export async function generateMetadata() {
+  const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Dashboard — WithYou" : "Tableau de bord — WithYou" };
+}
 
 export const dynamic = "force-dynamic";
 
