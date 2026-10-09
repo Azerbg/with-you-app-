@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' ${livekitWss} https://withyoou-a5l2xy7a.livekit.cloud wss://withyoou-a5l2xy7a.livekit.cloud https://*.livekit.cloud wss://*.livekit.cloud https://api.stripe.com https://cdn.jsdelivr.net https://storage.googleapis.com`,
+      `connect-src 'self' ${livekitWss} https://withyoou-a5l2xy7a.livekit.cloud wss://withyoou-a5l2xy7a.livekit.cloud https://*.livekit.cloud wss://*.livekit.cloud https://js.stripe.com https://api.stripe.com https://cdn.jsdelivr.net https://storage.googleapis.com`,
       `media-src 'self' blob:`,
       "worker-src 'self' blob:",
       "frame-src https://js.stripe.com",
