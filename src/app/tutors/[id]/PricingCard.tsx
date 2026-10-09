@@ -14,10 +14,11 @@ export type PriceZone = {
 };
 
 export const ZONES: Record<string, PriceZone> = {
-  EUR: { session: 20, discovery: 15, symbol: "€",         code: "EUR" },
-  CAD: { session: 30, discovery: 15, symbol: "CA$\u00a0", code: "CAD" },
-  GBP: { session: 18, discovery: 15, symbol: "£",         code: "GBP" },
-  USD: { session: 22, discovery: 15, symbol: "$",         code: "USD" }, // default
+  EUR: { session: 20,  discovery: 14,  symbol: "€",         code: "EUR" },
+  CAD: { session: 30,  discovery: 20,  symbol: "CA$\u00a0", code: "CAD" },
+  GBP: { session: 18,  discovery: 13,  symbol: "£",         code: "GBP" },
+  USD: { session: 22,  discovery: 15,  symbol: "$",         code: "USD" }, // default
+  TND: { session: 68,  discovery: 46,  symbol: "TND\u00a0", code: "TND" },
 };
 
 // Countries → currency zone

@@ -117,8 +117,15 @@ export default function DashboardContent(p: Props) {
   }, []);
   const displayName = firstName && lastName ? `${firstName} ${lastName}` : firstName ?? p.email;
 
+  const FREQ_MONTHLY: Record<string, { fr: string; en: string }> = {
+    ONCE:        { fr: "4 séances / mois",  en: "4 sessions/month"  },
+    TWICE:       { fr: "8 séances / mois",  en: "8 sessions/month"  },
+    THREE_TIMES: { fr: "12 séances / mois", en: "12 sessions/month" },
+    INTENSIVE:   { fr: "16 séances / mois", en: "16 sessions/month" },
+  };
   const objLabel  = p.learningObjective ? (t.objectives as Record<string,string>)[p.learningObjective] ?? p.learningObjective : "—";
   const freqLabel = p.sessionFrequency  ? (t.frequencies as Record<string,string>)[p.sessionFrequency] ?? p.sessionFrequency : "—";
+  const freqMonthly = p.sessionFrequency ? (FREQ_MONTHLY[p.sessionFrequency]?.[lang] ?? "") : "";
   const durLabel  = p.programDuration   ? (t.durations   as Record<string,string>)[p.programDuration]  ?? p.programDuration  : "";
   const cefrDesc  = p.cefrLevel         ? (t.cefr        as Record<string,string>)[p.cefrLevel]        ?? "" : "";
   const tierInfo  = p.tierKey ? (t.tiers as Record<string, { label: string; sessions: string; desc: string }>)[p.tierKey] : null;
@@ -218,7 +225,7 @@ export default function DashboardContent(p: Props) {
                 color: "text-emerald-700", bg: "bg-emerald-50",
               },
               {
-                label: t.frequency, value: freqLabel, sub: durLabel,
+                label: t.frequency, value: freqLabel, sub: freqMonthly || durLabel,
                 icon: <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>,
                 color: "text-blue-700", bg: "bg-blue-50",
               },
@@ -523,7 +530,7 @@ export default function DashboardContent(p: Props) {
                   {[
                     { label: t.sessionsCompleted, value: String(p.completedCount),          icon: "📅" },
                     { label: t.flashcardsCreated,  value: "0",                               icon: "🗂️" },
-                    { label: t.streak,             value: `${p.streakWeeks} sem.`,            icon: "🔥" },
+                    { label: t.streak,             value: `${p.streakWeeks} ${tx("sem.", "wks")}`, icon: "🔥" },
                   ].map((s) => (
                     <div key={s.label} className="flex items-center justify-between px-5 py-3">
                       <div className="flex items-center gap-2.5">
@@ -541,18 +548,29 @@ export default function DashboardContent(p: Props) {
                 <PaymentMethodsCard />
               </Suspense>
 
-              {/* Discovery session */}
+              {/* Discovery / new tutor CTA */}
               <div className="bg-[#FFF3B0] border border-[#F5C400]/30 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-[#F5C400] animate-pulse" />
-                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">{t.discovery}</p>
+                  <p className="text-xs font-bold text-[#5C3D00] uppercase tracking-wide">
+                    {p.completedCount > 0
+                      ? tx("Essayez un nouveau tuteur", "Try a new tutor")
+                      : t.discovery}
+                  </p>
                 </div>
                 <p className="text-sm text-[#6B5E44] mb-4 leading-relaxed">
-                  {t.discoverySub.replace(/\.$/, "")} <span className="font-bold text-[#5C3D00]">{tx("à petit prix", "at a great price")}</span>.
+                  {p.completedCount > 0
+                    ? tx(
+                        "Réservez une séance de découverte avec un tuteur que vous n'avez pas encore essayé.",
+                        "Book a discovery session with a tutor you haven't tried yet."
+                      )
+                    : <>{t.discoverySub.replace(/\.$/, "")} <span className="font-bold text-[#5C3D00]">{tx("à petit prix", "at a great price")}</span>.</>}
                 </p>
                 <Link href="/find-tutors"
                   className="block w-full text-center bg-[#5C3D00] text-[#F5C400] py-2.5 rounded-xl font-bold text-sm hover:bg-[#3d2900] transition">
-                  {t.bookNow}
+                  {p.completedCount > 0
+                    ? tx("Trouver un tuteur →", "Find a tutor →")
+                    : t.bookNow}
                 </Link>
               </div>
             </div>

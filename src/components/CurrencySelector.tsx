@@ -8,6 +8,7 @@ const CURRENCY_NAMES: Record<string, string> = {
   EUR: "Euro",
   CAD: "Dollar CA",
   GBP: "Livre sterling",
+  TND: "Dinar tunisien",
 };
 
 interface Props {
@@ -46,7 +47,7 @@ export default function CurrencySelector({ className = "", onChanged, saveToProf
     setCurrency(c);
     setOpen(false);
     onChanged?.();
-    if (saveToProfile && ["USD", "EUR", "CAD"].includes(c)) {
+    if (saveToProfile && ["USD", "EUR", "CAD", "TND"].includes(c)) {
       fetch("/api/student/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

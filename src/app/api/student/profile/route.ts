@@ -16,7 +16,7 @@ const schema = z.object({
   timeWindowPreference: z.array(z.string()).optional(),
   country:              z.string().optional(),
   timezone:             z.string().optional(),
-  preferredCurrency:    z.enum(["USD", "EUR", "CAD"]).optional(),
+  preferredCurrency:    z.enum(["USD", "EUR", "CAD", "TND"]).optional(),
 });
 
 export async function PATCH(req: Request) {

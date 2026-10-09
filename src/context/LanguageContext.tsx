@@ -28,6 +28,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   function setLang(l: Lang) {
     setLangState(l);
     localStorage.setItem("wy_lang", l);
+    // Also set a cookie so server components (e.g. generateMetadata) can read it
+    document.cookie = `wy_lang=${l};path=/;max-age=31536000;SameSite=Lax`;
   }
 
   return <Ctx.Provider value={{ lang, setLang }}>{children}</Ctx.Provider>;

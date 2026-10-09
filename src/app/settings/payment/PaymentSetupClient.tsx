@@ -17,7 +17,7 @@ interface PaymentHistoryItem {
   sessionType: string;
   tutorName: string;
   amountUsd: number;
-  currency: string;
+  stripeStatus?: string;
   creditAppliedTnd: number;
 }
 
@@ -32,16 +32,15 @@ const SESSION_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   PACK:      { fr: "Pack",         en: "Pack"        },
 };
 
-// Display amount in student's currency (fixed psychological prices — USD is the charge currency)
-function formatAmount(amountUsd: number, currency: string): string {
-  const RATES: Record<string, { rate: number; symbol: string }> = {
-    USD: { rate: 1,    symbol: "$"   },
-    EUR: { rate: 0.91, symbol: "€"   },
-    CAD: { rate: 1.36, symbol: "CA$" },
-    GBP: { rate: 0.79, symbol: "£"   },
-  };
-  const zone = RATES[currency] ?? RATES.USD;
-  return `${zone.symbol}${(amountUsd * zone.rate).toFixed(0)}`;
+function stripeStatusLabel(status: string, lang: string): { label: string; cls: string } {
+  const isFr = lang !== "en";
+  switch (status) {
+    case "succeeded":         return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"   };
+    case "requires_payment_method":
+    case "requires_action":   return { label: isFr ? "En attente" : "Pending",     cls: "bg-amber-50 text-amber-700"   };
+    case "canceled":          return { label: isFr ? "Annulé"     : "Cancelled",   cls: "bg-gray-100 text-gray-500"    };
+    default:                  return { label: isFr ? "Payé"       : "Paid",        cls: "bg-green-50 text-green-700"   };
+  }
 }
 
 interface Props {
@@ -229,11 +228,12 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="text-sm font-bold text-[#2D1A00]">
-                        {formatAmount(item.amountUsd, item.currency)}
+                        ${item.amountUsd.toFixed(2)}
+                        <span className="text-[10px] font-normal text-[#9B8A6B] ml-1">USD</span>
                       </span>
-                      <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                        {t("Payé", "Paid")}
-                      </span>
+                      {(() => { const st = stripeStatusLabel(item.stripeStatus ?? "succeeded", lang); return (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                      ); })()}
                       <a
                         href={`/api/bookings/${item.id}/receipt`}
                         target="_blank"

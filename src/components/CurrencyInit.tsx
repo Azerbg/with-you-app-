@@ -6,7 +6,7 @@ import { useEffect } from "react";
  *  This syncs the display currency across devices/sessions. */
 export default function CurrencyInit({ currency }: { currency: string }) {
   useEffect(() => {
-    if (currency && currency !== "TND") {
+    if (currency) {
       localStorage.setItem("preferred_currency", currency);
     }
   }, [currency]);

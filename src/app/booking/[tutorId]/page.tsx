@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { generateAvailableSlots } from "@/lib/slots";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import BookingFlowClient from "./BookingFlowClient";
 
@@ -9,13 +10,15 @@ interface Props { params: Promise<{ tutorId: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tutorId } = await params;
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
   const profile = await db.tutorProfile.findUnique({
     where: { userId: tutorId },
     include: { user: { select: { hrApplication: { select: { fullName: true } } } } },
   });
-  if (!profile) return { title: "Réservation — WithYou" };
-  const name = profile.user.hrApplication?.fullName ?? "Tuteur";
-  return { title: `Réserver avec ${name} — WithYou` };
+  if (!profile) return { title: lang === "en" ? "Booking — WithYou" : "Réservation — WithYou" };
+  const name = profile.user.hrApplication?.fullName ?? (lang === "en" ? "Tutor" : "Tuteur");
+  return { title: lang === "en" ? `Book with ${name} — WithYou` : `Réserver avec ${name} — WithYou` };
 }
 
 export default async function BookingPage({ params }: Props) {
