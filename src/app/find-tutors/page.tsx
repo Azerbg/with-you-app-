@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cookies } from "next/headers";
 import FindTutorsClient from "./FindTutorsClient";
 
-export const metadata: Metadata = {
-  title: "Trouver un tuteur — WithYou",
-  description: "Trouvez le tuteur idéal pour apprendre le français ou l'anglais avec WithYou.",
-};
-
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
+  return lang === "en"
+    ? { title: "Find a tutor — WithYou", description: "Find the ideal tutor to learn French or English with WithYou." }
+    : { title: "Trouver un tuteur — WithYou", description: "Trouvez le tuteur idéal pour apprendre le français ou l'anglais avec WithYou." };
+}
 
 export default async function FindTutorsPage({
   searchParams,

@@ -1,10 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import ReviewClient from "./ReviewClient";
 
-export const metadata: Metadata = { title: "Laisser un avis — WithYou" };
+export async function generateMetadata(): Promise<Metadata> {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Leave a review — WithYou" : "Laisser un avis — WithYou" };
+}
 
 interface Props { params: Promise<{ bookingId: string }> }
 

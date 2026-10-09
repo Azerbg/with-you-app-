@@ -1,10 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Réservation confirmée — WithYou" };
+export async function generateMetadata(): Promise<Metadata> {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Booking confirmed — WithYou" : "Réservation confirmée — WithYou" };
+}
 
 interface Props { params: Promise<{ bookingId: string }> }
 

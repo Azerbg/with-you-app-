@@ -1,10 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import ClassroomClient from "./ClassroomClient";
 
-export const metadata: Metadata = { title: "Salle de classe — WithYou" };
+export async function generateMetadata(): Promise<Metadata> {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
+  return { title: lang === "en" ? "Classroom — WithYou" : "Salle de classe — WithYou" };
+}
 
 interface Props { params: Promise<{ bookingId: string }> }
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import TutorProfileClient from "./TutorProfileClient";
@@ -10,15 +11,19 @@ interface Props { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "en" ? "en" : "fr";
   const profile = await db.tutorProfile.findUnique({
     where: { userId: id },
     include: { user: { select: { hrApplication: { select: { fullName: true } } } } },
   });
-  if (!profile) return { title: "Tutor — WithYou" };
-  const name = profile.user.hrApplication?.fullName ?? "Tutor";
+  if (!profile) return { title: lang === "en" ? "Tutor — WithYou" : "Tuteur — WithYou" };
+  const name = profile.user.hrApplication?.fullName ?? (lang === "en" ? "Tutor" : "Tuteur");
   return {
-    title: `${name} — Tuteur WithYou`,
-    description: profile.bio?.slice(0, 160) ?? `Réservez une séance de découverte avec ${name} sur WithYou.`,
+    title: lang === "en" ? `${name} — WithYou Tutor` : `${name} — Tuteur WithYou`,
+    description: lang === "en"
+      ? (profile.bio?.slice(0, 160) ?? `Book a discovery session with ${name} on WithYou.`)
+      : (profile.bio?.slice(0, 160) ?? `Réservez une séance de découverte avec ${name} sur WithYou.`),
   };
 }
 
