@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
   title: "WithYou — Language Learning Platform",
@@ -22,13 +23,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jar = await cookies();
+  const htmlLang = jar.get("wy_lang")?.value === "fr" ? "fr" : "en";
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang={htmlLang} className="h-full antialiased">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

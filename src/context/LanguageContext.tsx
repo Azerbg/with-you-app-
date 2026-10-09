@@ -16,13 +16,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("wy_lang") as Lang;
-    if (saved === "en" || saved === "fr") {
-      setLangState(saved);
-    } else {
-      // First visit: detect browser language
-      const browserLang = navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en";
-      setLangState(browserLang);
-    }
+    const resolved: Lang = (saved === "en" || saved === "fr")
+      ? saved
+      : (navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en");
+    setLangState(resolved);
+    // Sync to cookie every load so server components (generateMetadata) can read it
+    document.cookie = `wy_lang=${resolved};path=/;max-age=31536000;SameSite=Lax`;
   }, []);
 
   function setLang(l: Lang) {
