@@ -513,13 +513,13 @@ export default function BookingFlowClient({
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-[#2D1A00] text-sm">{pack.name[lang]}</p>
-                            <p className="text-xs text-[#7A6B55] mb-1">{pack.sessions} {t("séances", "sessions")} × 50\u00a0min</p>
+                            <p className="text-xs text-[#7A6B55] mb-1">{pack.sessions} {t("séances", "sessions")} × 50{'\u00A0'}min</p>
                             <p className="text-xs text-[#5C3D00] italic leading-snug">{pack.tagline[lang]}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-lg font-black text-[#5C3D00]">{p(discountedPrice, zone)}</p>
                             <p className="text-[11px] text-[#9B8A6B] line-through">{p(normalPrice, zone)}</p>
-                            <p className="text-[11px] font-bold text-green-700">−{pack.discount}\u00a0%</p>
+                            <p className="text-[11px] font-bold text-green-700">−{pack.discount}{'\u00A0'}%</p>
                           </div>
                         </div>
                         <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">

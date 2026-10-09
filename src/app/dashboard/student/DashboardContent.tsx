@@ -150,9 +150,9 @@ export default function DashboardContent(p: Props) {
 
   return (
     <>
-      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto overflow-x-hidden">
         {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto overflow-x-hidden p-4 sm:p-8">
 
           {/* Review success banner */}
           {p.showReviewedBanner && (
@@ -347,26 +347,26 @@ export default function DashboardContent(p: Props) {
                   <p className="font-bold text-[#5C3D00]">{t.profile}</p>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${p.tierCls}`}>{tierLabel}</span>
                 </div>
-                <div className="p-6 grid grid-cols-2 gap-6">
+                <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   {[
                     { label: t.nativeLang, value: nativeLangDisplay },
                     { label: t.learning,   value: targetLangDisplay },
                   ].map((r) => (
-                    <div key={r.label} className="space-y-1">
+                    <div key={r.label} className="space-y-1 min-w-0">
                       <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{r.label}</p>
                       <p className="font-bold text-[#5C3D00]">{r.value}</p>
                     </div>
                   ))}
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.cefrLevelShort}</p>
                     <div className="flex items-baseline gap-2">
                       <p className="text-4xl font-bold text-[#5C3D00]">{p.cefrLevel ?? "—"}</p>
                       <p className="text-sm text-[#6B5E44]">{cefrDesc}</p>
                     </div>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <p className="text-xs text-[#6B5E44]/60 uppercase tracking-wide font-medium">{t.goal}</p>
-                    <p className="font-bold text-[#5C3D00]">{objLabel}</p>
+                    <p className="font-bold text-[#5C3D00] truncate">{objLabel}</p>
                   </div>
                 </div>
               </div>

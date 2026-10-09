@@ -6,6 +6,7 @@ import Link from "next/link";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import CurrencyInit from "@/components/CurrencyInit";
 import CurrencySelector from "@/components/CurrencySelector";
+import { MobileMenuProvider, MobileMenuTrigger } from "@/components/MobileMenuContext";
 
 export default async function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -44,58 +45,62 @@ export default async function StudentDashboardLayout({ children }: { children: R
       : profile.user.email.slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
-      <StudentSidebar
-        email={profile.user.email}
-        name={firstName && lastName ? `${firstName} ${lastName}` : firstName ?? null}
-        cefrLevel={profile.cefrLevel}
-        tier={profile.programTier ?? ""}
-        initials={initials}
-        image={profile.user.image ?? null}
-      />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar */}
-        <CurrencyInit currency={profile.preferredCurrency} />
-        <div className="h-14 border-b border-black/5 bg-white flex items-center justify-end px-6 flex-shrink-0 gap-3">
-          <CurrencySelector saveToProfile className="mr-1" />
-          <LanguageSwitcher />
+    <MobileMenuProvider>
+      <div className="flex h-screen overflow-hidden" style={{ background: "#F2EFE9" }}>
+        <StudentSidebar
+          email={profile.user.email}
+          name={firstName && lastName ? `${firstName} ${lastName}` : firstName ?? null}
+          cefrLevel={profile.cefrLevel}
+          tier={profile.programTier ?? ""}
+          initials={initials}
+          image={profile.user.image ?? null}
+        />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* Top bar */}
+          <CurrencyInit currency={profile.preferredCurrency} />
+          <div className="h-14 border-b border-black/5 bg-white flex items-center px-4 sm:px-6 flex-shrink-0 gap-2">
+            <MobileMenuTrigger />
+            <div className="flex-1" />
+            <CurrencySelector saveToProfile className="mr-1" />
+            <LanguageSwitcher />
 
-          {/* Messages */}
-          <Link href="/dashboard/student/messages" prefetch={false}
-            className="relative w-9 h-9 rounded-xl hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
-              <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
-            </svg>
-            {unreadMessages > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#F5C400] text-[#5C3D00] text-[9px] font-black rounded-full flex items-center justify-center">
-                {unreadMessages > 9 ? "9+" : unreadMessages}
-              </span>
-            )}
-          </Link>
+            {/* Messages */}
+            <Link href="/dashboard/student/messages" prefetch={false}
+              className="relative w-10 h-10 rounded-xl hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+              </svg>
+              {unreadMessages > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#F5C400] text-[#5C3D00] text-[9px] font-black rounded-full flex items-center justify-center">
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
+                </span>
+              )}
+            </Link>
 
-          {/* Notifications */}
-          <Link href="/dashboard/student/notifications" prefetch={false}
-            className="relative w-9 h-9 rounded-xl hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
-              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-            </svg>
-            {unreadNotifications > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                {unreadNotifications > 9 ? "9+" : unreadNotifications}
-              </span>
-            )}
-          </Link>
+            {/* Notifications */}
+            <Link href="/dashboard/student/notifications" prefetch={false}
+              className="relative w-10 h-10 rounded-xl hover:bg-[#5C3D00]/5 flex items-center justify-center text-[#6B5E44] transition">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+              </svg>
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
+            </Link>
 
-          {/* Avatar */}
-          <div className="w-9 h-9 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0">
-            {profile.user.image
-              ? <img src={profile.user.image} alt="" className="w-full h-full object-cover" />
-              : initials}
+            {/* Avatar */}
+            <div className="w-10 h-10 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0">
+              {profile.user.image
+                ? <img src={profile.user.image} alt="" className="w-full h-full object-cover" />
+                : initials}
+            </div>
           </div>
-        </div>
 
-        {children}
+          {children}
+        </div>
       </div>
-    </div>
+    </MobileMenuProvider>
   );
 }

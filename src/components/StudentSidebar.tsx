@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
+import { useMobileMenu } from "@/components/MobileMenuContext";
 
 const TIER_LABELS: Record<string, { fr: string; en: string }> = {
   STARTER:   { fr: "Débutant",  en: "Starter"   },
@@ -29,6 +30,8 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
   const { lang } = useLanguage();
   const s = T[lang].sidebar;
   const pathname = usePathname();
+  const { open, setOpen } = useMobileMenu();
+  const close = () => setOpen(false);
   const [tz, setTz] = useState<string>("");
   useEffect(() => {
     setTz(Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " "));
@@ -125,14 +128,20 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
     },
   ];
 
-  return (
-    <aside
-      className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
-      style={{ background: "linear-gradient(160deg, #5C3D00 0%, #3D2800 100%)" }}
-    >
+  const sidebarBg = "linear-gradient(160deg, #5C3D00 0%, #3D2800 100%)";
+
+  const innerContent = (
+    <>
       {/* Logo */}
-      <div className="h-14 px-5 flex items-center flex-shrink-0">
-        <Link href="/" className="font-bold text-[#F5C400] text-base tracking-tight">WithYou</Link>
+      <div className="h-14 px-5 flex items-center justify-between flex-shrink-0">
+        <Link href="/" onClick={close} className="font-bold text-[#F5C400] text-base tracking-tight">WithYou</Link>
+        {/* Close button (mobile drawer only) */}
+        <button onClick={close} aria-label="Close menu"
+          className="md:hidden w-8 h-8 flex items-center justify-center text-white/50 hover:text-white transition">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
 
       {/* User */}
@@ -180,6 +189,7 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
                   <Link
                     key={item.label}
                     href={item.href}
+                    onClick={close}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all relative ${
                       active ? "text-[#5C3D00]" : "text-white/75 hover:text-white hover:bg-white/10"
                     }`}
@@ -223,6 +233,31 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
           {s.logout}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className="hidden md:flex flex-col w-56 flex-shrink-0 h-screen sticky top-0 overflow-y-auto"
+        style={{ background: sidebarBg }}
+      >
+        {innerContent}
+      </aside>
+
+      {/* Mobile slide-over drawer */}
+      {open && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
+          <aside
+            className="absolute left-0 inset-y-0 w-64 flex flex-col overflow-y-auto"
+            style={{ background: sidebarBg }}
+          >
+            {innerContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useMobileMenu } from "@/components/MobileMenuContext";
 
 interface Props {
   fullName: string;
@@ -103,7 +103,8 @@ const NAV = [
 
 export default function TutorSidebar({ fullName, initials, photo, profileComplete }: Props) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useMobileMenu();
+  const close = () => setOpen(false);
   const { lang } = useLanguage();
 
   const firstName = fullName.split(" ")[0];
@@ -192,37 +193,20 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-[#F0EAD8] px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-[#F5C400] rounded-lg flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
-              <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="font-bold text-[#2D1A00] text-sm">WithYou</span>
-        </Link>
-        <button onClick={() => setOpen(true)} className="p-2 rounded-xl hover:bg-[#F5F0E8] transition">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-[#5C3D00]">
-            <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-          </svg>
-        </button>
-      </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex flex-col w-60 bg-white border-r border-[#F0EAD8] h-screen sticky top-0 flex-shrink-0">
+        {sidebarContent}
+      </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile slide-over drawer */}
       {open && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} />
           <div className="relative w-72 bg-white h-full shadow-2xl overflow-hidden">
             {sidebarContent}
           </div>
         </div>
       )}
-
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 bg-white border-r border-[#F0EAD8] h-screen sticky top-0 flex-shrink-0">
-        {sidebarContent}
-      </aside>
     </>
   );
 }
