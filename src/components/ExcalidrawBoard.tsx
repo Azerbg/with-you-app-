@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Component } from "react";
+import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type {
   ExcalidrawImperativeAPI,
@@ -14,15 +15,60 @@ if (typeof window !== "undefined") {
   (window as any).EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
 }
 
+// Skeleton shown while Excalidraw JS is loading
+function BoardSkeleton() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-white">
+      <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+// CSS is imported statically in src/app/classroom/layout.tsx
+// Dynamic import uses the clean async arrow form so webpack can tree-shake correctly
 const Excalidraw = dynamic(
-  () =>
-    import("@excalidraw/excalidraw").then((m) => {
-      // CSS must be imported inside the dynamic callback so Next.js bundles it
-      require("@excalidraw/excalidraw/index.css");
-      return m.Excalidraw;
-    }),
-  { ssr: false },
+  async () => (await import("@excalidraw/excalidraw")).Excalidraw,
+  { ssr: false, loading: () => <BoardSkeleton /> },
 );
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+interface EBProps { lang: string; onClose: () => void; children: ReactNode; }
+interface EBState { crashed: boolean; }
+
+class BoardErrorBoundary extends Component<EBProps, EBState> {
+  constructor(props: EBProps) {
+    super(props);
+    this.state = { crashed: false };
+  }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  render() {
+    if (!this.state.crashed) return this.props.children;
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-white gap-4">
+        <p className="text-[#5C3D00] font-bold text-sm">
+          {this.props.lang === "fr" ? "Le tableau a planté." : "Board failed to load."}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => this.setState({ crashed: false })}
+            className="px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] transition"
+          >
+            {this.props.lang === "fr" ? "Réessayer" : "Retry"}
+          </button>
+          <button
+            onClick={this.props.onClose}
+            className="px-4 py-2 bg-white border border-black/10 text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-gray-50 transition"
+          >
+            {this.props.lang === "fr" ? "Fermer" : "Close"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ExcalidrawSceneElements = readonly any[];
@@ -44,7 +90,8 @@ interface Props {
   incomingSync: ExcalidrawSync | null;
 }
 
-// Build grouped table elements
+// ─── Table builder ────────────────────────────────────────────────────────────
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildTableElements(rows: number, cols: number, x: number, y: number): any[] {
   const cellW = 120;
@@ -83,8 +130,6 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
         link: null,
         locked: false,
       });
-
-      // Text label
       elements.push({
         id: `text-${id}`,
         type: "text",
@@ -126,6 +171,8 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
   return elements;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function ExcalidrawBoard({
   bookingId,
   lang,
@@ -142,7 +189,6 @@ export default function ExcalidrawBoard({
   const lastVersion = useRef(-1);
   const throttleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Table picker state
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
@@ -165,9 +211,7 @@ export default function ExcalidrawBoard({
             if (snap.files && Object.keys(snap.files).length) {
               excalidrawApi.addFiles(Object.values(snap.files));
             }
-          } catch {
-            /* schema mismatch — start fresh */
-          }
+          } catch { /* schema mismatch — start fresh */ }
         })
         .catch(() => {});
     },
@@ -180,21 +224,18 @@ export default function ExcalidrawBoard({
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
       if (applyingRemote.current) return;
 
-      // Throttle broadcast to ~50ms
       if (throttleTimer.current) return;
-      throttleTimer.current = setTimeout(() => {
+      throttleTimer.current = setTimeout(async () => {
         throttleTimer.current = null;
         if (!api) return;
         const els = api.getSceneElements();
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { getSceneVersion } = require("@excalidraw/excalidraw");
+        const { getSceneVersion } = await import("@excalidraw/excalidraw");
         const v = getSceneVersion(els);
         if (v === lastVersion.current) return;
         lastVersion.current = v;
         sendData({ type: "excalidraw-sync", elements: els, files, version: v });
       }, 50);
 
-      // Debounced save to DB
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         if (!bookingId || !api) return;
@@ -204,9 +245,7 @@ export default function ExcalidrawBoard({
         fetch(`/api/lessons/${bookingId}/canvas`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            snapshot: { elements: els, appState, files: dbFiles },
-          }),
+          body: JSON.stringify({ snapshot: { elements: els, appState, files: dbFiles } }),
         }).catch(() => {});
       }, 3000);
     },
@@ -278,18 +317,8 @@ export default function ExcalidrawBoard({
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 bg-[#1A1209] flex-shrink-0">
-        <svg
-          className="w-4 h-4 text-[#F5C400] flex-shrink-0"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-          />
+        <svg className="w-4 h-4 text-[#F5C400] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
         <span className="text-white/80 text-sm font-bold flex-1">
           {lang === "fr" ? "Tableau blanc" : "Whiteboard"}
@@ -308,36 +337,23 @@ export default function ExcalidrawBoard({
             </svg>
             {lang === "fr" ? "Tableau" : "Table"}
           </button>
-
           {showTablePicker && (
             <div className="absolute top-9 left-0 z-10 bg-[#0D0904] border border-white/10 rounded-xl shadow-2xl p-4 w-56">
               <p className="text-white/60 text-xs font-bold mb-3">{lang === "fr" ? "Taille du tableau" : "Table size"}</p>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-white/40 text-xs w-16">{lang === "fr" ? "Lignes" : "Rows"}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={tableRows}
+                <input type="number" min={1} max={20} value={tableRows}
                   onChange={(e) => setTableRows(Math.max(1, Math.min(20, Number(e.target.value))))}
-                  className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40"
-                />
+                  className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40" />
               </div>
               <div className="flex items-center gap-2 mb-4">
                 <label className="text-white/40 text-xs w-16">{lang === "fr" ? "Colonnes" : "Cols"}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={tableCols}
+                <input type="number" min={1} max={20} value={tableCols}
                   onChange={(e) => setTableCols(Math.max(1, Math.min(20, Number(e.target.value))))}
-                  className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40"
-                />
+                  className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40" />
               </div>
-              <button
-                onClick={insertTable}
-                className="w-full bg-[#F5C400] text-[#5C3D00] font-bold text-sm py-2 rounded-xl hover:bg-[#FFDE59] transition"
-              >
+              <button onClick={insertTable}
+                className="w-full bg-[#F5C400] text-[#5C3D00] font-bold text-sm py-2 rounded-xl hover:bg-[#FFDE59] transition">
                 {lang === "fr" ? "Insérer" : "Insert"}
               </button>
             </div>
@@ -345,26 +361,17 @@ export default function ExcalidrawBoard({
         </div>
 
         {/* Export PNG */}
-        <button
-          onClick={handleExportPng}
-          title={lang === "fr" ? "Exporter en PNG" : "Export PNG"}
-          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition"
-        >
+        <button onClick={handleExportPng} title={lang === "fr" ? "Exporter en PNG" : "Export PNG"}
+          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
         </button>
 
         {/* Minimize / Expand */}
-        <button
-          onClick={onToggleFull}
-          title={
-            isFull
-              ? lang === "fr" ? "Réduire" : "Minimize"
-              : lang === "fr" ? "Agrandir" : "Expand"
-          }
-          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition"
-        >
+        <button onClick={onToggleFull}
+          title={isFull ? (lang === "fr" ? "Réduire" : "Minimize") : (lang === "fr" ? "Agrandir" : "Expand")}
+          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
           {isFull ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
@@ -377,33 +384,28 @@ export default function ExcalidrawBoard({
         </button>
 
         {/* Close */}
-        <button
-          onClick={onClose}
-          title={lang === "fr" ? "Fermer" : "Close"}
-          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition"
-        >
+        <button onClick={onClose} title={lang === "fr" ? "Fermer" : "Close"}
+          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      {/* Editor */}
-      <div className="flex-1 relative min-h-0 bg-white" style={{ height: "100%", width: "100%" }}>
-        <Excalidraw
-          excalidrawAPI={(excalidrawApi) => handleMount(excalidrawApi)}
-          onChange={handleChange}
-          langCode={lang === "fr" ? "fr-FR" : "en"}
-          theme="light"
-          UIOptions={{
-            canvasActions: {
-              loadScene: false,
-              export: false,
-              saveToActiveFile: false,
-            },
-          }}
-        />
-      </div>
+      {/* Editor — wrapped in ErrorBoundary so a crash never kills the call */}
+      <BoardErrorBoundary lang={lang} onClose={onClose}>
+        <div className="flex-1 relative min-h-0 bg-white" style={{ height: "100%", width: "100%" }}>
+          <Excalidraw
+            excalidrawAPI={(excalidrawApi) => handleMount(excalidrawApi)}
+            onChange={handleChange}
+            langCode={lang === "fr" ? "fr-FR" : "en"}
+            theme="light"
+            UIOptions={{
+              canvasActions: { loadScene: false, export: false, saveToActiveFile: false },
+            }}
+          />
+        </div>
+      </BoardErrorBoundary>
     </div>
   );
 }

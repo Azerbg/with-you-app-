@@ -2,7 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  turbopack: {},
   async headers() {
     const livekitWss = process.env.NEXT_PUBLIC_LIVEKIT_URL
       ? process.env.NEXT_PUBLIC_LIVEKIT_URL.replace(/^wss?:\/\//, "wss://")

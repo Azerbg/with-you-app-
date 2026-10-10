@@ -11,12 +11,9 @@ if (typeof window !== "undefined") {
   (window as any).EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
 }
 
+// CSS is imported statically in src/app/classroom/layout.tsx
 const Excalidraw = dynamic(
-  () =>
-    import("@excalidraw/excalidraw").then((m) => {
-      require("@excalidraw/excalidraw/index.css");
-      return m.Excalidraw;
-    }),
+  async () => (await import("@excalidraw/excalidraw")).Excalidraw,
   { ssr: false },
 );
 
