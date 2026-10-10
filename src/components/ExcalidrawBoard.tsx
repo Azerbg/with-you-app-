@@ -17,6 +17,8 @@ if (typeof window !== "undefined") {
 const Excalidraw = dynamic(
   () =>
     import("@excalidraw/excalidraw").then((m) => {
+      // CSS must be imported inside the dynamic callback so Next.js bundles it
+      require("@excalidraw/excalidraw/index.css");
       return m.Excalidraw;
     }),
   { ssr: false },
@@ -387,7 +389,7 @@ export default function ExcalidrawBoard({
       </div>
 
       {/* Editor */}
-      <div className="flex-1 relative min-h-0 bg-white">
+      <div className="flex-1 relative min-h-0 bg-white" style={{ height: "100%", width: "100%" }}>
         <Excalidraw
           excalidrawAPI={(excalidrawApi) => handleMount(excalidrawApi)}
           onChange={handleChange}

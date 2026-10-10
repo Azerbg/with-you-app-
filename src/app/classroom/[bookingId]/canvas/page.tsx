@@ -12,7 +12,11 @@ if (typeof window !== "undefined") {
 }
 
 const Excalidraw = dynamic(
-  () => import("@excalidraw/excalidraw").then((m) => m.Excalidraw),
+  () =>
+    import("@excalidraw/excalidraw").then((m) => {
+      require("@excalidraw/excalidraw/index.css");
+      return m.Excalidraw;
+    }),
   { ssr: false },
 );
 
@@ -113,7 +117,7 @@ export default function CanvasViewerPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" style={{ height: "calc(100vh - 3.5rem)", width: "100%" }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
