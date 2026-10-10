@@ -111,7 +111,10 @@ export default function CanvasViewerPage() {
         )}
 
         {!loading && !error && snapshot && (
-          <Tldraw onMount={handleMount} />
+          <Tldraw
+            onMount={handleMount}
+            licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY}
+          />
         )}
       </div>
     </div>

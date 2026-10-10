@@ -331,32 +331,54 @@ export default function MiniCall() {
 
         {/* ── Video area ────────────────────────────────────────────────── */}
         <div className="relative bg-[#1A0F00]" style={{ width: W, height: H_VIDEO }}>
-          {/* Remote participant */}
-          {hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
-            <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#1A0F00]">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-base">
-                {otherInit}
+          {!remotePart ? (
+            /* Waiting state — show local camera as main view */
+            <>
+              {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
+                <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400]/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400]/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400]/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              )}
+              <div className="absolute bottom-1.5 inset-x-0 flex justify-center pointer-events-none">
+                <span className="text-white/30 text-[9px] bg-black/40 px-2 py-0.5 rounded-full">{displayName}</span>
               </div>
-            </div>
-          )}
+            </>
+          ) : (
+            /* In-call state */
+            <>
+              {hasRemoteVideo && remoteCamTrack && isTrackReference(remoteCamTrack) ? (
+                <VideoTrack trackRef={remoteCamTrack} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#1A0F00]">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F5C400] to-[#C49200] flex items-center justify-center text-[#5C3D00] font-bold text-base">
+                    {otherInit}
+                  </div>
+                </div>
+              )}
 
-          {/* Self-view PiP */}
-          {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
-            <div className="absolute bottom-1.5 right-1.5 rounded-md overflow-hidden border border-white/20 bg-[#0A0703]"
-              style={{ width: 60, aspectRatio: "16/9" }}>
-              <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-            </div>
-          ) : null}
+              {/* Self-view PiP */}
+              {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
+                <div className="absolute bottom-1.5 right-1.5 rounded-md overflow-hidden border border-white/20 bg-[#0A0703]"
+                  style={{ width: 60, aspectRatio: "16/9" }}>
+                  <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
+                </div>
+              ) : null}
 
-          {/* Muted mic badge */}
-          {!isMicrophoneEnabled && (
-            <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-red-600 flex items-center justify-center shadow">
-              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-              </svg>
-            </div>
+              {/* Muted mic badge */}
+              {!isMicrophoneEnabled && (
+                <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-red-600 flex items-center justify-center shadow">
+                  <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </>
           )}
         </div>
 

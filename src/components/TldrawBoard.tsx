@@ -217,8 +217,11 @@ export default function TldrawBoard({
       </div>
 
       {/* Editor */}
-      <div className="flex-1 relative min-h-0">
-        <Tldraw onMount={handleMount} />
+      <div className="flex-1 relative min-h-0 bg-white">
+        <Tldraw
+          onMount={handleMount}
+          licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY}
+        />
       </div>
     </div>
   );
