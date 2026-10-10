@@ -240,7 +240,9 @@ export default function MiniCall() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
-  const displayName = remotePart?.name ?? otherName;
+  const displayName = remotePart
+    ? (remotePart.name || otherName)
+    : (lang === "fr" ? "En attente du participant…" : "Waiting for participant…");
 
   // Collapsed pill
   if (collapsed) {

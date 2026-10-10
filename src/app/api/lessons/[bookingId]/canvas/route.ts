@@ -4,19 +4,12 @@ import { db } from "@/lib/db";
 
 interface Props { params: Promise<{ bookingId: string }> }
 
-// Normalise legacy { objects, pageHtml } format to { pages: [...] }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalise(body: any) {
-  if (Array.isArray(body.pages)) return { pages: body.pages };
-  return { pages: [{ objects: body.objects ?? [], pageHtml: body.pageHtml ?? "" }] };
-}
-
 export async function PATCH(req: Request, { params }: Props) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { bookingId } = await params;
-  const data = normalise(await req.json());
+  const body = await req.json();
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
@@ -26,6 +19,9 @@ export async function PATCH(req: Request, { params }: Props) {
   if (booking.studentId !== session.user.id && booking.tutorId !== session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  // Accept either tldraw snapshot ({ snapshot }) or legacy format
+  const data = body.snapshot ? { snapshot: body.snapshot } : body;
 
   await db.lesson.upsert({
     where: { bookingId },
@@ -58,14 +54,12 @@ export async function GET(_req: Request, { params }: Props) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Normalise legacy format on read
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wd = booking.lesson?.whiteboardData as any;
-  if (!wd) return NextResponse.json({ whiteboardData: null });
+  if (!wd) return NextResponse.json({ snapshot: null });
 
-  const normalised = Array.isArray(wd.pages)
-    ? wd
-    : { pages: [{ objects: wd.objects ?? [], pageHtml: wd.pageHtml ?? "" }] };
+  // Return tldraw snapshot if present, otherwise null (legacy format not supported in viewer)
+  if (wd.snapshot) return NextResponse.json({ snapshot: wd.snapshot });
 
-  return NextResponse.json({ whiteboardData: normalised });
+  return NextResponse.json({ snapshot: null });
 }
