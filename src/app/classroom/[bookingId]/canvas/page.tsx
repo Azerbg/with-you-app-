@@ -2,17 +2,28 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Tldraw, Editor, loadSnapshot } from "tldraw";
-import "tldraw/tldraw.css";
+import dynamic from "next/dynamic";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+
+// Set asset path before module loads
+if (typeof window !== "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).EXCALIDRAW_ASSET_PATH = "/excalidraw-assets/";
+}
+
+const Excalidraw = dynamic(
+  () => import("@excalidraw/excalidraw").then((m) => m.Excalidraw),
+  { ssr: false },
+);
 
 export default function CanvasViewerPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editorRef, setEditorRef] = useState<Editor | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [snapshot, setSnapshot] = useState<any>(null);
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
 
   useEffect(() => {
     fetch(`/api/lessons/${bookingId}/canvas`)
@@ -35,29 +46,41 @@ export default function CanvasViewerPage() {
   }, [bookingId, router]);
 
   const handleMount = useCallback(
-    (editor: Editor) => {
-      editor.updateInstanceState({ isReadonly: true });
-      setEditorRef(editor);
-      if (snapshot) {
-        try { loadSnapshot(editor.store, snapshot); } catch { /* schema mismatch */ }
-      }
+    (excalidrawApi: ExcalidrawImperativeAPI) => {
+      setApi(excalidrawApi);
     },
-    [snapshot],
+    [],
   );
 
-  // Apply snapshot after both editor and snapshot are ready
+  // Apply snapshot after both api and snapshot are ready
   useEffect(() => {
-    if (!editorRef || !snapshot) return;
-    try { loadSnapshot(editorRef.store, snapshot); } catch { /* ignore */ }
-  }, [editorRef, snapshot]);
+    if (!api || !snapshot) return;
+    try {
+      api.updateScene({
+        elements: snapshot.elements ?? [],
+        appState: { ...(snapshot.appState ?? {}), collaborators: new Map() },
+      });
+      if (snapshot.files && Object.keys(snapshot.files).length) {
+        api.addFiles(Object.values(snapshot.files));
+      }
+    } catch { /* ignore */ }
+  }, [api, snapshot]);
 
-  function handleExport() {
-    if (!editorRef) return;
-    // Use tldraw's built-in export action
-    editorRef.selectAll();
-    // Fallback: open browser print dialog which can save to PDF
-    window.print();
-    editorRef.selectNone();
+  async function handleExport() {
+    if (!api) return;
+    const { exportToBlob } = await import("@excalidraw/excalidraw");
+    const blob = await exportToBlob({
+      elements: api.getSceneElements(),
+      appState: api.getAppState(),
+      files: api.getFiles(),
+      mimeType: "image/png",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `whiteboard-${bookingId}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -84,7 +107,7 @@ export default function CanvasViewerPage() {
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
               <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
-            Exporter / Imprimer
+            Exporter PNG
           </button>
         )}
       </div>
@@ -111,9 +134,11 @@ export default function CanvasViewerPage() {
         )}
 
         {!loading && !error && snapshot && (
-          <Tldraw
-            onMount={handleMount}
-            licenseKey={process.env.NEXT_PUBLIC_TLDRAW_LICENSE_KEY}
+          <Excalidraw
+            excalidrawAPI={(excalidrawApi) => handleMount(excalidrawApi)}
+            viewModeEnabled={true}
+            theme="light"
+            UIOptions={{ canvasActions: { loadScene: false, export: false, saveToActiveFile: false } }}
           />
         )}
       </div>

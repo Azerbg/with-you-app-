@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
-import type { TldrawDiff } from "@/components/TldrawBoard";
-import type TldrawBoardType from "@/components/TldrawBoard";
+import type { ExcalidrawSync } from "@/components/ExcalidrawBoard";
+import type ExcalidrawBoardType from "@/components/ExcalidrawBoard";
 import type { ComponentProps } from "react";
 
-const TldrawBoard = dynamic<ComponentProps<typeof TldrawBoardType>>(
-  () => import("@/components/TldrawBoard"),
+const ExcalidrawBoard = dynamic<ComponentProps<typeof ExcalidrawBoardType>>(
+  () => import("@/components/ExcalidrawBoard"),
   { ssr: false },
 );
 import { useLanguage } from "@/context/LanguageContext";
@@ -508,6 +508,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [recording,   setRecording]   = useState(false);
   const [recSeconds,  setRecSeconds]  = useState(0);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function startRecording() {
     try {
       const screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
@@ -575,12 +576,12 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     }
   }
 
-  // Whiteboard (tldraw)
-  const [incomingTldrawDiff, setIncomingTldrawDiff] = useState<TldrawDiff | null>(null);
+  // Whiteboard (excalidraw)
+  const [incomingSync, setIncomingSync] = useState<ExcalidrawSync | null>(null);
 
   // Data receiver
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
     const handle = (payload: Uint8Array, _p: any) => {
       try {
         const msg = JSON.parse(dec.current.decode(payload));
@@ -590,7 +591,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
             break;
           case "reaction":     addFloat(msg.emoji, msg.sender); break;
-          case "tldraw-diff":  setIncomingTldrawDiff({ added: msg.added ?? {}, updated: msg.updated ?? {}, removed: msg.removed ?? {} }); break;
+          case "excalidraw-sync": setIncomingSync({ elements: msg.elements ?? [], files: msg.files, version: msg.version ?? 0 }); break;
         }
       } catch { /* ignore */ }
     };
@@ -652,8 +653,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
       {/* MiniCall overlay is handled globally by CallProvider/MiniCall */}
 
-      {/* Whiteboard (tldraw) */}
-      <TldrawBoard
+      {/* Whiteboard (excalidraw) */}
+      <ExcalidrawBoard
         bookingId={bookingId}
         lang={lang}
         isOpen={boardOpen}
@@ -661,7 +662,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         onClose={() => setBoardOpen(false)}
         onToggleFull={() => setBoardFull(v => !v)}
         sendData={sendData}
-        incomingDiff={incomingTldrawDiff}
+        incomingSync={incomingSync}
       />
 
       {/* Top bar */}
@@ -957,7 +958,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
           <div className="w-px h-10 bg-white/10 mx-1" />
 
-          {/* Tableau blanc (tldraw) */}
+          {/* Tableau blanc */}
           <BarBtn active={boardOpen} label={lang === "fr" ? "Tableau" : "Board"} onClick={() => setBoardOpen(v => !v)}
             icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>}
           />
