@@ -46,10 +46,11 @@ function stripeStatusLabel(status: string, lang: string): { label: string; cls: 
 
 interface Props {
   setupComplete: boolean;
+  setupCancelled?: boolean;
   paymentHistory?: PaymentHistoryItem[];
 }
 
-export default function PaymentSetupClient({ setupComplete, paymentHistory = [] }: Props) {
+export default function PaymentSetupClient({ setupComplete, setupCancelled = false, paymentHistory = [] }: Props) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "en" ? en : fr;
 
@@ -59,13 +60,14 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [banner, setBanner] = useState(setupComplete);
+  const [cancelBanner, setCancelBanner] = useState(setupCancelled);
 
   useEffect(() => {
     fetchCards();
-    if (setupComplete) {
+    if (setupComplete || setupCancelled) {
       window.history.replaceState({}, "", "/dashboard/student/billing");
     }
-  }, [setupComplete]);
+  }, [setupComplete, setupCancelled]);
 
   async function fetchCards() {
     setLoadingCards(true);
@@ -127,9 +129,26 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
             <p className="text-sm font-medium text-green-800">
-              {t("Carte enregistrée avec succès !", "Card saved successfully!")}
+              {t("Moyen de paiement enregistré avec succès !", "Payment method saved successfully!")}
             </p>
             <button onClick={() => setBanner(false)} className="ml-auto text-green-500 hover:text-green-700">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Cancelled banner */}
+        {cancelBanner && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-500 flex-shrink-0">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <p className="text-sm font-medium text-amber-800">
+              {t("Ajout du moyen de paiement annulé.", "Payment method setup was cancelled.")}
+            </p>
+            <button onClick={() => setCancelBanner(false)} className="ml-auto text-amber-400 hover:text-amber-600">
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
@@ -239,9 +258,7 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
                           <span className="text-[10px] font-normal text-[#9B8A6B] ml-1">USD</span>
                         </span>
                       ) : (
-                        <span className="text-xs font-semibold text-[#9B8A6B]">
-                          {t("Gratuit", "No charge")}
-                        </span>
+                        <span className="text-sm font-semibold text-[#C4BAA8]">—</span>
                       )}
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
                       {item.hasPayment && (

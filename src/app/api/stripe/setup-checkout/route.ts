@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { resolveStripeCustomer, friendlyStripeError } from "@/lib/stripe-customer";
 
 export async function POST() {
@@ -10,6 +10,8 @@ export async function POST() {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const lang = ((await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr") as "en" | "fr";
 
   try {
     const headersList = await headers();
@@ -23,6 +25,7 @@ export async function POST() {
     const user = await db.user.findUnique({ where: { id: session.user.id } });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
+    // resolveStripeCustomer handles stale/deleted customer IDs automatically
     const customerId = await resolveStripeCustomer({
       userId: user.id,
       email: user.email,
@@ -32,13 +35,16 @@ export async function POST() {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "setup",
       customer: customerId,
-      success_url: `${origin}/dashboard/student?card=added`,
-      cancel_url: `${origin}/dashboard/student`,
+      // currency required when payment_method_types is omitted (dynamic payment methods)
+      currency: "usd",
+      success_url: `${origin}/dashboard/student/billing?setup=success`,
+      cancel_url:  `${origin}/dashboard/student/billing?setup=cancel`,
     });
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
-    console.error("[STRIPE_SETUP_CHECKOUT]", error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: friendlyStripeError() }, { status: 500 });
+    const err = error as { type?: string; code?: string; message?: string };
+    console.error("[STRIPE_SETUP_CHECKOUT]", err.type, err.code, err.message ?? error);
+    return NextResponse.json({ error: friendlyStripeError(lang) }, { status: 500 });
   }
 }
