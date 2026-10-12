@@ -85,8 +85,8 @@ export async function GET() {
 
   for (const b of unpaidBookings) {
     const tutorName =
-      b.tutor.hrApplication?.fullName ??
-      [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ") ||
+      (b.tutor.hrApplication?.fullName ??
+      [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ")) ||
       "—";
     const currency = b.tutor.tutorCompensation?.currencyPref ?? b.tutorCurrency ?? "TND";
 
