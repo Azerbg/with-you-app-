@@ -184,6 +184,12 @@ function NewCardForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement />
+      <p className="text-[11px] text-[#9B8A6B]">
+        {t(
+          "Cartes Visa, Mastercard, Amex et Wise acceptées",
+          "Visa, Mastercard, Amex and Wise cards accepted",
+        )}
+      </p>
       <label className="flex items-center gap-2.5 cursor-pointer select-none group">
         <input
           type="checkbox"

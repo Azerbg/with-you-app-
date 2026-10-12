@@ -32,10 +32,14 @@ export async function POST() {
       name: [user.firstName, user.lastName].filter(Boolean).join(" ") || undefined,
     });
 
+    // Dynamic payment methods (no payment_method_types) — Stripe shows whatever is
+    // enabled in the Dashboard. For setup mode, Stripe automatically excludes PayPal
+    // unless the account has recurring PayPal (Billing Agreements) enabled, so no
+    // explicit PayPal check is needed here.
+    // currency is required when payment_method_types is omitted in setup mode.
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "setup",
       customer: customerId,
-      // currency required when payment_method_types is omitted (dynamic payment methods)
       currency: "usd",
       success_url: `${origin}/dashboard/student/billing?setup=success`,
       cancel_url:  `${origin}/dashboard/student/billing?setup=cancel`,
