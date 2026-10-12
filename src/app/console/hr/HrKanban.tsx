@@ -95,15 +95,18 @@ const LANG_FLAGS: Record<string, string> = {
   "Portuguese": "🇵🇹",
 };
 
-const LANG_LABELS: Record<string, string> = {
-  "French":   "Français",
-  "English":  "Anglais",
-  "Spanish":  "Espagnol",
-  "German":   "Allemand",
-  "Arabic":   "Arabe",
-  "Italian":  "Italien",
-  "Portuguese": "Portugais",
+const LANG_LABELS: Record<string, { fr: string; en: string }> = {
+  "French":     { fr: "Français",  en: "French"     },
+  "English":    { fr: "Anglais",   en: "English"    },
+  "Spanish":    { fr: "Espagnol",  en: "Spanish"    },
+  "German":     { fr: "Allemand",  en: "German"     },
+  "Arabic":     { fr: "Arabe",     en: "Arabic"     },
+  "Italian":    { fr: "Italien",   en: "Italian"    },
+  "Portuguese": { fr: "Portugais", en: "Portuguese" },
 };
+function getLangLabel(langCode: string, uiLang: string): string {
+  return LANG_LABELS[langCode]?.[uiLang as "fr" | "en"] ?? langCode;
+}
 
 const SPEC_LABELS: Record<string, { fr: string; en: string }> = {
   CONVERSATIONAL: { fr: "Conversation",    en: "Conversational"  },
@@ -136,11 +139,13 @@ const CERT_LABELS: Record<string, string> = {
   CAMBRIDGE: "Cambridge", DELE: "DELE",
   GOETHE: "Goethe-Zertifikat",
   TESOL: "TESOL", CELTA: "CELTA",
+  DIPLOME_UNIV: "Diplôme universitaire",
+  DOCTORAT: "Doctorat",
 };
 
 // ─── Application Card ─────────────────────────────────────────────────────────
 
-function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
+function AppCard({ app, onClick, lang = "fr" }: { app: Application; onClick: () => void; lang?: string }) {
   return (
     <div
       onClick={onClick}
@@ -159,7 +164,7 @@ function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
       <div className="flex flex-wrap gap-1 mb-1">
         {app.languagesTaught.map(l => (
           <span key={l} className="text-[10px] bg-[#F5C400]/20 text-[#5C3D00] font-bold px-1.5 py-0.5 rounded-full">
-            {LANG_FLAGS[l] ?? "🌐"} {LANG_LABELS[l] ?? l}
+            {LANG_FLAGS[l] ?? "🌐"} {getLangLabel(l, lang)}
           </span>
         ))}
         {app.city && (
@@ -171,7 +176,7 @@ function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
         <div className="flex flex-wrap gap-1 mb-1">
           {app.specializations.map(s => (
             <span key={s} className="text-[10px] bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-full">
-              {SPEC_LABELS[s]?.fr ?? s}
+              {SPEC_LABELS[s]?.[lang as "fr" | "en"] ?? s}
             </span>
           ))}
         </div>
@@ -328,7 +333,7 @@ function DetailPanel({
 
           {/* Teaching */}
           <Section title={t("Profil d'enseignant", "Teacher profile")}>
-            <Row label={t("Langues", "Languages")}          value={app.languagesTaught.map(l => LANG_LABELS[l] ?? l).join(", ")} />
+            <Row label={t("Langues", "Languages")}          value={app.languagesTaught.map(l => getLangLabel(l, lang)).join(", ")} />
             <Row label={t("Spécialisations", "Specializations")} value={fmtSpecs(app.specializations)} />
             <Row label={t("Expérience", "Experience")}      value={app.yearsExperience != null ? `${app.yearsExperience} ${t("ans", "yrs")}` : null} />
             <Row label={t("Niveau en anglais", "English level")} value={fmtEnglish(app.englishLevel)} />
@@ -417,22 +422,37 @@ function DetailPanel({
                   {t("Reçue le", "Received on")} {new Date(app.videoSubmittedAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
                 </p>
               )}
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
-              >
-                <span className="text-xl">▶️</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-violet-800">{t("Visionner la vidéo", "Watch video")}</p>
-                  <p className="text-xs text-violet-500 truncate">{videoUrl}</p>
+              {/\.(mp4|webm|mov|ogg)(\?|$)/i.test(videoUrl) ? (
+                <div className="rounded-xl overflow-hidden border border-violet-200 bg-black">
+                  <video
+                    src={videoUrl}
+                    controls
+                    className="w-full max-h-72 object-contain"
+                    preload="metadata"
+                  />
+                  <a href={videoUrl} target="_blank" rel="noreferrer"
+                    className="flex items-center justify-center gap-2 py-2 text-xs text-violet-500 hover:text-violet-700 transition bg-violet-50">
+                    {t("Ouvrir dans un nouvel onglet", "Open in new tab")} ↗
+                  </a>
                 </div>
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
-                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                </svg>
-              </a>
+              ) : (
+                <a
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
+                >
+                  <span className="text-xl">▶️</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-violet-800">{t("Visionner la vidéo", "Watch video")}</p>
+                    <p className="text-xs text-violet-500 truncate">{videoUrl}</p>
+                  </div>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                  </svg>
+                </a>
+              )}
             </Section>
           )}
 
@@ -1021,10 +1041,10 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
   return (
     <div className="min-h-screen bg-[#FAF8F0]">
       {/* Top bar */}
-      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg">WithYou</Link>
-          <span className="text-[#6B5E44] text-sm font-semibold">{t("Console RH", "HR Console")}</span>
+      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-4 min-w-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg whitespace-nowrap">WithYou</Link>
+          <span className="text-[#6B5E44] text-sm font-semibold whitespace-nowrap">{t("Console RH", "HR Console")}</span>
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15">
             <button
@@ -1046,24 +1066,24 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {view === "kanban" && (
             <>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder={t("Rechercher un candidat…", "Search a candidate…")}
-                className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
+                placeholder={t("Rechercher…", "Search…")}
+                className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-40"
               />
               <button
                 onClick={() => setHideEmpty(v => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap flex-shrink-0 ${
                   hideEmpty
                     ? "bg-[#5C3D00] border-[#5C3D00] text-white"
                     : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#5C3D00]/40"
                 }`}
               >
-                {t("Masquer colonnes vides", "Hide empty columns")}
+                {t("Cacher vides", "Hide empty")}
               </button>
             </>
           )}
@@ -1104,7 +1124,7 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
           {allLanguages.map(langCode => {
             const count = apps.filter(a => a.languagesTaught.includes(langCode)).length;
             const flag = LANG_FLAGS[langCode] ?? "🌐";
-            const label = LANG_LABELS[langCode] ?? langCode;
+            const label = getLangLabel(langCode, lang);
             return (
               <button
                 key={langCode}
@@ -1205,7 +1225,7 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
                       <p className="text-xs text-[#6B5E44]/40 text-center py-4">{t("Vide", "Empty")}</p>
                     )}
                     {colApps.map(app => (
-                      <AppCard key={app.id} app={app} onClick={() => setSelected(app)} />
+                      <AppCard key={app.id} app={app} lang={lang} onClick={() => setSelected(app)} />
                     ))}
                   </div>
                 </div>

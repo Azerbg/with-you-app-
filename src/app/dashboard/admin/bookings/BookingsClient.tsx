@@ -105,7 +105,16 @@ export default function BookingsClient() {
         ) : bookings.length === 0 ? (
           <div className="flex items-center justify-center h-48 text-sm text-[#9B8A6B]">{t("Aucune réservation trouvée", "No bookings found")}</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col className="w-[26%]" />
+              <col className="w-[20%]" />
+              <col className="w-[12%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+              <col className="w-[10%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-black/5">
                 <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-8 py-3">{t("Étudiant", "Student")}</th>
@@ -122,12 +131,13 @@ export default function BookingsClient() {
                 <tr key={b.id}
                   onClick={() => router.push(`/dashboard/admin/bookings/${b.id}`)}
                   className="hover:bg-[#FAF8F0] transition cursor-pointer">
-                  <td className="px-8 py-3">
-                    <p className="text-sm font-medium text-[#2D1A00] truncate max-w-[140px]">{userName(b.student)}</p>
-                    <p className="text-[10px] text-[#9B8A6B] truncate max-w-[140px]">{b.student.email}</p>
+                  <td className="px-8 py-3 min-w-0">
+                    <p className="text-sm font-medium text-[#2D1A00] truncate">{userName(b.student)}</p>
+                    <p className="text-[10px] text-[#9B8A6B] truncate">{b.student.email}</p>
                   </td>
-                  <td className="px-4 py-3">
-                    <p className="text-sm text-[#2D1A00] truncate max-w-[140px]">{userName(b.tutor)}</p>
+                  <td className="px-4 py-3 min-w-0">
+                    <p className="text-sm text-[#2D1A00] truncate">{userName(b.tutor)}</p>
+                    <p className="text-[10px] text-[#9B8A6B] truncate">{b.tutor.email}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">{TYPE_LABELS[b.sessionType]?.[lang] ?? b.sessionType}</td>
                   <td className="px-4 py-3">
@@ -136,10 +146,10 @@ export default function BookingsClient() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-[#2D1A00]">
-                    {b.studentPriceUsd != null ? `$${b.studentPriceUsd.toFixed(2)} ${b.studentCurrency}` : "—"}
+                    {b.studentPriceUsd != null ? `$${b.studentPriceUsd.toFixed(0)}` : "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">
-                    {b.paymentProvider === "stripe" ? "💳 Stripe" : b.paymentProvider === "paypal" ? "🅿️ PayPal" : "—"}
+                    {b.paymentProvider === "stripe" ? "Stripe" : b.paymentProvider === "paypal" ? "PayPal" : "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">
                     {b.scheduledAt

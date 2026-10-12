@@ -70,12 +70,16 @@ export default function BookingDetailPage() {
   }, [id]);
 
   async function doAction(action: string) {
+    if (!reason.trim()) {
+      setActionError(t("Une raison est requise.", "A reason is required."));
+      return;
+    }
     setActionLoading(action);
     setActionError("");
     const res = await fetch(`/api/admin/bookings/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, reason: reason.trim() || undefined }),
+      body: JSON.stringify({ action, reason: reason.trim() }),
     });
     if (res.ok) {
       const refreshed = await fetch(`/api/admin/bookings/${id}`);
@@ -197,10 +201,12 @@ export default function BookingDetailPage() {
         <div className="mt-6 bg-white rounded-2xl border border-black/5 p-6 shadow-sm">
           <h2 className="font-bold text-[#2D1A00] text-sm mb-4">{t("Actions admin", "Admin actions")}</h2>
           <div className="mb-4">
-            <label className="text-xs font-semibold text-[#5C3D00] mb-1 block">{t("Raison (optionnel)", "Reason (optional)")}</label>
-            <input value={reason} onChange={e => setReason(e.target.value)}
+            <label className="text-xs font-semibold text-[#5C3D00] mb-1 block">
+              {t("Raison", "Reason")} <span className="text-red-500">*</span>
+            </label>
+            <input value={reason} onChange={e => { setReason(e.target.value); setActionError(""); }}
               placeholder={t("Motif de l'action…", "Action reason…")}
-              className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#F5C400] transition" />
+              className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none transition ${!reason.trim() ? "border-red-300 focus:border-red-400" : "border-[#6B5E44]/30 focus:border-[#F5C400]"}`} />
           </div>
           {actionError && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{actionError}</p>}
           <div className="flex flex-wrap gap-3">

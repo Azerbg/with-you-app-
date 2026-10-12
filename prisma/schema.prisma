@@ -487,6 +487,9 @@ model Booking {
   chatLogSaved          Boolean @default(false)
   reviewLeft            Boolean @default(false) // Has student left a review?
 
+  // Tutor payout in USD — for correct platform margin (tutorPayoutAmount may be in TND)
+  tutorPayoutUsd  Float?    // = tutorPayoutAmount / usdToTndRate at booking time
+
   // Manual tutor payout tracking (admin marks as paid)
   tutorPaidAt     DateTime? // When admin marked as paid
   tutorPaidBy     String?   // Admin user ID
@@ -882,6 +885,19 @@ model Payout {
   tutor User @relation("TutorPayouts", fields: [tutorId], references: [id])
 
   @@map("payouts")
+}
+
+// ─── PLATFORM SETTINGS ────────────────────────────────────────────────────────
+// Generic key-value store for admin-configurable settings.
+// Key: "usdToTnd" → FX rate for margin calculations (default "3.1")
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedBy String?  // Admin user ID
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
 }
 
 // ─── TUTOR PAYMENT METHOD ────────────────────────────────────────────────────
