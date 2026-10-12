@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { DISCOVERY_SESSION_USD, STANDARD_SESSION_USD } from "@/lib/pricing";
+import { Currency } from "@prisma/client";
 
 // POST /api/admin/bookings/backfill
 // Backfills studentPriceUsd / platformMargin for bookings with null prices.
@@ -45,7 +46,7 @@ export async function POST() {
     // Derive tutorPayoutAmount: use hourlyRateTnd if set, else 80% of student USD as TND proxy
     const comp = b.tutor.tutorCompensation;
     let tutorPayoutAmount: number;
-    let tutorCurrency: string;
+    let tutorCurrency: Currency;
     if (comp?.hourlyRateTnd) {
       // 30-min discovery = half hour rate, 50-min standard ≈ 5/6 hour
       const fraction = b.sessionType === "DISCOVERY" ? 0.5 : 50 / 60;
@@ -54,7 +55,7 @@ export async function POST() {
     } else {
       // Rough fallback: 80% of student USD (in USD, since we have no TND rate)
       tutorPayoutAmount = Math.round(studentPriceUsd * 0.8 * 100) / 100;
-      tutorCurrency = "USD";
+      tutorCurrency = Currency.USD;
     }
 
     const platformMargin = studentPriceUsd - (tutorCurrency === "USD" ? tutorPayoutAmount : 0);

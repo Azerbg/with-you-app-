@@ -57,11 +57,11 @@ export async function GET(req: NextRequest) {
     for (const b of paidBookings) {
       const ref = b.stripeTransferId ?? `MANUAL-${b.tutorPaidAt?.getTime()}`;
       const batchKey = `${b.tutorId}::${ref}`;
-      const tutorName = b.tutor.hrApplication?.fullName ?? [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ") || "—";
+      const tutorName = (b.tutor.hrApplication?.fullName ?? [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ")) || "—";
       const admin = b.tutorPaidBy ? adminMap[b.tutorPaidBy] : null;
       const paidByLabel = admin ? ([admin.firstName, admin.lastName].filter(Boolean).join(" ") || admin.email) : "";
       if (!batches.has(batchKey)) {
-        batches.set(batchKey, { ref, paidAt: b.tutorPaidAt!, tutorName, method: b.tutorPaidMethod ?? "", amount: 0, currency: b.tutor.tutorCompensation?.currencyPref ?? b.tutorCurrency, count: 0, paidBy: paidByLabel });
+        batches.set(batchKey, { ref, paidAt: b.tutorPaidAt!, tutorName, method: b.tutorPaidMethod ?? "", amount: 0, currency: (b.tutor.tutorCompensation?.currencyPref ?? b.tutorCurrency) as string, count: 0, paidBy: paidByLabel });
       }
       const entry = batches.get(batchKey)!;
       entry.amount += b.tutorPayoutAmount ?? 0;
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
   for (const b of paidBookings) {
     const ref = b.stripeTransferId ?? `MANUAL-${b.tutorPaidAt?.getTime()}`;
     const batchKey = `${b.tutorId}::${ref}`;
-    const tutorName = b.tutor.hrApplication?.fullName ?? [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ") || "—";
+    const tutorName = (b.tutor.hrApplication?.fullName ?? [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ")) || "—";
     const admin = b.tutorPaidBy ? adminMap[b.tutorPaidBy] : null;
     const paidByEmail = admin ? ([admin.firstName, admin.lastName].filter(Boolean).join(" ") || admin.email) : "—";
     if (!batchMap.has(batchKey)) {
