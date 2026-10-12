@@ -510,7 +510,7 @@ export default function BookingFlowClient({
 
   return (
     <PayPalScriptProvider
-      options={{ "client-id": paypalClientId ?? "sb", currency: "USD", intent: "capture" }}
+      options={{ clientId: paypalClientId ?? "sb", currency: "USD", intent: "capture" }}
       deferLoading={!paypalClientId}
     >
     <div className="min-h-screen bg-[#FAF8F0]">
