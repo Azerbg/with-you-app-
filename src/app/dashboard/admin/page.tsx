@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -100,7 +101,7 @@ export default async function AdminOverviewPage() {
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
               <p className="font-bold text-[#2D1A00] text-sm">Derniers inscrits</p>
-              <a href="/dashboard/admin/users" className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">Voir tous →</a>
+              <Link href="/dashboard/admin/users" className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">Voir tous →</Link>
             </div>
             <div className="divide-y divide-black/5">
               {recentUsers.map(u => (
