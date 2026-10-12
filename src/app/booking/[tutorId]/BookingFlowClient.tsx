@@ -358,6 +358,13 @@ export default function BookingFlowClient({
   const [paypalError, setPaypalError] = useState<string | null>(null);
   const [paypalProcessing, setPaypalProcessing] = useState(false);
 
+  // ── Warn when PayPal client ID is not configured ──
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID) {
+      console.warn("[PayPal] NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set — PayPal buttons will not render");
+    }
+  }, []);
+
   // ── Load saved cards once ──
   useEffect(() => {
     fetch("/api/stripe/payment-methods")
@@ -506,13 +513,12 @@ export default function BookingFlowClient({
     ? `${formatDateLabel(selectedSlot.slice(0, 10), lang, displayTz)} ${t("à", "at")} ${formatSlotTime(selectedSlot, lang, displayTz)}`
     : null;
 
-  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const paypalOptions = useMemo(() => ({ clientId: paypalClientId, currency: "USD", intent: "capture" }), []);
 
   return (
-    <PayPalScriptProvider
-      options={{ clientId: paypalClientId ?? "sb", currency: "USD", intent: "capture" }}
-      deferLoading={!paypalClientId}
-    >
+    <PayPalScriptProvider options={paypalOptions} deferLoading={!paypalClientId}>
     <div className="min-h-screen bg-[#FAF8F0]">
 
       {/* Progress steps */}
@@ -791,6 +797,23 @@ export default function BookingFlowClient({
                       <button onClick={() => setUseNewCard(true)} className="w-full text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition py-1">
                         {t("Utiliser une autre carte", "Use a different card")}
                       </button>
+                      {paypalClientId && (
+                        <div className="pt-3 border-t border-[#E8E0D4]">
+                          <p className="text-xs text-center text-[#9B8A6B] mb-3">
+                            {t("ou payer avec PayPal", "or pay with PayPal")}
+                          </p>
+                          {paypalError && (
+                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{paypalError}</p>
+                          )}
+                          <PayPalButtons
+                            style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
+                            createOrder={handlePayPalCreateOrder}
+                            onApprove={handlePayPalApprove}
+                            onError={(err) => { console.error("[PayPal]", err); setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed")); }}
+                            disabled={paypalProcessing}
+                          />
+                        </div>
+                      )}
                     </div>
                   ) : stripePromise ? (
                     <>
@@ -828,42 +851,28 @@ export default function BookingFlowClient({
                           />
                         </Elements>
                       )}
+                      {paypalClientId && (
+                        <div className="pt-4 border-t border-[#E8E0D4]">
+                          <p className="text-xs text-center text-[#9B8A6B] mb-3">
+                            {t("ou payer avec PayPal", "or pay with PayPal")}
+                          </p>
+                          {paypalError && (
+                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{paypalError}</p>
+                          )}
+                          <PayPalButtons
+                            style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
+                            createOrder={handlePayPalCreateOrder}
+                            onApprove={handlePayPalApprove}
+                            onError={(err) => { console.error("[PayPal]", err); setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed")); }}
+                            disabled={paypalProcessing}
+                          />
+                        </div>
+                      )}
                     </>
                   ) : null}
                 </div>
               ) : null}
             </div>
-
-            {/* PayPal alternative — shown when payment step is active and PayPal is configured */}
-            {paypalClientId && !loadingIntent && !loadingCards && !intentError && clientSecret && (
-              <div className="mt-4 bg-white border border-[#C4BAA8] rounded-2xl p-5">
-                <div className="relative mb-4">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[#E8E0D4]" />
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="px-3 bg-white text-xs text-[#9B8A6B]">
-                      {t("ou payer avec PayPal", "or pay with PayPal")}
-                    </span>
-                  </div>
-                </div>
-                {paypalError && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">
-                    {paypalError}
-                  </p>
-                )}
-                <PayPalButtons
-                  style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
-                  createOrder={handlePayPalCreateOrder}
-                  onApprove={handlePayPalApprove}
-                  onError={(err) => {
-                    console.error("[PayPal]", err);
-                    setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed"));
-                  }}
-                  disabled={paypalProcessing}
-                />
-              </div>
-            )}
 
             <p className="text-[11px] text-[#9B8A6B] text-center mt-2">
               {t("Paiement sécurisé par Stripe — vos données ne sont jamais stockées", "Secured by Stripe — your card details are never stored")}
