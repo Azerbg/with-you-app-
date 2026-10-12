@@ -22,6 +22,7 @@ interface PaymentHistoryItem {
   stripeStatus?: string;
   creditAppliedTnd: number;
   receiptUrl?: string | null;
+  paymentMethod?: string | null;
 }
 
 const BRAND_LABELS: Record<string, string> = {
@@ -140,7 +141,7 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
         <div className="bg-white border border-black/5 rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-black/5">
             <p className="font-bold text-[#5C3D00]">
-              {t("Cartes enregistrées", "Saved cards")}
+              {t("Moyens de paiement enregistrés", "Saved payment methods")}
             </p>
           </div>
 
@@ -195,7 +196,7 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
         >
           {adding
             ? t("Redirection vers Stripe…", "Redirecting to Stripe…")
-            : t("+ Ajouter une carte", "+ Add a card")}
+            : t("+ Ajouter un moyen de paiement", "+ Add a payment method")}
         </button>
 
         {/* Payment history */}
@@ -221,6 +222,9 @@ export default function PaymentSetupClient({ setupComplete, paymentHistory = [] 
                       <p className="text-sm font-semibold text-[#2D1A00] truncate">{item.tutorName}</p>
                       <p className="text-xs text-[#9B8A6B] mt-0.5">
                         {dateStr} · {item.durationMins} min
+                        {item.paymentMethod && (
+                          <span className="ml-1.5 text-[#7A6B55]">· {item.paymentMethod}</span>
+                        )}
                         {item.creditAppliedTnd > 0 && (
                           <span className="ml-1.5 text-[#C49200]">
                             (−{item.creditAppliedTnd.toFixed(0)} TND {t("crédit", "credit")})

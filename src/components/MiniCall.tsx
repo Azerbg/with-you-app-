@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  useRef, useState, useEffect, useCallback,
+  useRef, useState, useEffect,
 } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -104,7 +104,7 @@ export default function MiniCall() {
   const { lang } = useLanguage();
   const {
     isInCall, roomId, otherName, elapsed,
-    isSandbox, leaveCall, room,
+    isSandbox, leaveCall, room, overlayOpen,
   } = useCall();
 
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
@@ -143,15 +143,21 @@ export default function MiniCall() {
   });
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Set initial position from corner on mount / window resize
+  // Set position from corner; when board overlay is open, dock bottom-right
+  // above Excalidraw's toolbar (~72 px from bottom) so MiniCall never covers it.
+  const BOARD_BOTTOM = 72;
   useEffect(() => {
     const h = collapsed ? PILL_H : H_FULL;
     const w = collapsed ? PILL_W : W;
-    setPos(cornerPos(corner, w, h));
-    const onResize = () => setPos(cornerPos(corner, w, h));
+    const getPos = () =>
+      overlayOpen
+        ? { x: window.innerWidth - w - MARGIN, y: window.innerHeight - h - BOARD_BOTTOM }
+        : cornerPos(corner, w, h);
+    setPos(getPos());
+    const onResize = () => setPos(getPos());
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [corner, collapsed]);
+  }, [corner, collapsed, overlayOpen]);
 
   function onPointerDown(e: React.PointerEvent) {
     const r = pipRef.current?.getBoundingClientRect();

@@ -32,7 +32,6 @@ export async function POST() {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "setup",
       customer: customerId,
-      payment_method_types: ["card"],
       success_url: `${origin}/dashboard/student?card=added`,
       cancel_url: `${origin}/dashboard/student`,
     });

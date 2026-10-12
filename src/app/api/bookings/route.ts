@@ -12,22 +12,17 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { tutorId, scheduledAt, paymentIntentId } = body as {
+  const { tutorId: bodyTutorId, scheduledAt: bodyScheduledAt, paymentIntentId } = body as {
     tutorId?: string;
     scheduledAt?: string;
     paymentIntentId?: string;
   };
 
-  if (!tutorId || !scheduledAt || !paymentIntentId) {
-    return NextResponse.json(
-      { error: "tutorId, scheduledAt, and paymentIntentId are required" },
-      { status: 400 },
-    );
+  if (!paymentIntentId) {
+    return NextResponse.json({ error: "paymentIntentId is required" }, { status: 400 });
   }
 
-  const slotDate = new Date(scheduledAt);
-
-  // Verify the payment was successful
+  // Retrieve PI first — needed for metadata fallback (redirect-payment return flow)
   let paymentIntent;
   try {
     paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -39,12 +34,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payment not confirmed" }, { status: 402 });
   }
 
-  // Verify the payment metadata matches this booking
-  if (
-    paymentIntent.metadata.studentId !== session.user.id ||
-    paymentIntent.metadata.tutorId !== tutorId ||
-    paymentIntent.metadata.scheduledAt !== slotDate.toISOString()
-  ) {
+  // When tutorId/scheduledAt are not supplied (redirect return), derive from PI metadata
+  const tutorId = bodyTutorId ?? paymentIntent.metadata.tutorId;
+  const scheduledAt = bodyScheduledAt ?? paymentIntent.metadata.scheduledAt;
+
+  if (!tutorId || !scheduledAt) {
+    return NextResponse.json({ error: "Missing booking parameters" }, { status: 400 });
+  }
+
+  const slotDate = new Date(scheduledAt);
+
+  // Verify the payment belongs to this student
+  if (paymentIntent.metadata.studentId !== session.user.id) {
     return NextResponse.json({ error: "Payment metadata mismatch" }, { status: 400 });
   }
 
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(booking, { status: 201 });
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

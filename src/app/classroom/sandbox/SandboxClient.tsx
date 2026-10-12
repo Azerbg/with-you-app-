@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { ClassroomView } from "../ClassroomCore";
 import { useCall } from "@/context/CallContext";
@@ -46,8 +46,10 @@ export default function SandboxClient() {
   const [role,    setRole]    = useState<"student" | "tutor">("student");
   const [error,   setError]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [left,    setLeft]    = useState(false);
   const joinedRef             = useRef(false);
+  const MAX_RETRIES           = useMemo(() => 3, []);
 
   const { joinCall, leaveCall, isInCall, elapsed, setOverlayOpen } = useCall();
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -57,30 +59,47 @@ export default function SandboxClient() {
     if (joinedRef.current && !isInCall) setLeft(true);
   }, [isInCall]);
 
-  useEffect(() => {
-    fetch("/api/livekit/sandbox-token")
-      .then(r => r.json())
-      .then(async d => {
-        const name = d.displayName || "Participant";
-        const r: "student" | "tutor" = d.role === "tutor" ? "tutor" : "student";
-        setMyName(name);
-        setRole(r);
-        await joinCall({
-          serverUrl,
-          token:    d.token,
-          roomId:   d.roomName ?? "sandbox",
-          myName:   name,
-          otherName:"Participant",
-          role:     r,
-          isSandbox: true,
-        });
-        joinedRef.current = true;
-      })
-      .catch(() => setError("Erreur réseau."))
-      .finally(() => setLoading(false));
-  // joinCall is stable (useCallback); runs once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const fetchToken = useCallback(async (retryAttempt = 0) => {
+    setLoading(true);
+    setError(null);
+    setAttempt(retryAttempt + 1);
+    try {
+      const res  = await fetch("/api/livekit/sandbox-token");
+      const d    = await res.json();
+      if (!res.ok) {
+        if (retryAttempt < MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, 1000 * (retryAttempt + 1)));
+          return fetchToken(retryAttempt + 1);
+        }
+        setError(d.error ?? "Impossible de rejoindre la salle.");
+        return;
+      }
+      const name = d.displayName || "Participant";
+      const r: "student" | "tutor" = d.role === "tutor" ? "tutor" : "student";
+      setMyName(name);
+      setRole(r);
+      await joinCall({
+        serverUrl,
+        token:     d.token,
+        roomId:    d.roomName ?? "sandbox",
+        myName:    name,
+        otherName: "Participant",
+        role:      r,
+        isSandbox: true,
+      });
+      joinedRef.current = true;
+    } catch {
+      if (retryAttempt < MAX_RETRIES - 1) {
+        await new Promise(r => setTimeout(r, 1000 * (retryAttempt + 1)));
+        return fetchToken(retryAttempt + 1);
+      }
+      setError("Connexion impossible après plusieurs tentatives.");
+    } finally {
+      setLoading(false);
+    }
+  }, [joinCall, serverUrl, MAX_RETRIES]);
+
+  useEffect(() => { fetchToken(0); }, [fetchToken]);
 
   const handleLeave = async () => {
     await leaveCall();
@@ -93,7 +112,9 @@ export default function SandboxClient() {
     <div className="h-screen bg-[#0F0A04] flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-[#C4BAA8] text-sm">Connexion à la salle sandbox…</p>
+        <p className="text-[#C4BAA8] text-sm">
+          {attempt > 1 ? `Reconnexion… (${attempt}/${MAX_RETRIES})` : "Connexion à la salle sandbox…"}
+        </p>
       </div>
     </div>
   );
@@ -101,8 +122,15 @@ export default function SandboxClient() {
   if (error) return (
     <div className="h-screen bg-[#0F0A04] flex items-center justify-center px-6">
       <div className="bg-[#1A1209] rounded-2xl border border-[#3A2A0E] p-8 max-w-sm w-full text-center">
-        <p className="text-red-400 font-semibold mb-4">{error}</p>
-        <Link href="/dashboard" className="block w-full bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm text-center">Retour</Link>
+        <p className="text-red-400 font-semibold mb-2">Erreur de connexion</p>
+        <p className="text-sm text-[#9B8A6B] mb-6">{error}</p>
+        <button
+          onClick={() => fetchToken(0)}
+          className="block w-full bg-[#F5C400] text-[#5C3D00] py-3 rounded-xl font-bold text-sm hover:bg-[#FFDE59] transition mb-3"
+        >
+          Réessayer
+        </button>
+        <Link href="/dashboard" className="block w-full bg-[#2A1F0E] text-[#C4BAA8] py-3 rounded-xl font-semibold text-sm hover:bg-[#3A2A0E] transition border border-[#3A2A0E] text-center">Retour au tableau de bord</Link>
       </div>
     </div>
   );

@@ -134,7 +134,6 @@ function p(amount: number, zone: PriceZone) {
 
 function NewCardForm({
   clientSecret,
-  amountUsd,
   displayPrice,
   saveCard,
   onSaveCardChange,
@@ -167,7 +166,7 @@ function NewCardForm({
       elements,
       clientSecret,
       redirect: "if_required",
-      confirmParams: { return_url: `${window.location.origin}/dashboard/student` },
+      confirmParams: { return_url: `${window.location.origin}/booking/payment-return` },
     });
 
     if (stripeError) {
@@ -242,7 +241,6 @@ export default function BookingFlowClient({
   alreadyHadSession,
   sessionPriceUsd,
   discoveryPriceUsd,
-  studentCountry,
   studentTimezone,
 }: Props) {
   const router = useRouter();

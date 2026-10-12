@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       amount: amountCents,
       currency: "usd",
       customer: stripeCustomerId,
-      payment_method_types: ["card"],
+      automatic_payment_methods: { enabled: true },
       ...(saveCard ? { setup_future_usage: "off_session" } : {}),
       metadata: {
         studentId: session.user.id,

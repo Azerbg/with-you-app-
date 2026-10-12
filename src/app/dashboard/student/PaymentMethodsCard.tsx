@@ -83,7 +83,7 @@ export default function PaymentMethodsCard() {
           disabled={adding}
           className="text-xs font-bold text-[#5C3D00] bg-[#F5C400]/20 hover:bg-[#F5C400]/40 px-3 py-1 rounded-full transition disabled:opacity-50"
         >
-          {adding ? t("Redirection...", "Redirecting...") : `+ ${t("Ajouter", "Add")}`}
+          {adding ? t("Redirection...", "Redirecting...") : `+ ${t("Ajouter", "Add method")}`}
         </button>
       </div>
 

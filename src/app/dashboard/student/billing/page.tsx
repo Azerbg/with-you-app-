@@ -55,9 +55,28 @@ export default async function BillingPage({ searchParams }: Props) {
     }),
   ]);
 
-  // Fetch real amounts + receipt URLs from Stripe, expanding latest_charge
-  type StripeEntry = { amountUsd: number; status: string; receiptUrl: string | null };
+  // Fetch real amounts, receipt URLs and payment method from Stripe, expanding latest_charge
+  type StripeEntry = { amountUsd: number; status: string; receiptUrl: string | null; paymentMethod: string | null };
   const stripeData = new Map<string, StripeEntry>();
+
+  function getPaymentMethodLabel(charge: Stripe.Charge | null): string | null {
+    const pmd = charge?.payment_method_details;
+    if (!pmd) return null;
+    if (pmd.type === "card" && pmd.card) {
+      const wallet = pmd.card.wallet;
+      if (wallet?.type === "apple_pay")  return "Apple Pay";
+      if (wallet?.type === "google_pay") return "Google Pay";
+      if (wallet?.type === "link")       return "Link";
+      const brand = pmd.card.brand ?? "card";
+      const last4 = pmd.card.last4;
+      const label = brand.charAt(0).toUpperCase() + brand.slice(1);
+      return last4 ? `${label} ···· ${last4}` : label;
+    }
+    if (pmd.type === "paypal") return "PayPal";
+    if (pmd.type === "link")   return "Link";
+    return null;
+  }
+
   if (studentUser?.stripeCustomerId) {
     try {
       const intents = await stripe.paymentIntents.list({
@@ -71,6 +90,7 @@ export default async function BillingPage({ searchParams }: Props) {
           amountUsd: pi.amount_received / 100,
           status: charge?.refunded ? "refunded" : pi.status,
           receiptUrl: charge?.receipt_url ?? null,
+          paymentMethod: getPaymentMethodLabel(charge),
         });
       }
     } catch {
@@ -95,6 +115,7 @@ export default async function BillingPage({ searchParams }: Props) {
       stripeStatus: pi?.status ?? (hasPayment ? "succeeded" : "no_charge"),
       creditAppliedTnd: b.creditAppliedTnd,
       receiptUrl: pi?.receiptUrl ?? null,
+      paymentMethod: pi?.paymentMethod ?? null,
     };
   });
 

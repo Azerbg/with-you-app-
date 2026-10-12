@@ -102,9 +102,11 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const id = `cell-${Date.now()}-${r}-${c}`;
+      const rectId = `cell-${Date.now()}-${r}-${c}`;
+      const textId = `text-${rectId}`;
+      // Rectangle acts as a container: double-clicking it opens the bound text editor
       elements.push({
-        id,
+        id: rectId,
         type: "rectangle",
         x: x + c * cellW,
         y: y + r * cellH,
@@ -125,16 +127,17 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
         version: 1,
         versionNonce: Math.floor(Math.random() * 100000),
         isDeleted: false,
-        boundElements: null,
+        boundElements: [{ type: "text", id: textId }],
         updated: Date.now(),
         link: null,
         locked: false,
       });
+      // Bound text element — positioned by Excalidraw inside the container
       elements.push({
-        id: `text-${id}`,
+        id: textId,
         type: "text",
-        x: x + c * cellW + 6,
-        y: y + r * cellH + 10,
+        x: x + c * cellW + cellW / 2,
+        y: y + r * cellH + cellH / 2,
         width: cellW - 12,
         height: 20,
         angle: 0,
@@ -161,7 +164,7 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
         fontFamily: 1,
         textAlign: "center",
         verticalAlign: "middle",
-        containerId: null,
+        containerId: rectId,
         originalText: "",
         autoResize: true,
         lineHeight: 1.25,
@@ -220,7 +223,7 @@ export default function ExcalidrawBoard({
 
   // Broadcast + debounced save on change
   const handleChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
       if (applyingRemote.current) return;
 
@@ -338,7 +341,7 @@ export default function ExcalidrawBoard({
             {lang === "fr" ? "Tableau" : "Table"}
           </button>
           {showTablePicker && (
-            <div className="absolute top-9 left-0 z-10 bg-[#0D0904] border border-white/10 rounded-xl shadow-2xl p-4 w-56">
+            <div className="absolute top-9 left-0 z-[400] bg-[#0D0904] border border-white/10 rounded-xl shadow-2xl p-4 w-56">
               <p className="text-white/60 text-xs font-bold mb-3">{lang === "fr" ? "Taille du tableau" : "Table size"}</p>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-white/40 text-xs w-16">{lang === "fr" ? "Lignes" : "Rows"}</label>
