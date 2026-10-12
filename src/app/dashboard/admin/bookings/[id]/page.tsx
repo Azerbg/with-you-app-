@@ -42,8 +42,8 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function tutorName(b: BookingDetail) {
-  return b.tutor.hrApplication?.fullName ??
-    [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ") ||
+  return (b.tutor.hrApplication?.fullName ??
+    [b.tutor.firstName, b.tutor.lastName].filter(Boolean).join(" ")) ||
     b.tutor.email;
 }
 function studentName(b: BookingDetail) {
