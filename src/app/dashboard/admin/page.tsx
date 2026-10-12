@@ -39,6 +39,7 @@ export default async function AdminOverviewPage() {
     monthBookings, monthRevenue,
     recentUsers, recentBookings,
     blockedCount, frozenCount,
+    pendingPayouts,
   ] = await Promise.all([
     db.user.count({ where: { role: "STUDENT" } }),
     db.user.count({ where: { role: "TUTOR" } }),
@@ -63,6 +64,7 @@ export default async function AdminOverviewPage() {
     }),
     db.user.count({ where: { accountStatus: "BLOCKED" } }),
     db.user.count({ where: { accountStatus: "FROZEN" } }),
+    db.booking.count({ where: { status: "COMPLETED", stripeTransferId: null, tutorPayoutAmount: { gt: 0 } } }),
   ]);
 
   const revenue = monthRevenue._sum.studentPriceUsd ?? 0;
@@ -87,9 +89,9 @@ export default async function AdminOverviewPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Litiges ouverts" value={openDisputes} />
+          <StatCard label="Virements en attente" value={pendingPayouts} sub="séances non payées" />
           <StatCard label="Comptes bloqués" value={blockedCount} />
           <StatCard label="Comptes gelés" value={frozenCount} />
-          <StatCard label="Total tuteurs" value={totalTutors} />
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
