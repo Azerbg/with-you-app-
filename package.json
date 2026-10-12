@@ -16,6 +16,7 @@
     "@livekit/components-react": "^2.9.21",
     "@livekit/components-styles": "^1.2.0",
     "@livekit/track-processors": "^0.8.1",
+    "@paypal/react-paypal-js": "^10.6.0",
     "@prisma/client": "^6.19.2",
     "@sentry/nextjs": "^11.1.0",
     "@stripe/react-stripe-js": "^2.9.0",

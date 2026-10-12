@@ -42,6 +42,8 @@ export default async function BillingPage({ searchParams }: Props) {
         studentCurrency: true,
         creditAppliedTnd: true,
         stripePaymentIntentId: true,
+        paymentProvider: true,
+        paypalOrderId: true,
         tutor: {
           select: {
             firstName: true,
@@ -101,8 +103,9 @@ export default async function BillingPage({ searchParams }: Props) {
   }
 
   const paymentHistory = bookings.map((b) => {
-    const pi = b.stripePaymentIntentId ? stripeData.get(b.stripePaymentIntentId) : undefined;
-    const hasPayment = !!b.stripePaymentIntentId;
+    const isPayPal   = b.paymentProvider === "paypal" || !!b.paypalOrderId;
+    const pi         = b.stripePaymentIntentId ? stripeData.get(b.stripePaymentIntentId) : undefined;
+    const hasPayment = !!(b.stripePaymentIntentId || b.paypalOrderId);
     return {
       id: b.id,
       scheduledAt: b.scheduledAt.toISOString(),
@@ -113,11 +116,11 @@ export default async function BillingPage({ searchParams }: Props) {
           ? `${b.tutor.firstName} ${b.tutor.lastName}`
           : b.tutor.hrApplication?.fullName ?? "—",
       hasPayment,
-      amountUsd: pi?.amountUsd ?? (hasPayment ? (b.studentPriceUsd ?? 0) : 0),
-      stripeStatus: pi?.status ?? (hasPayment ? "succeeded" : "no_charge"),
+      amountUsd:        isPayPal ? (b.studentPriceUsd ?? 0) : (pi?.amountUsd ?? (hasPayment ? (b.studentPriceUsd ?? 0) : 0)),
+      stripeStatus:     isPayPal ? "succeeded" : (pi?.status ?? (hasPayment ? "succeeded" : "no_charge")),
       creditAppliedTnd: b.creditAppliedTnd,
-      receiptUrl: pi?.receiptUrl ?? null,
-      paymentMethod: pi?.paymentMethod ?? null,
+      receiptUrl:       isPayPal ? null : (pi?.receiptUrl ?? null),
+      paymentMethod:    isPayPal ? "PayPal" : (pi?.paymentMethod ?? null),
     };
   });
 

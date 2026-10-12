@@ -462,9 +462,16 @@ model Booking {
   // Credits applied at checkout
   creditAppliedTnd Float @default(0) // Platform credits used (TND)
 
+  // Payment provider
+  paymentProvider String @default("stripe") // "stripe" | "paypal"
+
   // Stripe
   stripePaymentIntentId String?
   stripeTransferId      String? // Set when payout is processed
+
+  // PayPal
+  paypalOrderId   String? @unique
+  paypalCaptureId String?
 
   // Cancellation
   cancelledAt     DateTime?

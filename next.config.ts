@@ -8,16 +8,16 @@ const nextConfig: NextConfig = {
       : "";
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://www.paypal.com https://*.paypal.com https://*.paypalobjects.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' ${livekitWss} https://withyoou-a5l2xy7a.livekit.cloud wss://withyoou-a5l2xy7a.livekit.cloud https://*.livekit.cloud wss://*.livekit.cloud https://js.stripe.com https://api.stripe.com https://cdn.jsdelivr.net https://storage.googleapis.com`,
+      `connect-src 'self' ${livekitWss} https://withyoou-a5l2xy7a.livekit.cloud wss://withyoou-a5l2xy7a.livekit.cloud https://*.livekit.cloud wss://*.livekit.cloud https://js.stripe.com https://api.stripe.com https://cdn.jsdelivr.net https://storage.googleapis.com https://www.paypal.com https://*.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com`,
       `media-src 'self' blob:`,
       "worker-src 'self' blob:",
-      "frame-src https://js.stripe.com",
+      "frame-src https://js.stripe.com https://www.paypal.com https://*.paypal.com",
       "frame-ancestors 'none'",
-      `script-src-elem 'self' 'unsafe-inline' https://js.stripe.com https://cdn.jsdelivr.net`,
+      `script-src-elem 'self' 'unsafe-inline' https://js.stripe.com https://cdn.jsdelivr.net https://www.paypal.com https://*.paypal.com https://*.paypalobjects.com`,
     ].join("; ");
 
     return [

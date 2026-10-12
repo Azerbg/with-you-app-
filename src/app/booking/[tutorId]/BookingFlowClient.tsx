@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useZone, type PriceZone } from "@/app/tutors/[id]/PricingCard";
@@ -354,6 +355,8 @@ export default function BookingFlowClient({
   const [payError, setPayError] = useState<string | null>(null);
   const [stripeLoadError, setStripeLoadError] = useState<string | null>(null);
   const [saveCard, setSaveCard] = useState(false);
+  const [paypalError, setPaypalError] = useState<string | null>(null);
+  const [paypalProcessing, setPaypalProcessing] = useState(false);
 
   // ── Load saved cards once ──
   useEffect(() => {
@@ -459,6 +462,41 @@ export default function BookingFlowClient({
     setPaying(false);
   };
 
+  // ── PayPal handlers ──
+  const handlePayPalCreateOrder = useCallback(async () => {
+    setPaypalError(null);
+    const res = await fetch("/api/paypal/create-order", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ tutorId, scheduledAt: selectedSlot, sessionType: selectedProduct }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to create PayPal order");
+    return data.orderId as string;
+  }, [tutorId, selectedSlot, selectedProduct]);
+
+  const handlePayPalApprove = useCallback(async (data: { orderID: string }) => {
+    setPaypalProcessing(true);
+    setPaypalError(null);
+    try {
+      const res = await fetch("/api/paypal/capture-order", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ orderId: data.orderID }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setPaypalError(result.error ?? t("Paiement PayPal échoué", "PayPal payment failed"));
+        return;
+      }
+      router.push(`/booking/confirmation/${result.id}`);
+    } catch {
+      setPaypalError(t("Erreur lors du paiement PayPal", "PayPal payment error"));
+    } finally {
+      setPaypalProcessing(false);
+    }
+  }, [router]);
+
   const hasSavedCard = !loadingCards && savedCards.length > 0;
   const primaryCard = savedCards[0];
   const showSavedCardUI = hasSavedCard && !useNewCard;
@@ -468,7 +506,13 @@ export default function BookingFlowClient({
     ? `${formatDateLabel(selectedSlot.slice(0, 10), lang, displayTz)} ${t("à", "at")} ${formatSlotTime(selectedSlot, lang, displayTz)}`
     : null;
 
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+
   return (
+    <PayPalScriptProvider
+      options={{ "client-id": paypalClientId ?? "sb", currency: "USD", intent: "capture" }}
+      deferLoading={!paypalClientId}
+    >
     <div className="min-h-screen bg-[#FAF8F0]">
 
       {/* Progress steps */}
@@ -790,6 +834,37 @@ export default function BookingFlowClient({
               ) : null}
             </div>
 
+            {/* PayPal alternative — shown when payment step is active and PayPal is configured */}
+            {paypalClientId && !loadingIntent && !loadingCards && !intentError && clientSecret && (
+              <div className="mt-4 bg-white border border-[#C4BAA8] rounded-2xl p-5">
+                <div className="relative mb-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[#E8E0D4]" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="px-3 bg-white text-xs text-[#9B8A6B]">
+                      {t("ou payer avec PayPal", "or pay with PayPal")}
+                    </span>
+                  </div>
+                </div>
+                {paypalError && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">
+                    {paypalError}
+                  </p>
+                )}
+                <PayPalButtons
+                  style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
+                  createOrder={handlePayPalCreateOrder}
+                  onApprove={handlePayPalApprove}
+                  onError={(err) => {
+                    console.error("[PayPal]", err);
+                    setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed"));
+                  }}
+                  disabled={paypalProcessing}
+                />
+              </div>
+            )}
+
             <p className="text-[11px] text-[#9B8A6B] text-center mt-2">
               {t("Paiement sécurisé par Stripe — vos données ne sont jamais stockées", "Secured by Stripe — your card details are never stored")}
             </p>
@@ -798,5 +873,6 @@ export default function BookingFlowClient({
 
       </div>
     </div>
+    </PayPalScriptProvider>
   );
 }

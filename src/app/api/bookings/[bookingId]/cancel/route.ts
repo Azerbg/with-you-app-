@@ -30,20 +30,26 @@ export async function POST(
   const hoursUntil = (sessionStart.getTime() - now.getTime()) / 3_600_000;
 
   // Cancellation policy: >24h = full refund, <24h = credit only
+  const hasPayment = !!(booking.stripePaymentIntentId || booking.paypalCaptureId);
   let refundType: "FULL" | "CREDIT" | "NONE" = "NONE";
-  if (booking.stripePaymentIntentId) {
+  if (hasPayment) {
     if (hoursUntil >= 24) refundType = "FULL";
     else if (hoursUntil >= 12) refundType = "CREDIT";
     else refundType = "NONE";
   }
 
   // Process refund or credit
-  if (refundType === "FULL" && booking.stripePaymentIntentId) {
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: "2025-09-30.clover" as import("stripe").Stripe.LatestApiVersion,
-    });
-    await stripe.refunds.create({ payment_intent: booking.stripePaymentIntentId });
+  if (refundType === "FULL") {
+    if (booking.stripePaymentIntentId) {
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: "2025-09-30.clover" as import("stripe").Stripe.LatestApiVersion,
+      });
+      await stripe.refunds.create({ payment_intent: booking.stripePaymentIntentId });
+    } else if (booking.paypalCaptureId) {
+      const { refundPayPalCapture } = await import("@/lib/paypal");
+      await refundPayPalCapture(booking.paypalCaptureId);
+    }
   } else if (refundType === "CREDIT" && booking.studentPriceUsd) {
     await db.user.update({
       where: { id: booking.studentId },
