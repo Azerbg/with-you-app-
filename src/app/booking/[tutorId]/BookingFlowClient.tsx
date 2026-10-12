@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, ExpressCheckoutElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { useZone, type PriceZone } from "@/app/tutors/[id]/PricingCard";
@@ -128,6 +128,71 @@ const BRAND_LABELS: Record<string, string> = {
 
 function p(amount: number, zone: PriceZone) {
   return `${amount}\u00a0${zone.symbol}`;
+}
+
+// ─── ExpressCheckoutSection ───────────────────────────────────────────────────
+// Renders Apple Pay / Google Pay / Link / PayPal buttons when available.
+// Hidden entirely when no express method is present on the current device/browser.
+
+function ExpressCheckoutSection({
+  clientSecret,
+  onSuccess,
+  lang,
+}: {
+  clientSecret: string;
+  onSuccess: (paymentIntentId: string) => Promise<void>;
+  lang: string;
+}) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [visible, setVisible] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
+
+  async function handleConfirm() {
+    if (!stripe || !elements) return;
+    setError(null);
+    const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      clientSecret,
+      redirect: "if_required",
+      confirmParams: { return_url: `${window.location.origin}/booking/payment-return` },
+    });
+    if (confirmError) {
+      setError(confirmError.message ?? t("Paiement refusé", "Payment declined"));
+      return;
+    }
+    if (paymentIntent?.status === "succeeded") {
+      await onSuccess(paymentIntent.id);
+    }
+  }
+
+  return (
+    <div style={{ display: visible ? "block" : "none" }}>
+      <ExpressCheckoutElement
+        onConfirm={handleConfirm}
+        onReady={({ availablePaymentMethods }) => {
+          if (availablePaymentMethods) setVisible(true);
+        }}
+        options={{
+          layout: { maxColumns: 1, maxRows: 6, overflow: "never" },
+          buttonHeight: 48,
+          buttonTheme: { applePay: "black", googlePay: "black", paypal: "gold" },
+        }}
+      />
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-[#E8E0D4]" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="px-3 bg-white text-xs text-[#9B8A6B]">
+            {t("ou payer par carte", "or pay by card")}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── NewCardForm ─────────────────────────────────────────────────────────────
@@ -702,6 +767,11 @@ export default function BookingFlowClient({
                           }}
                         >
                           <StripeLoadErrorListener lang={lang} onError={setStripeLoadError} />
+                          <ExpressCheckoutSection
+                            clientSecret={clientSecret}
+                            onSuccess={confirmBooking}
+                            lang={lang}
+                          />
                           <NewCardForm
                             clientSecret={clientSecret}
                             amountUsd={amountUsd}
