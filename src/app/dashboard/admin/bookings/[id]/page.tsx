@@ -17,6 +17,7 @@ interface BookingDetail {
   studentCurrency: string;
   tutorPayoutAmount: number | null;
   tutorCurrency: string;
+  tutorPayoutUsd: number | null;
   platformMargin: number | null;
   paymentProvider: string | null;
   stripePaymentIntentId: string | null;
@@ -162,11 +163,34 @@ export default function BookingDetailPage() {
 
           {/* Financials */}
           <div className="bg-white rounded-2xl border border-black/5 p-6 shadow-sm space-y-3">
-            <h2 className="font-bold text-[#2D1A00] text-sm border-b border-black/5 pb-2">{t("Finances", "Financials")}</h2>
-            <Row label={t("Prix étudiant", "Student price")} value={booking.studentPriceUsd != null ? `$${booking.studentPriceUsd.toFixed(2)} ${booking.studentCurrency}` : "—"} />
-            <Row label={t("Paiement tuteur", "Tutor payout")} value={booking.tutorPayoutAmount != null ? `${booking.tutorPayoutAmount.toFixed(2)} ${booking.tutorCurrency}` : "—"} />
-            <Row label={t("Marge plateforme", "Platform margin")} value={booking.platformMargin != null ? `$${booking.platformMargin.toFixed(2)}` : "—"} />
-            <Row label={t("Crédits utilisés", "Credits used")} value={booking.creditAppliedTnd > 0 ? `${booking.creditAppliedTnd.toFixed(2)} TND` : "—"} />
+            {(() => {
+              // Compute margin: prefer tutorPayoutUsd (USD-normalised), fall back to stored platformMargin
+              const margin = booking.studentPriceUsd != null && booking.tutorPayoutUsd != null
+                ? booking.studentPriceUsd - booking.tutorPayoutUsd
+                : booking.platformMargin;
+              const fmtUsd = (v: number | null) => {
+                if (v == null) return "—";
+                const sign = v < 0 ? "-" : "";
+                return `${sign}$${Math.abs(v).toFixed(2)}`;
+              };
+              return (
+                <>
+                  <h2 className="font-bold text-[#2D1A00] text-sm border-b border-black/5 pb-2">{t("Finances", "Financials")}</h2>
+                  <Row label={t("Prix étudiant", "Student price")} value={booking.studentPriceUsd != null ? `$${booking.studentPriceUsd.toFixed(2)} ${booking.studentCurrency}` : "—"} />
+                  <Row label={t("Paiement tuteur", "Tutor payout")} value={booking.tutorPayoutAmount != null ? `${booking.tutorPayoutAmount.toFixed(2)} ${booking.tutorCurrency}` : "—"} />
+                  {booking.tutorPayoutUsd != null && (
+                    <Row label={t("Paiement tuteur (USD)", "Tutor payout (USD)")} value={`$${booking.tutorPayoutUsd.toFixed(2)}`} />
+                  )}
+                  <div className="flex items-start justify-between gap-4 py-1 border-b border-black/5 text-sm">
+                    <span className="text-[#9B8A6B] flex-shrink-0">{t("Marge plateforme", "Platform margin")}</span>
+                    <span className={`font-semibold text-right ${margin != null && margin < 0 ? "text-red-600" : "text-[#2D1A00]"}`}>
+                      {fmtUsd(margin)}
+                    </span>
+                  </div>
+                  <Row label={t("Crédits utilisés", "Credits used")} value={booking.creditAppliedTnd > 0 ? `${booking.creditAppliedTnd.toFixed(2)} TND` : "—"} />
+                </>
+              );
+            })()}
             <div className="pt-2 border-t border-black/5">
               <Row label={t("Fournisseur", "Provider")} value={booking.paymentProvider === "stripe" ? "💳 Stripe" : booking.paymentProvider === "paypal" ? "🅿️ PayPal" : "—"} />
               {booking.stripePaymentIntentId && <Row label="Payment Intent" value={booking.stripePaymentIntentId} mono />}

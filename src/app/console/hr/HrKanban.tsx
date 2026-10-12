@@ -1039,14 +1039,14 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
   });
 
   return (
-    <div className="min-h-screen bg-[#FAF8F0]">
+    <div className="min-h-screen bg-[#FAF8F0] overflow-x-hidden">
       {/* Top bar */}
-      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-4 min-w-0">
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg whitespace-nowrap">WithYou</Link>
-          <span className="text-[#6B5E44] text-sm font-semibold whitespace-nowrap">{t("Console RH", "HR Console")}</span>
+      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-3 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
+          <Link href="/" className="text-[#F5C400] font-bold text-lg bg-[#5C3D00] px-2.5 py-1 rounded-lg whitespace-nowrap flex-shrink-0">WithYou</Link>
+          <span className="text-[#6B5E44] text-sm font-semibold whitespace-nowrap hidden lg:block">{t("Console RH", "HR Console")}</span>
           {/* View toggle */}
-          <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15">
+          <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15 flex-shrink-0">
             <button
               onClick={() => setView("kanban")}
               className={`px-3 py-1 rounded-full text-xs font-bold transition ${view === "kanban" ? "bg-white text-[#5C3D00] shadow-sm" : "text-[#6B5E44] hover:text-[#5C3D00]"}`}
@@ -1066,18 +1066,18 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           {view === "kanban" && (
             <>
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={t("Rechercher…", "Search…")}
-                className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-40"
+                className="border border-[#6B5E44]/30 rounded-full px-3 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-32 min-w-0"
               />
               <button
                 onClick={() => setHideEmpty(v => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap flex-shrink-0 ${
+                className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-bold border transition whitespace-nowrap flex-shrink-0 ${
                   hideEmpty
                     ? "bg-[#5C3D00] border-[#5C3D00] text-white"
                     : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#5C3D00]/40"
@@ -1087,18 +1087,18 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
               </button>
             </>
           )}
-          <span className="text-xs text-[#6B5E44]">{hrEmail}</span>
+          <span className="text-xs text-[#6B5E44] truncate max-w-[110px] hidden md:block">{hrEmail}</span>
           {role === "ADMIN" && (
             <Link href="/dashboard/admin"
-              className="text-xs font-semibold text-[#9B8A6B] hover:text-[#5C3D00] transition px-2 py-1 rounded-lg hover:bg-black/5">
+              className="text-xs font-semibold text-[#9B8A6B] hover:text-[#5C3D00] transition px-2 py-1 rounded-lg hover:bg-black/5 whitespace-nowrap flex-shrink-0">
               ← Admin
             </Link>
           )}
           <button onClick={() => signOut({ callbackUrl: "/auth/login" })}
-            className="text-xs font-semibold text-[#9B8A6B] hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50">
+            className="text-xs font-semibold text-[#9B8A6B] hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50 whitespace-nowrap flex-shrink-0">
             {t("Déconnexion", "Sign out")}
           </button>
-          <LanguageSwitcher />
+          <div className="flex-shrink-0"><LanguageSwitcher /></div>
         </div>
       </div>
 

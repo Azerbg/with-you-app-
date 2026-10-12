@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: {
       id: true, status: true, sessionType: true,
       studentPriceUsd: true, studentCurrency: true,
-      tutorPayoutAmount: true, tutorCurrency: true,
+      tutorPayoutAmount: true, tutorCurrency: true, tutorPayoutUsd: true,
       platformMargin: true, durationMins: true,
       scheduledAt: true, startedAt: true, endedAt: true,
       createdAt: true, updatedAt: true,

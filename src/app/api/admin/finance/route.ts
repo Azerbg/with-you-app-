@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   const { error } = await requireAdmin();
   if (error) return error;
 
+  try {
   const { searchParams } = new URL(req.url);
   const format = searchParams.get("format");
   const lang   = searchParams.get("lang") === "fr" ? "fr" : "en";
@@ -128,4 +129,8 @@ export async function GET(req: NextRequest) {
       count:       payoutsPaid._count.id,
     },
   });
+  } catch (err) {
+    console.error("[finance]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

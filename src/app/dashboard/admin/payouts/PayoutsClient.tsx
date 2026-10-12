@@ -282,6 +282,7 @@ export default function PayoutsClient() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [markingTutor, setMarkingTutor] = useState<TutorRow | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
 
   // History tab state
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -341,6 +342,19 @@ export default function PayoutsClient() {
     load();
   }
 
+  async function runBackfill() {
+    setBackfilling(true);
+    try {
+      const res = await fetch("/api/admin/bookings/backfill", { method: "POST" });
+      const data = await res.json();
+      setSuccessMsg(data.message ?? t("Remplissage terminé.", "Backfill done."));
+      setTimeout(() => setSuccessMsg(null), 8000);
+      load();
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   async function downloadHistoryCsv() {
     setExportingCsv(true);
     const res = await fetch("/api/admin/payouts/history?format=csv");
@@ -360,13 +374,21 @@ export default function PayoutsClient() {
     <div className="max-w-5xl mx-auto px-8 py-8">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-black text-[#1A0F00]">{t("Virements tuteurs", "Tutor payouts")}</h1>
           <p className="text-sm text-[#9B8A6B] mt-1">
             {t("Séances terminées en attente de paiement tuteur.", "Completed sessions pending tutor payment.")}
           </p>
         </div>
+        <button
+          onClick={runBackfill}
+          disabled={backfilling}
+          className="text-xs px-3 py-1.5 border border-[#6B5E44]/30 rounded-full text-[#9B8A6B] hover:text-[#5C3D00] hover:border-[#5C3D00]/40 disabled:opacity-50 transition"
+          title={t("Recalcule les prix manquants sur les réservations COMPLETED.", "Recalculates missing prices on COMPLETED bookings.")}
+        >
+          {backfilling ? "…" : t("Corriger prix manquants", "Fix missing prices")}
+        </button>
       </div>
 
       {/* Tab bar */}

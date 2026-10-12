@@ -1084,3 +1084,4 @@ model Referral {
 
   @@map("referrals")
 }
+

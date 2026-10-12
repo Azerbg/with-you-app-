@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 
 /** Default USD→TND rate if not set in DB */
-export const DEFAULT_USD_TO_TND = 3.1;
+export const DEFAULT_USD_TO_TND = 2.95;
 
 /** Reads usdToTnd from the settings table, falls back to default. */
 export async function getUsdToTndRate(): Promise<number> {
