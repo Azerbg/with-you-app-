@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface BookingUser {
   id: string; email: string; firstName: string | null; lastName: string | null;
@@ -11,6 +13,7 @@ interface Booking {
   studentPriceUsd: number | null; studentCurrency: string;
   durationMins: number;
   scheduledAt: string | null; createdAt: string;
+  paymentProvider: string | null;
   student: BookingUser; tutor: BookingUser;
 }
 
@@ -22,13 +25,19 @@ const STATUS_BADGE: Record<string, string> = {
   NO_SHOW:   "bg-orange-100 text-orange-700",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: "En attente", CONFIRMED: "Confirmé", COMPLETED: "Terminé",
-  CANCELLED: "Annulé", NO_SHOW: "Absent",
+const STATUS_LABELS: Record<string, { fr: string; en: string }> = {
+  PENDING:   { fr: "En attente", en: "Pending" },
+  CONFIRMED: { fr: "Confirmé",   en: "Confirmed" },
+  COMPLETED: { fr: "Terminé",    en: "Completed" },
+  CANCELLED: { fr: "Annulé",     en: "Cancelled" },
+  NO_SHOW:   { fr: "Absent",     en: "No-show" },
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  DISCOVERY: "Découverte", SINGLE: "Unique", PROGRAM: "Programme", SUBSCRIPTION: "Abonnement",
+const TYPE_LABELS: Record<string, { fr: string; en: string }> = {
+  DISCOVERY:    { fr: "Découverte", en: "Discovery" },
+  SINGLE:       { fr: "Unique",     en: "Single" },
+  PROGRAM:      { fr: "Programme",  en: "Program" },
+  SUBSCRIPTION: { fr: "Abonnement", en: "Subscription" },
 };
 
 function userName(u: BookingUser) {
@@ -38,6 +47,9 @@ function userName(u: BookingUser) {
 }
 
 export default function BookingsClient() {
+  const router = useRouter();
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
@@ -68,19 +80,19 @@ export default function BookingsClient() {
       <div className="bg-white border-b border-black/5 px-8 py-5 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="font-black text-xl text-[#1A0F00]">Réservations</h1>
-            <p className="text-xs text-[#9B8A6B] mt-0.5">{total.toLocaleString()} au total</p>
+            <h1 className="font-black text-xl text-[#1A0F00]">{t("Réservations", "Bookings")}</h1>
+            <p className="text-xs text-[#9B8A6B] mt-0.5">{total.toLocaleString()} {t("au total", "total")}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher par étudiant ou tuteur…"
+            placeholder={t("Rechercher par étudiant ou tuteur…", "Search by student or tutor…")}
             className="flex-1 border border-[#6B5E44]/30 rounded-xl px-4 py-2 text-sm text-[#2D1A00] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition" />
           <select value={status} onChange={e => setStatus(e.target.value)}
             className="border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] focus:outline-none focus:border-[#F5C400] transition bg-white">
-            <option value="ALL">Tous les statuts</option>
+            <option value="ALL">{t("Tous les statuts", "All statuses")}</option>
             {Object.entries(STATUS_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+              <option key={v} value={v}>{l[lang]}</option>
             ))}
           </select>
         </div>
@@ -89,53 +101,50 @@ export default function BookingsClient() {
       {/* Table */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-48 text-sm text-[#9B8A6B]">Chargement…</div>
+          <div className="flex items-center justify-center h-48 text-sm text-[#9B8A6B]">{t("Chargement…", "Loading…")}</div>
         ) : bookings.length === 0 ? (
-          <div className="flex items-center justify-center h-48 text-sm text-[#9B8A6B]">Aucune réservation trouvée</div>
+          <div className="flex items-center justify-center h-48 text-sm text-[#9B8A6B]">{t("Aucune réservation trouvée", "No bookings found")}</div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-black/5">
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-8 py-3">Étudiant</th>
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Tuteur</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-8 py-3">{t("Étudiant", "Student")}</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Tuteur", "Tutor")}</th>
                 <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Type</th>
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Statut</th>
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Prix</th>
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Date séance</th>
-                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">Réservé le</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Statut", "Status")}</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Prix", "Price")}</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Paiement", "Payment")}</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Date séance", "Session date")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-black/5">
               {bookings.map(b => (
-                <tr key={b.id} className="hover:bg-[#FAF8F0] transition">
+                <tr key={b.id}
+                  onClick={() => router.push(`/dashboard/admin/bookings/${b.id}`)}
+                  className="hover:bg-[#FAF8F0] transition cursor-pointer">
                   <td className="px-8 py-3">
-                    <a href={`/dashboard/admin/users/${b.student.id}`}
-                      className="text-sm font-medium text-[#2D1A00] hover:text-[#5C3D00] transition truncate block max-w-[140px]">
-                      {userName(b.student)}
-                    </a>
+                    <p className="text-sm font-medium text-[#2D1A00] truncate max-w-[140px]">{userName(b.student)}</p>
+                    <p className="text-[10px] text-[#9B8A6B] truncate max-w-[140px]">{b.student.email}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <a href={`/dashboard/admin/users/${b.tutor.id}`}
-                      className="text-sm text-[#2D1A00] hover:text-[#5C3D00] transition truncate block max-w-[140px]">
-                      {userName(b.tutor)}
-                    </a>
+                    <p className="text-sm text-[#2D1A00] truncate max-w-[140px]">{userName(b.tutor)}</p>
                   </td>
-                  <td className="px-4 py-3 text-xs text-[#9B8A6B]">{TYPE_LABELS[b.sessionType] ?? b.sessionType}</td>
+                  <td className="px-4 py-3 text-xs text-[#9B8A6B]">{TYPE_LABELS[b.sessionType]?.[lang] ?? b.sessionType}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[b.status] ?? ""}`}>
-                      {STATUS_LABELS[b.status] ?? b.status}
+                      {STATUS_LABELS[b.status]?.[lang] ?? b.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-[#2D1A00]">
-                    {b.studentPriceUsd != null ? `$${b.studentPriceUsd.toFixed(0)} ${b.studentCurrency}` : "—"}
+                    {b.studentPriceUsd != null ? `$${b.studentPriceUsd.toFixed(2)} ${b.studentCurrency}` : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-[#9B8A6B]">
+                    {b.paymentProvider === "stripe" ? "💳 Stripe" : b.paymentProvider === "paypal" ? "🅿️ PayPal" : "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">
                     {b.scheduledAt
-                      ? new Date(b.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                      ? new Date(b.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
                       : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#9B8A6B]">
-                    {new Date(b.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                   </td>
                 </tr>
               ))}
@@ -147,15 +156,15 @@ export default function BookingsClient() {
       {/* Pagination */}
       {pages > 1 && (
         <div className="bg-white border-t border-black/5 px-8 py-3 flex items-center justify-between flex-shrink-0">
-          <p className="text-xs text-[#9B8A6B]">Page {page} sur {pages}</p>
+          <p className="text-xs text-[#9B8A6B]">{t(`Page ${page} sur ${pages}`, `Page ${page} of ${pages}`)}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
               className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-semibold text-[#9B8A6B] disabled:opacity-40 hover:bg-black/5 transition">
-              ← Précédent
+              {t("← Précédent", "← Previous")}
             </button>
             <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
               className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-semibold text-[#9B8A6B] disabled:opacity-40 hover:bg-black/5 transition">
-              Suivant →
+              {t("Suivant →", "Next →")}
             </button>
           </div>
         </div>

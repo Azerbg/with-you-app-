@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import BookingsClient from "./BookingsClient";
 
-export const metadata = { title: "Réservations — Admin" };
+export async function generateMetadata() {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "fr" ? "fr" : "en";
+  return { title: lang === "fr" ? "Réservations — Admin" : "Bookings — Admin" };
+}
 
 export default function AdminBookingsPage() {
   return (

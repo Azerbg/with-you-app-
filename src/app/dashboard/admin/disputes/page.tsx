@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import DisputesClient from "./DisputesClient";
 
-export const metadata = { title: "Litiges — Admin" };
+export async function generateMetadata() {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "fr" ? "fr" : "en";
+  return { title: lang === "fr" ? "Litiges — Admin" : "Disputes — Admin" };
+}
 
 export default function AdminDisputesPage() {
   return (

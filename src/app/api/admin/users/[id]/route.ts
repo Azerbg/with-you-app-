@@ -84,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const { accountStatus, statusReason, role } = body;
 
-  const user = await db.user.findUnique({ where: { id }, select: { id: true, role: true } });
+  const user = await db.user.findUnique({ where: { id }, select: { id: true, role: true, accountStatus: true } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Prevent admin from changing their own role/status
@@ -92,20 +92,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Cannot modify your own account" }, { status: 403 });
   }
 
+  // Reason required when freezing or blocking
+  if (accountStatus && accountStatus !== "ACTIVE" && !statusReason?.trim()) {
+    return NextResponse.json({ error: "reason_required" }, { status: 422 });
+  }
+
   const data: Record<string, unknown> = {};
   if (accountStatus) {
     data.accountStatus = accountStatus;
-    data.statusReason = statusReason ?? null;
+    data.statusReason = statusReason?.trim() ?? null;
     data.statusUpdatedAt = new Date();
     data.statusUpdatedBy = session!.user.id;
   }
   if (role) data.role = role;
 
   const updated = await db.user.update({ where: { id }, data, select: { id: true, accountStatus: true, role: true } });
+
+  // Audit log for status change
+  if (accountStatus && accountStatus !== user.accountStatus) {
+    db.auditLog.create({
+      data: {
+        actorId: session!.user.id,
+        action: `STATUS_CHANGE_${accountStatus}`,
+        targetEntity: "User",
+        targetId: id,
+        payloadBefore: { accountStatus: user.accountStatus },
+        payloadAfter:  { accountStatus },
+        reason: statusReason?.trim() ?? undefined,
+      },
+    }).catch(() => {});
+  }
+
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error, session } = await requireAdmin();
   if (error) return error;
 
@@ -115,6 +136,46 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 403 });
   }
 
-  await db.user.delete({ where: { id } });
+  const body = await req.json().catch(() => ({}));
+  const { reason, confirmEmail } = body as { reason?: string; confirmEmail?: string };
+
+  // Verify confirmed email matches
+  const target = await db.user.findUnique({ where: { id }, select: { email: true } });
+  if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!confirmEmail || confirmEmail.toLowerCase() !== target.email.toLowerCase()) {
+    return NextResponse.json({ error: "email_mismatch" }, { status: 422 });
+  }
+
+  // Soft delete: anonymize PII, keep bookings/payments
+  await db.user.update({
+    where: { id },
+    data: {
+      email:         `deleted_${id}@withu.invalid`,
+      firstName:     null,
+      lastName:      null,
+      nickname:      null,
+      image:         null,
+      password:      null,
+      totpSecret:    null,
+      totpEnabled:   false,
+      referralCode:  null,
+      accountStatus: "BLOCKED",
+      statusReason:  "ACCOUNT_DELETED",
+      statusUpdatedAt: new Date(),
+      statusUpdatedBy: session!.user.id,
+    },
+  });
+
+  // Audit log
+  db.auditLog.create({
+    data: {
+      actorId: session!.user.id,
+      action: "ANONYMIZE_USER",
+      targetEntity: "User",
+      targetId: id,
+      reason: reason?.trim() ?? undefined,
+    },
+  }).catch(() => {});
+
   return NextResponse.json({ ok: true });
 }

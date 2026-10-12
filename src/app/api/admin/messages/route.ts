@@ -11,14 +11,16 @@ export async function GET(req: NextRequest) {
   const page   = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const limit  = 30;
 
+  const base = { messages: { some: {} } }; // hide 0-message threads
   const where = search ? {
+    ...base,
     OR: [
       { student: { email:     { contains: search, mode: "insensitive" as const } } },
       { student: { firstName: { contains: search, mode: "insensitive" as const } } },
       { tutor:   { firstName: { contains: search, mode: "insensitive" as const } } },
       { tutor:   { hrApplication: { fullName: { contains: search, mode: "insensitive" as const } } } },
     ],
-  } : {};
+  } : base;
 
   const [threads, total] = await Promise.all([
     db.messageThread.findMany({

@@ -26,7 +26,7 @@ const baseSchema = z.object({
   certificateUrls: z.array(z.string()).default([]),
 
   // Step 3 — About
-  bio:                 z.string().min(100),
+  bio:                 z.string().min(80).refine(v => !(/(.)\1{9,}/.test(v)), { message: "Repetitive text detected" }),
   cvUrl:               z.string().min(1),
   motivationLetterUrl: z.string().min(1),
 

@@ -3,21 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useLanguage } from "@/context/LanguageContext";
 
 const NAV = [
-  { label: "Overview",  href: "/dashboard/admin",           icon: "📊" },
-  { label: "Users",     href: "/dashboard/admin/users",     icon: "👥" },
-  { label: "Messages",  href: "/dashboard/admin/messages",  icon: "💬" },
-  { label: "Bookings",  href: "/dashboard/admin/bookings",  icon: "📅" },
-  { label: "Payouts",   href: "/dashboard/admin/payouts",   icon: "💸" },
-  { label: "Disputes",  href: "/dashboard/admin/disputes",  icon: "⚠️" },
-  { label: "HR Console",href: "/console/hr",                icon: "🗂️" },
+  { labelFr: "Vue d'ensemble", labelEn: "Overview",   href: "/dashboard/admin",           icon: "📊" },
+  { labelFr: "Utilisateurs",   labelEn: "Users",      href: "/dashboard/admin/users",     icon: "👥" },
+  { labelFr: "Messages",       labelEn: "Messages",   href: "/dashboard/admin/messages",  icon: "💬" },
+  { labelFr: "Réservations",   labelEn: "Bookings",   href: "/dashboard/admin/bookings",  icon: "📅" },
+  { labelFr: "Finance",        labelEn: "Finance",    href: "/dashboard/admin/finance",   icon: "📈" },
+  { labelFr: "Virements",      labelEn: "Payouts",    href: "/dashboard/admin/payouts",   icon: "💸" },
+  { labelFr: "Litiges",        labelEn: "Disputes",   href: "/dashboard/admin/disputes",  icon: "⚠️" },
+  { labelFr: "Console RH",     labelEn: "HR Console", href: "/console/hr",                icon: "🗂️" },
 ];
 
 interface Props { email: string; }
 
 export default function AdminSidebar({ email }: Props) {
   const pathname = usePathname();
+  const { lang } = useLanguage();
   const initials = email.slice(0, 2).toUpperCase();
 
   return (
@@ -42,7 +45,7 @@ export default function AdminSidebar({ email }: Props) {
                   : "text-white/60 hover:text-white hover:bg-white/5"
               }`}>
               <span className="text-base">{item.icon}</span>
-              {item.label}
+              {lang === "fr" ? item.labelFr : item.labelEn}
             </Link>
           );
         })}
@@ -56,14 +59,14 @@ export default function AdminSidebar({ email }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-white truncate">{email}</p>
-            <p className="text-[10px] text-white/30">Administrateur</p>
+            <p className="text-[10px] text-white/30">{lang === "fr" ? "Administrateur" : "Administrator"}</p>
           </div>
         </div>
 
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
           className="block text-center text-xs text-white/30 hover:text-white/60 transition py-1 w-full">
-          Se déconnecter
+          {lang === "fr" ? "Se déconnecter" : "Sign out"}
         </button>
       </div>
     </div>

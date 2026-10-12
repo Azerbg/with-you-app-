@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,8 +67,8 @@ function formatAmount(amount: number, currency: string) {
     : `${amount.toFixed(2)} ${sym}`;
 }
 
-function paymentMethodDetail(pm: PaymentMethod | null): string {
-  if (!pm) return "Aucun moyen de paiement enregistré";
+function paymentMethodDetail(pm: PaymentMethod | null, lang: "fr" | "en" = "fr"): string {
+  if (!pm) return lang === "fr" ? "Aucun moyen de paiement enregistré" : "No payment method on file";
   switch (pm.type) {
     case "BANK_TN":   return `${pm.bankNameTn ?? "Banque"} — RIB: ${pm.rib ?? "—"} (${pm.accountHolder ?? "—"})`;
     case "BANK_INTL": return `${pm.bankNameIntl ?? "Banque"} — IBAN: ${pm.iban ?? "—"} / SWIFT: ${pm.swift ?? "—"}`;
@@ -89,6 +90,8 @@ function MarkPaidModal({
   onClose: () => void;
   onConfirm: (bookingIds: string[], reference: string) => Promise<void>;
 }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [reference, setReference] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
@@ -125,14 +128,14 @@ function MarkPaidModal({
 
         {/* Header */}
         <div className="px-6 py-5 border-b border-black/5">
-          <h2 className="font-bold text-[#2D1A00] text-lg">Marquer comme payé</h2>
+          <h2 className="font-bold text-[#2D1A00] text-lg">{t("Marquer comme payé", "Mark as paid")}</h2>
           <p className="text-sm text-[#9B8A6B] mt-0.5">{tutor.tutorName}</p>
         </div>
 
         {/* Payment method info */}
         <div className="px-6 py-4 bg-[#FAF8F0] border-b border-black/5">
           <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1">
-            Moyen de paiement du tuteur
+            {t("Moyen de paiement du tuteur", "Tutor payment method")}
           </p>
           {tutor.paymentMethod ? (
             <>
@@ -140,12 +143,12 @@ function MarkPaidModal({
                 {TYPE_LABELS[tutor.paymentMethod.type] ?? tutor.paymentMethod.type}
               </p>
               <p className="text-xs text-[#6B5E44] mt-0.5 font-mono">
-                {paymentMethodDetail(tutor.paymentMethod)}
+                {paymentMethodDetail(tutor.paymentMethod, lang)}
               </p>
             </>
           ) : (
             <p className="text-xs text-red-500 font-semibold">
-              Aucun moyen de paiement enregistré — contactez le tuteur
+              {t("Aucun moyen de paiement enregistré — contactez le tuteur", "No payment method on file — contact the tutor")}
             </p>
           )}
         </div>
@@ -153,12 +156,12 @@ function MarkPaidModal({
         {/* Session list */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <p className="text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-3">
-            Séances à inclure
+            {t("Séances à inclure", "Sessions to include")}
           </p>
           <div className="space-y-2">
             {tutor.bookings.map((b) => {
               const date = b.scheduledAt
-                ? new Date(b.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                ? new Date(b.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
                 : "—";
               return (
                 <label key={b.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#E8E0D4] hover:bg-[#FAF8F0] cursor-pointer transition">
@@ -171,7 +174,7 @@ function MarkPaidModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-[#2D1A00] font-medium">{date}</p>
                     <p className="text-xs text-[#9B8A6B]">
-                      {b.sessionType === "DISCOVERY" ? "Découverte" : "Séance"} · {b.durationMins} min
+                      {b.sessionType === "DISCOVERY" ? t("Découverte", "Discovery") : t("Séance", "Session")} · {b.durationMins} min
                       {b.paymentProvider === "paypal" && (
                         <span className="ml-1.5 text-blue-500 font-semibold">PayPal</span>
                       )}
@@ -190,7 +193,7 @@ function MarkPaidModal({
         <div className="px-6 py-4 border-t border-black/5 space-y-4">
           <div>
             <label className="block text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1.5">
-              Référence de virement (optionnel)
+              {t("Référence de virement (optionnel)", "Transfer reference (optional)")}
             </label>
             <input
               type="text"
@@ -202,7 +205,7 @@ function MarkPaidModal({
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-[#9B8A6B]">{selectedIds.size} séance{selectedIds.size !== 1 ? "s" : ""} sélectionnée{selectedIds.size !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-[#9B8A6B]">{selectedIds.size} {lang === "fr" ? `séance${selectedIds.size !== 1 ? "s" : ""} sélectionnée${selectedIds.size !== 1 ? "s" : ""}` : `session${selectedIds.size !== 1 ? "s" : ""} selected`}</p>
               <p className="text-lg font-black text-[#2D1A00]">
                 {formatAmount(selectedTotal, tutor.currency)}
               </p>
@@ -212,14 +215,14 @@ function MarkPaidModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold"
               >
-                Annuler
+                {t("Annuler", "Cancel")}
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={loading || selectedIds.size === 0}
                 className="px-5 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] transition disabled:opacity-50"
               >
-                {loading ? "En cours…" : "Confirmer le paiement"}
+                {loading ? t("En cours…", "Processing…") : t("Confirmer le paiement", "Confirm payment")}
               </button>
             </div>
           </div>
@@ -232,6 +235,8 @@ function MarkPaidModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function PayoutsClient() {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [tutors, setTutors] = useState<TutorRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -246,11 +251,11 @@ export default function PayoutsClient() {
     try {
       const res = await fetch("/api/admin/payouts");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      if (!res.ok) throw new Error(data.error ?? t("Erreur", "Error"));
       setTutors(data.tutors);
       setSummary(data.summary);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur de chargement");
+      setError(e instanceof Error ? e.message : t("Erreur de chargement", "Loading error"));
     } finally {
       setLoading(false);
     }
@@ -273,8 +278,10 @@ export default function PayoutsClient() {
       body: JSON.stringify({ bookingIds, reference }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? "Erreur");
-    setSuccessMsg(`${data.count} séance${data.count !== 1 ? "s" : ""} marquée${data.count !== 1 ? "s" : ""} comme payée${data.count !== 1 ? "s" : ""}. Référence : ${data.reference}`);
+    if (!res.ok) throw new Error(data.error ?? t("Erreur", "Error"));
+    setSuccessMsg(lang === "fr"
+      ? `${data.count} séance${data.count !== 1 ? "s" : ""} marquée${data.count !== 1 ? "s" : ""} comme payée${data.count !== 1 ? "s" : ""}. Référence : ${data.reference}`
+      : `${data.count} session${data.count !== 1 ? "s" : ""} marked as paid. Reference: ${data.reference}`);
     setTimeout(() => setSuccessMsg(null), 6000);
     load();
   }
@@ -284,9 +291,9 @@ export default function PayoutsClient() {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-black text-[#1A0F00]">Virements tuteurs</h1>
+        <h1 className="text-2xl font-black text-[#1A0F00]">{t("Virements tuteurs", "Tutor payouts")}</h1>
         <p className="text-sm text-[#9B8A6B] mt-1">
-          Séances terminées en attente de paiement tuteur.
+          {t("Séances terminées en attente de paiement tuteur.", "Completed sessions pending tutor payment.")}
         </p>
       </div>
 
@@ -309,24 +316,24 @@ export default function PayoutsClient() {
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
-            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Tuteurs à payer</p>
+            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Tuteurs à payer", "Tutors to pay")}</p>
             <p className="text-3xl font-black text-[#2D1A00]">{summary.pendingTutorCount}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">{summary.pendingBookingCount} séance{summary.pendingBookingCount !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{summary.pendingBookingCount} {lang === "fr" ? `séance${summary.pendingBookingCount !== 1 ? "s" : ""}` : `session${summary.pendingBookingCount !== 1 ? "s" : ""}`}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
-            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Payés ce mois</p>
+            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Payés ce mois", "Paid this month")}</p>
             <p className="text-3xl font-black text-[#2D1A00]">{summary.paidThisMonthCount}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">séances virées</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("séances virées", "sessions paid out")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
-            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Revenus bruts (mois)</p>
+            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Revenus bruts (mois)", "Gross revenue (month)")}</p>
             <p className="text-3xl font-black text-[#2D1A00]">${summary.platformGrossUsd.toFixed(0)}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">USD perçus</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("USD perçus", "USD collected")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
-            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Marge plateforme (mois)</p>
+            <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Marge plateforme (mois)", "Platform margin (month)")}</p>
             <p className="text-3xl font-black text-green-700">${summary.platformRevenueUsd.toFixed(0)}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">après paiement tuteurs</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("après paiement tuteurs", "after tutor payouts")}</p>
           </div>
         </div>
       )}
@@ -341,8 +348,8 @@ export default function PayoutsClient() {
       ) : tutors.length === 0 ? (
         <div className="bg-white border border-black/5 rounded-2xl p-12 text-center">
           <p className="text-2xl mb-2">✅</p>
-          <p className="font-bold text-[#2D1A00]">Aucun virement en attente</p>
-          <p className="text-sm text-[#9B8A6B] mt-1">Tous les tuteurs ont été payés.</p>
+          <p className="font-bold text-[#2D1A00]">{t("Aucun virement en attente", "No pending payouts")}</p>
+          <p className="text-sm text-[#9B8A6B] mt-1">{t("Tous les tuteurs ont été payés.", "All tutors have been paid.")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -366,10 +373,10 @@ export default function PayoutsClient() {
                             {TYPE_LABELS[tutor.paymentMethod!.type] ?? tutor.paymentMethod!.type}
                           </span>
                           {" — "}
-                          <span className="font-mono">{paymentMethodDetail(tutor.paymentMethod)}</span>
+                          <span className="font-mono">{paymentMethodDetail(tutor.paymentMethod, lang)}</span>
                         </>
                       ) : (
-                        <span className="text-red-500 font-semibold">Aucun moyen de paiement</span>
+                        <span className="text-red-500 font-semibold">{t("Aucun moyen de paiement", "No payment method")}</span>
                       )}
                     </p>
                   </div>
@@ -378,7 +385,7 @@ export default function PayoutsClient() {
                       {formatAmount(tutor.totalOwed, tutor.currency)}
                     </p>
                     <p className="text-xs text-[#9B8A6B]">
-                      {tutor.bookings.length} séance{tutor.bookings.length !== 1 ? "s" : ""}
+                      {tutor.bookings.length} {lang === "fr" ? `séance${tutor.bookings.length !== 1 ? "s" : ""}` : `session${tutor.bookings.length !== 1 ? "s" : ""}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -386,13 +393,13 @@ export default function PayoutsClient() {
                       onClick={() => toggleExpand(tutor.tutorId)}
                       className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold px-3 py-1.5 rounded-lg hover:bg-[#FAF8F0]"
                     >
-                      {isExpanded ? "Masquer" : "Détails"}
+                      {isExpanded ? t("Masquer", "Hide") : t("Détails", "Details")}
                     </button>
                     <button
                       onClick={() => setMarkingTutor(tutor)}
                       className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] transition"
                     >
-                      Marquer payé
+                      {t("Marquer payé", "Mark paid")}
                     </button>
                   </div>
                 </div>
@@ -403,19 +410,19 @@ export default function PayoutsClient() {
                     <div className="divide-y divide-black/4">
                       {tutor.bookings.map((b) => {
                         const date = b.scheduledAt
-                          ? new Date(b.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                          ? new Date(b.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
                           : "—";
                         return (
                           <div key={b.id} className="flex items-center gap-4 px-6 py-3 bg-[#FAF8F0]">
                             <p className="text-xs text-[#6B5E44] w-24 flex-shrink-0">{date}</p>
                             <p className="text-xs text-[#9B8A6B] flex-1">
-                              {b.sessionType === "DISCOVERY" ? "Découverte" : "Séance"} · {b.durationMins} min
+                              {b.sessionType === "DISCOVERY" ? t("Découverte", "Discovery") : t("Séance", "Session")} · {b.durationMins} min
                               {b.paymentProvider === "paypal" && (
                                 <span className="ml-1.5 text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">PayPal</span>
                               )}
                             </p>
                             <p className="text-xs text-[#9B8A6B] flex-shrink-0">
-                              Étudiant: <span className="font-semibold">${b.studentPriceUsd?.toFixed(2) ?? "—"}</span>
+                              {t("Étudiant", "Student")}: <span className="font-semibold">${b.studentPriceUsd?.toFixed(2) ?? "—"}</span>
                             </p>
                             <p className="text-sm font-bold text-[#2D1A00] flex-shrink-0">
                               {formatAmount(b.tutorPayoutAmount ?? 0, b.tutorCurrency)}
@@ -426,7 +433,7 @@ export default function PayoutsClient() {
                     </div>
                     <div className="px-6 py-3 bg-[#F7F4EE] flex justify-end">
                       <p className="text-sm font-bold text-[#5C3D00]">
-                        Total dû : {formatAmount(tutor.totalOwed, tutor.currency)}
+                        {t("Total dû", "Total owed")} : {formatAmount(tutor.totalOwed, tutor.currency)}
                       </p>
                     </div>
                   </div>

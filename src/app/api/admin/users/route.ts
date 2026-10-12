@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const role   = searchParams.get("role") ?? "";
   const status = searchParams.get("status") ?? "";
   const page   = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const limit  = 20;
+  const limit  = 25;
 
   const where: Record<string, unknown> = {};
   if (role && role !== "ALL")   where.role = role;

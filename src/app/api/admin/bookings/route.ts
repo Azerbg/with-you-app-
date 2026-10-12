@@ -26,12 +26,14 @@ export async function GET(req: NextRequest) {
   const [bookings, total] = await Promise.all([
     db.booking.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ scheduledAt: "desc" }, { createdAt: "desc" }],
       skip: (page - 1) * limit,
       take: limit,
       select: {
         id: true, status: true, sessionType: true, studentPriceUsd: true, studentCurrency: true,
         scheduledAt: true, durationMins: true, createdAt: true,
+        paymentProvider: true, stripePaymentIntentId: true, paypalOrderId: true,
+        cancelledAt: true, cancelledBy: true,
         student: { select: { id: true, email: true, firstName: true, lastName: true } },
         tutor:   { select: { id: true, email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
       },

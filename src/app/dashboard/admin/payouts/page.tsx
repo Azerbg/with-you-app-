@@ -1,8 +1,13 @@
 import { auth } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import PayoutsClient from "./PayoutsClient";
 
-export const metadata = { title: "Virements tuteurs — WithYou Admin" };
+export async function generateMetadata() {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "fr" ? "fr" : "en";
+  return { title: lang === "fr" ? "Virements tuteurs — Admin" : "Tutor Payouts — Admin" };
+}
 
 export default async function PayoutsPage() {
   const session = await auth();

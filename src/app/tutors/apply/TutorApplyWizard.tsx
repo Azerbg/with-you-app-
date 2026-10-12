@@ -885,23 +885,32 @@ function StepTeaching({ data, onChange, onNext, onBack }: {
 
 function FileUploadZone({ label, required, hint, accept, value, savedFileName, onChange, fr }: {
   label: string; required?: boolean; hint: string; accept: string;
-  value: string; savedFileName?: string; onChange: (name: string, dataUrl: string) => void; fr: boolean;
+  value: string; savedFileName?: string; onChange: (name: string, url: string) => void; fr: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState(savedFileName ?? "");
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  function handleFile(file: File) {
-    const allowed = accept.split(",").map(a => a.trim());
-    const ok = allowed.some(a => file.name.toLowerCase().endsWith(a.replace(".", "").replace("*", "")));
+  async function handleFile(file: File) {
     if (file.size > 10 * 1024 * 1024) { setError(fr ? "Fichier trop lourd (max 10 Mo)" : "File too large (max 10 MB)"); return; }
     if (!file.name.match(/\.(pdf|doc|docx)$/i)) { setError(fr ? "Format non accepté. PDF ou Word uniquement." : "Invalid format. PDF or Word only."); return; }
     setError("");
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => onChange(file.name, reader.result as string);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) { const d = await res.json(); setError(d.error ?? "Upload failed"); return; }
+      const { url } = await res.json();
+      onChange(file.name, url);
+    } catch {
+      setError(fr ? "Erreur d'envoi du fichier." : "File upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -919,7 +928,12 @@ function FileUploadZone({ label, required, hint, accept, value, savedFileName, o
           value ? "border-green-400 bg-green-50" : "border-[#6B5E44]/25 hover:border-[#F5C400]/60 hover:bg-[#FFFBEA]"
         }`}
       >
-        {value ? (
+        {uploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs text-[#6B5E44]">{fr ? "Envoi en cours…" : "Uploading…"}</p>
+          </div>
+        ) : value ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
               <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" className="w-5 h-5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/></svg>
@@ -954,7 +968,8 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
 }) {
   const { lang } = useLanguage();
   const fr = lang === "fr";
-  const isValid = data.bio.length >= 100 && data.cvUrl.trim().length > 0 && data.motivationLetterUrl.trim().length > 0 && data.certificateFiles.length > 0;
+  const bioSpam = /(.)\1{9,}/.test(data.bio);
+  const isValid = data.bio.length >= 80 && !bioSpam && data.cvUrl.trim().length > 0 && data.motivationLetterUrl.trim().length > 0 && data.certificateFiles.length > 0;
 
   return (
     <div>
@@ -996,7 +1011,7 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
       <div className="mb-5">
         <label className="block text-sm font-semibold text-[#5C3D00] mb-1">
           {fr ? "Biographie" : "Bio"}{" "}
-          <span className="font-normal text-[#6B5E44]">({fr ? "min. 100 caractères" : "min. 100 chars"})</span>
+          <span className="font-normal text-[#6B5E44]">({fr ? "min. 80 caractères" : "min. 80 chars"})</span>
           <span className="text-red-400"> *</span>
         </label>
         <textarea
@@ -1008,8 +1023,10 @@ function StepAbout({ data, onChange, onCertFilesChange, onNext, onBack }: {
             : "Hi! I'm [Name] and I love breaking down language barriers.\n\nMy approach? We talk. A lot. And we have fun doing it! I adapt to your pace and your goals — whether you want to shine in business meetings, pass the IELTS, or simply feel confident ordering a coffee in London.\n\nWith me, you'll progress fast because we go straight to what you actually need."}
           className={inputCls + " resize-none"}
         />
-        <p className={`text-xs mt-1 ${data.bio.length < 100 ? "text-[#9B8A6B]" : "text-green-600"}`}>
-          {data.bio.length} / 100 {fr ? "caractères minimum" : "characters minimum"}
+        <p className={`text-xs mt-1 ${data.bio.length < 80 ? "text-[#9B8A6B]" : bioSpam ? "text-red-500" : "text-green-600"}`}>
+          {bioSpam
+            ? (fr ? "Texte répétitif détecté — veuillez écrire une vraie biographie." : "Repetitive text detected — please write a genuine bio.")
+            : `${data.bio.length} / 80 ${fr ? "caractères minimum" : "characters minimum"}`}
         </p>
       </div>
 
@@ -1093,7 +1110,7 @@ function CertificateUploadList({ files, onChange, fr }: {
     onChange(updated);
   }
 
-  function handleFile(i: number, file: File) {
+  async function handleFile(i: number, file: File) {
     if (!file.name.match(/\.pdf$/i)) {
       setErrors(prev => ({ ...prev, [i]: fr ? "PDF uniquement." : "PDF only." }));
       return;
@@ -1103,13 +1120,22 @@ function CertificateUploadList({ files, onChange, fr }: {
       return;
     }
     setErrors(prev => { const e = { ...prev }; delete e[i]; return e; });
-    const reader = new FileReader();
-    reader.onload = () => {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const d = await res.json();
+        setErrors(prev => ({ ...prev, [i]: d.error ?? "Upload failed" }));
+        return;
+      }
+      const { url } = await res.json();
       const updated = [...files];
-      updated[i] = { ...updated[i], name: file.name, dataUrl: reader.result as string };
+      updated[i] = { ...updated[i], name: file.name, dataUrl: url };
       onChange(updated);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setErrors(prev => ({ ...prev, [i]: fr ? "Erreur d'envoi." : "Upload failed." }));
+    }
   }
 
   return (

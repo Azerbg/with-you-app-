@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { signOut } from "next-auth/react";
+import { useLanguage } from "@/context/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,8 +20,9 @@ interface HrNote {
 interface Application {
   id: string;
   fullName: string;
-  birthday: string | null;
-  gender: string | null;
+  // birthday/gender available in full fetch only
+  birthday?: string | null;
+  gender?: string | null;
   country: string | null;
   city: string | null;
   phone: string | null;
@@ -28,9 +32,10 @@ interface Application {
   englishLevel: string | null;
   yearsExperience: number | null;
   bio: string | null;
-  cvUrl: string | null;
-  motivationLetterUrl: string | null;
-  certificateUrls: string[];
+  // Document URLs available in full fetch only
+  cvUrl?: string | null;
+  motivationLetterUrl?: string | null;
+  certificateUrls?: string[];
   availabilityDays: string[];
   timeWindowPreference: string[];
   status: string;
@@ -48,19 +53,19 @@ interface Application {
 
 // ─── Kanban columns ───────────────────────────────────────────────────────────
 
-const COLUMNS: { key: string; label: string; sublabel: string; color: string; icon: string }[] = [
-  { key: "INCOMPLETE",          label: "Tri auto",          sublabel: "Dossier incomplet",       color: "bg-gray-50 border-gray-300",     icon: "⚙️" },
-  { key: "NEW",                 label: "Nouveau",           sublabel: "Reçu, à traiter",          color: "bg-blue-50 border-blue-200",     icon: "📥" },
-  { key: "STAGE1_REVIEW",       label: "À évaluer",         sublabel: "Dossier complet",          color: "bg-yellow-50 border-yellow-200", icon: "🔍" },
-  { key: "VIDEO_REQUESTED",     label: "Vidéo demandée",    sublabel: "En attente candidat",      color: "bg-amber-50 border-amber-200",   icon: "🎬" },
-  { key: "VIDEO_SUBMITTED",     label: "Vidéo reçue",       sublabel: "À visionner",              color: "bg-violet-50 border-violet-200", icon: "▶️" },
-  { key: "INTERVIEW_SCHEDULED", label: "Entretien",         sublabel: "RDV planifié",             color: "bg-purple-50 border-purple-200", icon: "🎙️" },
-  { key: "INTERVIEW_COMPLETE",  label: "Délibération",      sublabel: "Entretien terminé",        color: "bg-orange-50 border-orange-200", icon: "⏳" },
-  { key: "RESERVE",             label: "Réserve",           sublabel: "Qualifié, en attente",     color: "bg-sky-50 border-sky-200",       icon: "📋" },
-  { key: "OFFER_PENDING",       label: "Offre envoyée",     sublabel: "Signature en attente",     color: "bg-pink-50 border-pink-200",     icon: "📄" },
-  { key: "SIGNED",              label: "Signé ✍️",           sublabel: "Contrat accepté",          color: "bg-teal-50 border-teal-200",     icon: "✅" },
-  { key: "ACTIVE",              label: "Actif ✓",           sublabel: "En ligne",                 color: "bg-green-50 border-green-200",   icon: "🟢" },
-  { key: "REJECTED",            label: "Rejeté",            sublabel: "",                         color: "bg-red-50 border-red-200",       icon: "❌" },
+const COLUMNS: { key: string; labelFr: string; labelEn: string; sublabelFr: string; sublabelEn: string; color: string; icon: string }[] = [
+  { key: "INCOMPLETE",          labelFr: "Tri auto",          labelEn: "Auto-sorted",        sublabelFr: "Dossier incomplet",       sublabelEn: "Incomplete file",        color: "bg-gray-50 border-gray-300",     icon: "⚙️" },
+  { key: "NEW",                 labelFr: "Nouveau",           labelEn: "New",                sublabelFr: "Reçu, à traiter",         sublabelEn: "Received, to process",   color: "bg-blue-50 border-blue-200",     icon: "📥" },
+  { key: "STAGE1_REVIEW",       labelFr: "À évaluer",         labelEn: "To review",          sublabelFr: "Dossier complet",         sublabelEn: "Complete file",          color: "bg-yellow-50 border-yellow-200", icon: "🔍" },
+  { key: "VIDEO_REQUESTED",     labelFr: "Vidéo demandée",    labelEn: "Video requested",    sublabelFr: "En attente candidat",     sublabelEn: "Awaiting candidate",     color: "bg-amber-50 border-amber-200",   icon: "🎬" },
+  { key: "VIDEO_SUBMITTED",     labelFr: "Vidéo reçue",       labelEn: "Video received",     sublabelFr: "À visionner",             sublabelEn: "To review",              color: "bg-violet-50 border-violet-200", icon: "▶️" },
+  { key: "INTERVIEW_SCHEDULED", labelFr: "Entretien",         labelEn: "Interview",          sublabelFr: "RDV planifié",            sublabelEn: "Appointment scheduled",  color: "bg-purple-50 border-purple-200", icon: "🎙️" },
+  { key: "INTERVIEW_COMPLETE",  labelFr: "Délibération",      labelEn: "Deliberation",       sublabelFr: "Entretien terminé",       sublabelEn: "Interview done",         color: "bg-orange-50 border-orange-200", icon: "⏳" },
+  { key: "RESERVE",             labelFr: "Réserve",           labelEn: "Reserve",            sublabelFr: "Qualifié, en attente",    sublabelEn: "Qualified, on hold",     color: "bg-sky-50 border-sky-200",       icon: "📋" },
+  { key: "OFFER_PENDING",       labelFr: "Offre envoyée",     labelEn: "Offer sent",         sublabelFr: "Signature en attente",    sublabelEn: "Awaiting signature",     color: "bg-pink-50 border-pink-200",     icon: "📄" },
+  { key: "SIGNED",              labelFr: "Signé ✍️",           labelEn: "Signed ✍️",           sublabelFr: "Contrat accepté",         sublabelEn: "Contract accepted",      color: "bg-teal-50 border-teal-200",     icon: "✅" },
+  { key: "ACTIVE",              labelFr: "Actif ✓",           labelEn: "Active ✓",           sublabelFr: "En ligne",                sublabelEn: "Online",                 color: "bg-green-50 border-green-200",   icon: "🟢" },
+  { key: "REJECTED",            labelFr: "Rejeté",            labelEn: "Rejected",           sublabelFr: "",                        sublabelEn: "",                       color: "bg-red-50 border-red-200",       icon: "❌" },
 ];
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -100,11 +105,37 @@ const LANG_LABELS: Record<string, string> = {
   "Portuguese": "Portugais",
 };
 
-const SPEC_LABELS: Record<string, string> = {
-  "CONVERSATIONAL": "Conversation",
-  "PROFESSIONAL":   "Professionnel",
-  "ACADEMIC":       "Académique",
-  "EXAM_PREP":      "Prépa examens",
+const SPEC_LABELS: Record<string, { fr: string; en: string }> = {
+  CONVERSATIONAL: { fr: "Conversation",    en: "Conversational"  },
+  PROFESSIONAL:   { fr: "Professionnel",   en: "Professional"    },
+  ACADEMIC:       { fr: "Académique",      en: "Academic"        },
+  EXAM_PREP:      { fr: "Prépa examens",   en: "Exam prep"       },
+};
+
+const DAY_LABELS: Record<string, { fr: string; en: string }> = {
+  MON: { fr: "Lun", en: "Mon" },
+  TUE: { fr: "Mar", en: "Tue" },
+  WED: { fr: "Mer", en: "Wed" },
+  THU: { fr: "Jeu", en: "Thu" },
+  FRI: { fr: "Ven", en: "Fri" },
+  SAT: { fr: "Sam", en: "Sat" },
+  SUN: { fr: "Dim", en: "Sun" },
+};
+
+const TIME_LABELS: Record<string, { fr: string; en: string }> = {
+  MORNING:   { fr: "Matin",      en: "Morning"   },
+  AFTERNOON: { fr: "Après-midi", en: "Afternoon" },
+  EVENING:   { fr: "Soir",       en: "Evening"   },
+};
+
+const CERT_LABELS: Record<string, string> = {
+  DELF_A1: "DELF A1", DELF_A2: "DELF A2", DELF_B1: "DELF B1", DELF_B2: "DELF B2",
+  DALF_C1: "DALF C1", DALF_C2: "DALF C2",
+  TCF: "TCF", DELF: "DELF",
+  IELTS: "IELTS", TOEFL: "TOEFL", TOEIC: "TOEIC",
+  CAMBRIDGE: "Cambridge", DELE: "DELE",
+  GOETHE: "Goethe-Zertifikat",
+  TESOL: "TESOL", CELTA: "CELTA",
 };
 
 // ─── Application Card ─────────────────────────────────────────────────────────
@@ -140,7 +171,7 @@ function AppCard({ app, onClick }: { app: Application; onClick: () => void }) {
         <div className="flex flex-wrap gap-1 mb-1">
           {app.specializations.map(s => (
             <span key={s} className="text-[10px] bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded-full">
-              {SPEC_LABELS[s] ?? s}
+              {SPEC_LABELS[s]?.fr ?? s}
             </span>
           ))}
         </div>
@@ -167,12 +198,30 @@ function DetailPanel({
   onNoteAdded: (id: string, note: HrNote) => void;
   hrEmail: string;
 }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
+
   const [noteText, setNoteText] = useState("");
   const [replyText, setReplyText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [savingReply, setSavingReply] = useState(false);
   const [movingTo, setMovingTo] = useState("");
   const [interviewToken, setInterviewToken] = useState(app.interviewToken ?? null);
+
+  // Lazy-loaded full application data (documents, video, interviewToken)
+  const [fullApp, setFullApp] = useState<Application | null>(null);
+  const [fullLoading, setFullLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/console/hr/applications/${app.id}`)
+      .then(r => r.json())
+      .then(d => {
+        setFullApp(d);
+        if (d.interviewToken) setInterviewToken(d.interviewToken);
+      })
+      .catch(() => {})
+      .finally(() => setFullLoading(false));
+  }, [app.id]);
 
   const nextStatuses = STATUS_TRANSITIONS[app.status] ?? [];
 
@@ -223,6 +272,32 @@ function DetailPanel({
   }
 
   const colInfo = COLUMNS.find(c => c.key === app.status);
+  const videoUrl = fullApp?.videoSubmissionUrl;
+  const VIDEO_STAGES = ["VIDEO_SUBMITTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETE", "RESERVE", "OFFER_PENDING", "SIGNED", "ACTIVE"];
+
+  function fmtDays(days: string[]) {
+    return days.map(d => DAY_LABELS[d]?.[lang] ?? d).join(", ");
+  }
+  function fmtTimes(times: string[]) {
+    return times.map(t2 => TIME_LABELS[t2]?.[lang] ?? t2).join(", ");
+  }
+  function fmtSpecs(specs: string[]) {
+    return specs.map(s => SPEC_LABELS[s]?.[lang] ?? s).join(", ");
+  }
+  function fmtCerts(certs: string[]) {
+    return certs.map(c => CERT_LABELS[c] ?? c).join(", ") || t("Aucune", "None");
+  }
+  function fmtEnglish(lvl: string | null) {
+    if (!lvl) return null;
+    const map: Record<string, { fr: string; en: string }> = {
+      BEGINNER:      { fr: "Débutant",               en: "Beginner"         },
+      INTERMEDIATE:  { fr: "Intermédiaire",           en: "Intermediate"     },
+      ADVANCED:      { fr: "Avancé",                  en: "Advanced"         },
+      VERY_ADVANCED: { fr: "Très avancé",             en: "Very advanced"    },
+      PROFESSIONAL:  { fr: "Maîtrise professionnelle", en: "Professional"    },
+    };
+    return map[lvl]?.[lang] ?? lvl;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -230,13 +305,13 @@ function DetailPanel({
       <div className="flex-1 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
-      <div className="w-full max-w-lg bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
+      <div className="w-full max-w-lg bg-white h-full overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-[#5C3D00] text-lg">{app.fullName}</h2>
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${colInfo?.color}`}>
-              {colInfo?.label}
+              {lang === "fr" ? colInfo?.labelFr : colInfo?.labelEn}
             </span>
           </div>
           <button onClick={onClose} className="text-[#6B5E44] hover:text-[#5C3D00] text-2xl leading-none">×</button>
@@ -244,104 +319,126 @@ function DetailPanel({
 
         <div className="p-6 flex-1 space-y-6">
           {/* Contact */}
-          <Section title="Contact">
-            <Row label="E-mail"           value={app.user.email} />
-            <Row label="Téléphone"        value={app.phone} />
-            <Row label="Pays"             value={app.country} />
-            <Row label="Ville"            value={app.city} />
-            <Row label="Date de naissance" value={app.birthday ? new Date(app.birthday).toLocaleDateString("fr-FR") : null} />
-            <Row label="Sexe"             value={
-              app.gender === "M" ? "Homme" :
-              app.gender === "F" ? "Femme" :
-              app.gender === "PREFER_NOT_TO_SAY" ? "Préfère ne pas dire" : null
-            } />
+          <Section title={t("Contact", "Contact")}>
+            <Row label="E-mail"          value={app.user.email} />
+            <Row label={t("Téléphone", "Phone")} value={app.phone} />
+            <Row label={t("Pays", "Country")}    value={app.country} />
+            <Row label={t("Ville", "City")}      value={app.city} />
           </Section>
 
           {/* Teaching */}
-          <Section title="Profil d'enseignant">
-            <Row label="Langues"          value={app.languagesTaught.join(", ")} />
-            <Row label="Spécialisations"  value={app.specializations.join(", ")} />
-            <Row label="Expérience"       value={app.yearsExperience != null ? `${app.yearsExperience} ans` : null} />
-            <Row label="Niveau en anglais" value={
-              app.englishLevel === "BEGINNER"      ? "Débutant" :
-              app.englishLevel === "INTERMEDIATE"  ? "Intermédiaire" :
-              app.englishLevel === "ADVANCED"      ? "Avancé" :
-              app.englishLevel === "VERY_ADVANCED" ? "Très avancé" :
-              app.englishLevel === "PROFESSIONAL"  ? "Maîtrise professionnelle" : null
-            } />
-            <Row label="Certifications"   value={app.certifications.join(", ") || "Aucune"} />
+          <Section title={t("Profil d'enseignant", "Teacher profile")}>
+            <Row label={t("Langues", "Languages")}          value={app.languagesTaught.map(l => LANG_LABELS[l] ?? l).join(", ")} />
+            <Row label={t("Spécialisations", "Specializations")} value={fmtSpecs(app.specializations)} />
+            <Row label={t("Expérience", "Experience")}      value={app.yearsExperience != null ? `${app.yearsExperience} ${t("ans", "yrs")}` : null} />
+            <Row label={t("Niveau en anglais", "English level")} value={fmtEnglish(app.englishLevel)} />
+            <Row label={t("Certifications", "Certifications")} value={fmtCerts(app.certifications)} />
           </Section>
 
           {/* Availability */}
-          <Section title="Disponibilités">
-            <Row label="Jours"    value={app.availabilityDays.join(", ")} />
-            <Row label="Créneaux" value={app.timeWindowPreference.join(", ")} />
+          <Section title={t("Disponibilités", "Availability")}>
+            <Row label={t("Jours", "Days")}     value={fmtDays(app.availabilityDays)} />
+            <Row label={t("Créneaux", "Slots")} value={fmtTimes(app.timeWindowPreference)} />
           </Section>
 
           {/* Bio */}
           {app.bio && (
-            <Section title="Biographie">
+            <Section title={t("Biographie", "Biography")}>
               <p className="text-sm text-[#5C3D00] leading-relaxed whitespace-pre-wrap">{app.bio}</p>
             </Section>
           )}
 
-          {/* Documents */}
-          {(app.cvUrl || app.motivationLetterUrl || app.certificateUrls?.length > 0) && (
-            <Section title="Documents">
+          {/* Documents — lazy-loaded */}
+          {fullLoading ? (
+            <Section title={t("Documents", "Documents")}>
+              <p className="text-xs text-[#6B5E44]">{t("Chargement…", "Loading…")}</p>
+            </Section>
+          ) : (fullApp?.cvUrl || fullApp?.motivationLetterUrl || (fullApp?.certificateUrls?.length ?? 0) > 0) ? (
+            <Section title={t("Documents", "Documents")}>
               <div className="flex flex-col gap-2">
-                {app.cvUrl && (
+                {fullApp?.cvUrl && (
                   <a
-                    href={app.cvUrl}
-                    download="CV.pdf"
+                    href={fullApp.cvUrl}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-xl hover:bg-[#FFDE59]/30 transition"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/>
                     </svg>
-                    <span className="text-sm font-bold text-[#5C3D00]">Télécharger le CV</span>
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-[#9B8A6B] ml-auto">
+                    <span className="text-sm font-bold text-[#5C3D00]">{t("Télécharger le CV", "Download CV")}</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-[#9B8A6B] ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
                 )}
-                {app.motivationLetterUrl && (
+                {fullApp?.motivationLetterUrl && (
                   <a
-                    href={app.motivationLetterUrl}
-                    download="Lettre_de_motivation.pdf"
+                    href={fullApp.motivationLetterUrl}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#F0F7FF] border border-blue-200 rounded-xl hover:bg-blue-50 transition"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                     </svg>
-                    <span className="text-sm font-bold text-blue-700">Télécharger la lettre de motivation</span>
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-blue-400 ml-auto">
+                    <span className="text-sm font-bold text-blue-700">{t("Lettre de motivation", "Motivation letter")}</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-blue-400 ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
                 )}
-                {app.certificateUrls?.map((url, i) => (
+                {fullApp?.certificateUrls?.map((url, i) => (
                   <a
                     key={i}
                     href={url}
-                    download={`Document_${i + 1}.pdf`}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
                   >
                     <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
                       <span className="text-[10px] font-black text-red-600">PDF</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-700">Document justificatif {i + 1}</span>
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 ml-auto">
+                    <span className="text-sm font-bold text-gray-700">{t("Document justificatif", "Supporting document")} {i + 1}</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
                 ))}
               </div>
             </Section>
+          ) : null}
+
+          {/* Video — shown in VIDEO_SUBMITTED and all subsequent stages */}
+          {VIDEO_STAGES.includes(app.status) && !fullLoading && videoUrl && (
+            <Section title={t("Vidéo de présentation", "Presentation video")}>
+              {app.videoSubmittedAt && (
+                <p className="text-xs text-[#6B5E44] mb-3">
+                  {t("Reçue le", "Received on")} {new Date(app.videoSubmittedAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
+                </p>
+              )}
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
+              >
+                <span className="text-xl">▶️</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-violet-800">{t("Visionner la vidéo", "Watch video")}</p>
+                  <p className="text-xs text-violet-500 truncate">{videoUrl}</p>
+                </div>
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                </svg>
+              </a>
+            </Section>
           )}
 
           {/* Interview Scheduler — shown in STAGE1_REVIEW */}
           {app.status === "STAGE1_REVIEW" && (
-            <Section title="Planifier un entretien">
+            <Section title={t("Planifier un entretien", "Schedule an interview")}>
               <InterviewScheduler
                 app={app}
                 onScheduled={token => {
@@ -352,52 +449,16 @@ function DetailPanel({
             </Section>
           )}
 
-          {/* Video viewer — shown when VIDEO_SUBMITTED */}
-          {app.status === "VIDEO_SUBMITTED" && app.videoSubmissionUrl && (
-            <Section title="Video de presentation">
-              {app.videoSubmittedAt && (
-                <p className="text-xs text-[#6B5E44] mb-3">
-                  Recue le {new Date(app.videoSubmittedAt).toLocaleString("fr-FR")}
-                </p>
-              )}
-              {app.videoSubmissionUrl.startsWith("data:video") ? (
-                <video
-                  src={app.videoSubmissionUrl}
-                  controls
-                  className="w-full rounded-xl border border-[#C4BAA8] bg-black"
-                  style={{ maxHeight: 280 }}
-                />
-              ) : (
-                <a
-                  href={app.videoSubmissionUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
-                >
-                  <span className="text-xl">▶️</span>
-                  <div>
-                    <p className="text-sm font-bold text-violet-800">Visionner la video</p>
-                    <p className="text-xs text-violet-500 truncate max-w-xs">{app.videoSubmissionUrl}</p>
-                  </div>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
-                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                  </svg>
-                </a>
-              )}
-            </Section>
-          )}
-
           {/* Interview status — shown when scheduled */}
           {["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETE"].includes(app.status) && (
-            <Section title="Entretien">
+            <Section title={t("Entretien", "Interview")}>
               <InterviewStatus app={{ ...app, interviewToken }} />
             </Section>
           )}
 
           {/* Move actions */}
           {nextStatuses.length > 0 && (
-            <Section title="Déplacer vers">
+            <Section title={t("Déplacer vers", "Move to")}>
               <div className="flex flex-wrap gap-2">
                 {nextStatuses.map(s => {
                   const col = COLUMNS.find(c => c.key === s);
@@ -411,7 +472,7 @@ function DetailPanel({
                           ? "border-red-300 text-red-600 hover:bg-red-50"
                           : "border-[#F5C400] text-[#5C3D00] hover:bg-[#FFF3B0]"
                       }`}>
-                      {movingTo === s ? "…" : col?.label}
+                      {movingTo === s ? "…" : (lang === "fr" ? col?.labelFr : col?.labelEn)}
                     </button>
                   );
                 })}
@@ -419,11 +480,11 @@ function DetailPanel({
             </Section>
           )}
 
-          {/* Candidate messages */}
-          <Section title={`Messages du candidat (${candidateMessages.length})`}>
+          {/* Candidate exchanges */}
+          <Section title={t(`Échanges avec le candidat (${candidateMessages.length})`, `Exchanges with candidate (${candidateMessages.length})`)}>
             <div className="space-y-2 mb-3 max-h-56 overflow-y-auto">
               {candidateMessages.length === 0 && (
-                <p className="text-xs text-[#6B5E44]">Aucun message pour l&apos;instant.</p>
+                <p className="text-xs text-[#6B5E44]">{t("Aucun message pour l'instant.", "No messages yet.")}</p>
               )}
               {candidateMessages.map(n => (
                 <div
@@ -434,12 +495,14 @@ function DetailPanel({
                       : "bg-[#FFF3B0] border border-[#F5C400]/30 ml-4"
                   }`}
                 >
-                  {!n.isFromCandidate && (
-                    <p className="text-[10px] font-bold text-[#9B7A00] mb-0.5">Votre reponse (visible par le candidat)</p>
-                  )}
+                  <p className="text-[10px] font-bold text-[#9B7A00] mb-0.5">
+                    {n.isFromCandidate
+                      ? t("Candidat", "Candidate")
+                      : `${n.author?.email ?? "RH"} — ${t("Votre réponse (visible par le candidat)", "Your reply (visible to candidate)")}`}
+                  </p>
                   <p className="text-[#5C3D00] whitespace-pre-wrap">{n.content}</p>
                   <p className="text-[10px] text-[#6B5E44] mt-1">
-                    {n.isFromCandidate ? "Candidat" : (n.author?.email ?? "RH")} · {new Date(n.createdAt).toLocaleString("fr-FR")}
+                    {new Date(n.createdAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
                   </p>
                 </div>
               ))}
@@ -448,28 +511,29 @@ function DetailPanel({
               value={replyText}
               onChange={e => setReplyText(e.target.value)}
               rows={2}
-              placeholder="Repondre au candidat (visible dans son espace)…"
+              placeholder={t("Répondre au candidat (visible dans son espace)…", "Reply to candidate (visible in their space)…")}
               className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-blue-50 focus:outline-none focus:border-blue-400 resize-none"
             />
             <button
               onClick={handleReply}
               disabled={savingReply || !replyText.trim()}
               className="mt-1.5 px-4 py-1.5 bg-blue-600 text-white font-bold rounded-full text-sm hover:bg-blue-700 disabled:opacity-50 transition">
-              {savingReply ? "Envoi…" : "Repondre au candidat"}
+              {savingReply ? t("Envoi…", "Sending…") : t("Répondre au candidat", "Reply to candidate")}
             </button>
           </Section>
 
           {/* Internal HR notes */}
-          <Section title={`Notes internes (${internalNotes.length})`}>
+          <Section title={t(`Notes internes (${internalNotes.length})`, `Internal notes (${internalNotes.length})`)}>
             <div className="space-y-3 mb-3">
               {internalNotes.length === 0 && (
-                <p className="text-xs text-[#6B5E44]">Aucune note interne.</p>
+                <p className="text-xs text-[#6B5E44]">{t("Aucune note interne.", "No internal notes.")}</p>
               )}
               {internalNotes.map(n => (
                 <div key={n.id} className="bg-[#FAF8F0] rounded-xl px-3 py-2">
+                  <p className="text-[10px] font-bold text-[#9B8A6B] mb-0.5">{n.author?.email ?? "RH"}</p>
                   <p className="text-sm text-[#5C3D00] whitespace-pre-wrap">{n.content}</p>
                   <p className="text-[10px] text-[#6B5E44] mt-1">
-                    {n.author?.email ?? "RH"} · {new Date(n.createdAt).toLocaleString("fr-FR")}
+                    {new Date(n.createdAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
                   </p>
                 </div>
               ))}
@@ -478,14 +542,14 @@ function DetailPanel({
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               rows={3}
-              placeholder="Note interne (non visible par le candidat)…"
+              placeholder={t("Note interne (non visible par le candidat)…", "Internal note (not visible to candidate)…")}
               className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] resize-none"
             />
             <button
               onClick={handleAddNote}
               disabled={savingNote || !noteText.trim()}
               className="mt-2 px-4 py-1.5 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition">
-              {savingNote ? "Enregistrement…" : "Ajouter note interne"}
+              {savingNote ? t("Enregistrement…", "Saving…") : t("Ajouter note interne", "Add internal note")}
             </button>
           </Section>
         </div>
@@ -867,7 +931,9 @@ function PendingChangesView() {
 
 // ─── Main Kanban Board ────────────────────────────────────────────────────────
 
-export default function HrKanban({ hrEmail }: { hrEmail: string }) {
+export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: string }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [view, setView] = useState<"kanban" | "pending">("kanban");
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [apps, setApps] = useState<Application[]>([]);
@@ -877,6 +943,7 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
   const [search, setSearch] = useState("");
   const [activeLang, setActiveLang] = useState<string | null>(null);
   const [activeSpec, setActiveSpec] = useState<string | null>(null);
+  const [hideEmpty, setHideEmpty] = useState(true);
 
   useEffect(() => {
     // Fetch pending profile changes count for badge
@@ -930,8 +997,8 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
     : [];
 
   // Reset specialty when language changes
-  function selectLang(lang: string | null) {
-    setActiveLang(lang);
+  function selectLang(langCode: string | null) {
+    setActiveLang(langCode);
     setActiveSpec(null);
   }
 
@@ -957,20 +1024,20 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link href="/" className="text-[#F5C400] font-bold text-xl bg-[#5C3D00] px-3 py-1 rounded-lg">WithYou</Link>
-          <span className="text-[#6B5E44] text-sm font-semibold">Console RH</span>
+          <span className="text-[#6B5E44] text-sm font-semibold">{t("Console RH", "HR Console")}</span>
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15">
             <button
               onClick={() => setView("kanban")}
               className={`px-3 py-1 rounded-full text-xs font-bold transition ${view === "kanban" ? "bg-white text-[#5C3D00] shadow-sm" : "text-[#6B5E44] hover:text-[#5C3D00]"}`}
             >
-              Candidatures
+              {t("Candidatures", "Applications")}
             </button>
             <button
               onClick={() => setView("pending")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition ${view === "pending" ? "bg-white text-[#5C3D00] shadow-sm" : "text-[#6B5E44] hover:text-[#5C3D00]"}`}
             >
-              Modifications en attente
+              {t("Modifications en attente", "Pending changes")}
               {pendingCount !== null && pendingCount > 0 && (
                 <span className="bg-red-500 text-white text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
                   {pendingCount}
@@ -981,14 +1048,37 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
         </div>
         <div className="flex items-center gap-3">
           {view === "kanban" && (
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher un candidat…"
-              className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
-            />
+            <>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t("Rechercher un candidat…", "Search a candidate…")}
+                className="border border-[#6B5E44]/30 rounded-full px-4 py-1.5 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-[#F5C400] w-56"
+              />
+              <button
+                onClick={() => setHideEmpty(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition ${
+                  hideEmpty
+                    ? "bg-[#5C3D00] border-[#5C3D00] text-white"
+                    : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#5C3D00]/40"
+                }`}
+              >
+                {t("Masquer colonnes vides", "Hide empty columns")}
+              </button>
+            </>
           )}
           <span className="text-xs text-[#6B5E44]">{hrEmail}</span>
+          {role === "ADMIN" && (
+            <Link href="/dashboard/admin"
+              className="text-xs font-semibold text-[#9B8A6B] hover:text-[#5C3D00] transition px-2 py-1 rounded-lg hover:bg-black/5">
+              ← Admin
+            </Link>
+          )}
+          <button onClick={() => signOut({ callbackUrl: "/auth/login" })}
+            className="text-xs font-semibold text-[#9B8A6B] hover:text-red-600 transition px-2 py-1 rounded-lg hover:bg-red-50">
+            {t("Déconnexion", "Sign out")}
+          </button>
+          <LanguageSwitcher />
         </div>
       </div>
 
@@ -998,7 +1088,7 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
       {view === "kanban" && <>
       {/* ── LANGUAGE FILTER ── */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3">
-        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">Filtrer par langue</p>
+        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Filtrer par langue", "Filter by language")}</p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => selectLang(null)}
@@ -1008,19 +1098,19 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
                 : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#5C3D00]/40"
             }`}
           >
-            Toutes
+            {t("Toutes", "All")}
             <span className="text-xs opacity-70">({apps.length})</span>
           </button>
-          {allLanguages.map(lang => {
-            const count = apps.filter(a => a.languagesTaught.includes(lang)).length;
-            const flag = LANG_FLAGS[lang] ?? "🌐";
-            const label = LANG_LABELS[lang] ?? lang;
+          {allLanguages.map(langCode => {
+            const count = apps.filter(a => a.languagesTaught.includes(langCode)).length;
+            const flag = LANG_FLAGS[langCode] ?? "🌐";
+            const label = LANG_LABELS[langCode] ?? langCode;
             return (
               <button
-                key={lang}
-                onClick={() => selectLang(lang)}
+                key={langCode}
+                onClick={() => selectLang(langCode)}
                 className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold border-2 transition ${
-                  activeLang === lang
+                  activeLang === langCode
                     ? "bg-[#F5C400] border-[#F5C400] text-[#5C3D00]"
                     : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#F5C400]/60"
                 }`}
@@ -1035,14 +1125,14 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
         {/* Specialty sub-filter */}
         {activeLang && specsForLang.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-[#6B5E44]/10">
-            <span className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest self-center">Spécialité :</span>
+            <span className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest self-center">{t("Spécialité :", "Specialty:")}</span>
             <button
               onClick={() => setActiveSpec(null)}
               className={`px-3 py-1 rounded-full text-xs font-bold border transition ${
                 !activeSpec ? "bg-[#5C3D00] border-[#5C3D00] text-white" : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#5C3D00]/40"
               }`}
             >
-              Toutes
+              {t("Toutes", "All")}
             </button>
             {specsForLang.map(spec => (
               <button
@@ -1054,7 +1144,7 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
                     : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#F5C400]/60"
                 }`}
               >
-                {SPEC_LABELS[spec] ?? spec}
+                {SPEC_LABELS[spec]?.[lang] ?? spec}
               </button>
             ))}
           </div>
@@ -1068,50 +1158,51 @@ export default function HrKanban({ hrEmail }: { hrEmail: string }) {
           if (count === 0) return null;
           return (
             <div key={col.key} className="text-xs text-[#6B5E44]">
-              <span className="font-bold text-[#5C3D00]">{count}</span> {col.label}
+              <span className="font-bold text-[#5C3D00]">{count}</span> {lang === "fr" ? col.labelFr : col.labelEn}
             </div>
           );
         })}
         <div className="ml-auto text-xs text-[#6B5E44]">
           <span className="font-bold text-[#5C3D00]">{filtered.length}</span>
-          {filtered.length !== apps.length && <span className="text-[#9B8A6B]"> / {apps.length} total</span>}
+          {" "}{t("candidat", "candidate")}{filtered.length !== 1 ? "s" : ""}
+          {filtered.length !== apps.length && <span className="text-[#9B8A6B]"> / {apps.length} {t("total", "total")}</span>}
         </div>
       </div>
 
       {/* Kanban board */}
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-[#6B5E44]">Chargement…</div>
+        <div className="flex items-center justify-center h-64 text-[#6B5E44]">{t("Chargement…", "Loading…")}</div>
       ) : fetchError ? (
         <div className="flex items-center justify-center h-64">
           <div className="bg-red-50 border border-red-200 rounded-xl px-6 py-4 text-red-700 text-sm max-w-lg text-center">
-            <p className="font-bold mb-1">Impossible de charger les candidatures</p>
+            <p className="font-bold mb-1">{t("Impossible de charger les candidatures", "Could not load applications")}</p>
             <p className="font-mono text-xs">{fetchError}</p>
           </div>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <div className="flex gap-4 p-6 min-w-max">
-            {COLUMNS.map(col => {
+            {COLUMNS.filter(col => !hideEmpty || filtered.some(a => a.status === col.key)).map(col => {
               const colApps = filtered.filter(a => a.status === col.key);
               return (
                 <div key={col.key} className="w-60 shrink-0">
                   {/* Column header */}
                   <div className={`rounded-xl border px-3 py-2 mb-3 ${col.color}`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#5C3D00]">{col.icon} {col.label}</span>
+                      <span className="text-xs font-bold text-[#5C3D00]">{col.icon} {lang === "fr" ? col.labelFr : col.labelEn}</span>
                       <span className="text-xs font-bold text-[#6B5E44] bg-white/60 rounded-full px-2 py-0.5">
                         {colApps.length}
                       </span>
                     </div>
-                    {col.sublabel && (
-                      <p className="text-[10px] text-[#6B5E44]/60 mt-0.5">{col.sublabel}</p>
+                    {(lang === "fr" ? col.sublabelFr : col.sublabelEn) && (
+                      <p className="text-[10px] text-[#6B5E44]/60 mt-0.5">{lang === "fr" ? col.sublabelFr : col.sublabelEn}</p>
                     )}
                   </div>
 
                   {/* Cards */}
                   <div className="space-y-3">
                     {colApps.length === 0 && (
-                      <p className="text-xs text-[#6B5E44]/40 text-center py-4">Vide</p>
+                      <p className="text-xs text-[#6B5E44]/40 text-center py-4">{t("Vide", "Empty")}</p>
                     )}
                     {colApps.map(app => (
                       <AppCard key={app.id} app={app} onClick={() => setSelected(app)} />

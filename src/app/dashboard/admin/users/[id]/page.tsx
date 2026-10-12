@@ -38,7 +38,7 @@ export default async function UserDetailPage({ params }: Props) {
     where: { id },
     select: {
       id: true, email: true, firstName: true, lastName: true, role: true,
-      accountStatus: true, statusReason: true, statusUpdatedAt: true,
+      accountStatus: true, statusReason: true, statusUpdatedAt: true, statusUpdatedBy: true,
       createdAt: true, emailVerified: true, timezone: true,
       hrApplication: { select: { fullName: true, status: true } },
       studentProfile: { select: { cefrLevel: true, programTier: true, country: true, targetLanguage: true } },
@@ -77,6 +77,10 @@ export default async function UserDetailPage({ params }: Props) {
   });
 
   if (!user) notFound();
+
+  const statusUpdatedByAdmin = user.statusUpdatedBy
+    ? await db.user.findUnique({ where: { id: user.statusUpdatedBy }, select: { email: true, firstName: true, lastName: true } })
+    : null;
 
   const displayName = (user.hrApplication?.fullName ??
     [user.firstName, user.lastName].filter(Boolean).join(" ")) || user.email;
@@ -146,15 +150,25 @@ export default async function UserDetailPage({ params }: Props) {
                   </>
                 )}
               </div>
-              {user.statusReason && (
-                <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700">
-                  <span className="font-bold">Raison : </span>{user.statusReason}
+              {(user.statusReason || statusUpdatedByAdmin) && (
+                <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2 text-xs text-orange-700 space-y-0.5">
+                  {user.statusReason && (
+                    <p><span className="font-bold">Raison : </span>{user.statusReason}</p>
+                  )}
+                  {statusUpdatedByAdmin && (
+                    <p className="text-orange-500">
+                      Par {[statusUpdatedByAdmin.firstName, statusUpdatedByAdmin.lastName].filter(Boolean).join(" ") || statusUpdatedByAdmin.email}
+                      {user.statusUpdatedAt && (
+                        <> le {new Date(user.statusUpdatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</>
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Action buttons */}
-            <UserDetailClient userId={user.id} currentStatus={user.accountStatus} currentReason={user.statusReason ?? ""} />
+            <UserDetailClient userId={user.id} userEmail={user.email} currentStatus={user.accountStatus} currentReason={user.statusReason ?? ""} />
           </div>
         </div>
 

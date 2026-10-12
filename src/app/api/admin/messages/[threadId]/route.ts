@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/adminGuard";
 import { db } from "@/lib/db";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ threadId: string }> }) {
-  const { error } = await requireAdmin();
+  const { error, session } = await requireAdmin();
   if (error) return error;
 
   const { threadId } = await params;
@@ -22,6 +22,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ thr
   });
 
   if (!thread) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Audit: admin read this conversation
+  db.auditLog.create({
+    data: {
+      actorId: session!.user.id,
+      action: "READ_CONVERSATION",
+      targetEntity: "MessageThread",
+      targetId: threadId,
+    },
+  }).catch(() => {});
 
   return NextResponse.json({
     ...thread,

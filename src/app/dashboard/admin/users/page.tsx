@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import UsersClient from "./UsersClient";
 
-export const metadata = { title: "Utilisateurs — Admin" };
+export async function generateMetadata() {
+  const jar = await cookies();
+  const lang = jar.get("wy_lang")?.value === "fr" ? "fr" : "en";
+  return { title: lang === "fr" ? "Utilisateurs — Admin" : "Users — Admin" };
+}
 
 export default function AdminUsersPage() {
   return (
