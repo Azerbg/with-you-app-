@@ -26,6 +26,8 @@ export default function FinancePage() {
   const [data, setData] = useState<FinanceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/finance")
@@ -33,6 +35,16 @@ export default function FinancePage() {
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  async function runBackfill() {
+    setBackfilling(true);
+    const res = await fetch("/api/admin/bookings/backfill", { method: "POST" });
+    const d = await res.json().catch(() => ({}));
+    setBackfillMsg(d.message ?? (res.ok ? t("Terminé.", "Done.") : t("Erreur.", "Error.")));
+    setTimeout(() => setBackfillMsg(null), 6000);
+    if (res.ok) fetch("/api/admin/finance").then(r => r.json()).then(d => setData(d));
+    setBackfilling(false);
+  }
 
   async function downloadCsv() {
     setExporting(true);
@@ -71,6 +83,14 @@ export default function FinancePage() {
             <h1 className="text-2xl font-black text-[#1A0F00]">{t("Finance", "Finance")}</h1>
             <p className="text-sm text-[#9B8A6B] mt-1">{t("Revenus, marges et virements tuteurs", "Revenue, margins and tutor payouts")}</p>
           </div>
+          <div className="flex items-center gap-2">
+            {backfillMsg && (
+              <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">{backfillMsg}</span>
+            )}
+            <button onClick={runBackfill} disabled={backfilling}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D9D0C3] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FAF8F0] disabled:opacity-50 transition">
+              {backfilling ? t("Correction…", "Backfilling…") : t("Corriger prix nuls", "Backfill null prices")}
+            </button>
           <button onClick={downloadCsv} disabled={exporting}
             className="flex items-center gap-2 px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold rounded-full text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition">
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -78,6 +98,7 @@ export default function FinancePage() {
             </svg>
             {exporting ? t("Export…", "Exporting…") : t("Exporter CSV", "Export CSV")}
           </button>
+          </div>
         </div>
 
         {/* Totals */}

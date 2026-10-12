@@ -58,7 +58,7 @@ export default async function AdminOverviewPage() {
     db.dispute.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW"] } } }),
     db.booking.count({ where: { createdAt: { gte: monthStart } } }),
     db.booking.aggregate({
-      where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: monthStart } },
+      where: { status: { in: ["CONFIRMED", "COMPLETED"] }, createdAt: { gte: monthStart } },
       _sum: { studentPriceUsd: true },
     }),
     db.user.findMany({
@@ -73,7 +73,7 @@ export default async function AdminOverviewPage() {
         tutor:   { select: { firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
       },
     }),
-    db.booking.count({ where: { status: "COMPLETED", stripeTransferId: null, tutorPayoutAmount: { gt: 0 } } }),
+    db.booking.count({ where: { status: "COMPLETED", tutorPaidAt: null } }),
     db.booking.count({ where: { scheduledAt: { gte: todayStart, lte: todayEnd }, status: { in: ["CONFIRMED", "COMPLETED"] } } }),
     db.hrApplication.count({ where: { status: { in: ["NEW", "STAGE1_REVIEW", "VIDEO_SUBMITTED", "INTERVIEW_COMPLETE"] } } }),
   ]);

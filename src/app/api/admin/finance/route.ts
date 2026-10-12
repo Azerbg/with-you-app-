@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       db.booking.aggregate({
         where: {
           status: { in: ["CONFIRMED", "COMPLETED"] },
-          scheduledAt: { gte: m.start, lte: m.end },
+          createdAt: { gte: m.start, lte: m.end },
         },
         _sum: { studentPriceUsd: true, platformMargin: true },
         _count: { id: true },

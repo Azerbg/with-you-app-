@@ -487,6 +487,11 @@ model Booking {
   chatLogSaved          Boolean @default(false)
   reviewLeft            Boolean @default(false) // Has student left a review?
 
+  // Manual tutor payout tracking (admin marks as paid)
+  tutorPaidAt     DateTime? // When admin marked as paid
+  tutorPaidBy     String?   // Admin user ID
+  tutorPaidMethod String?   // WISE | BANK_TN | BANK_INTL | PAYPAL | D17
+
   // Email reminders
   reminded24h      Boolean @default(false) // 24h-before reminder sent
   reminded1h       Boolean @default(false) // 1h-before reminder sent

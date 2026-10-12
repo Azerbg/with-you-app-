@@ -3,6 +3,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 
+interface HistoryEntry {
+  reference: string;
+  paidAt: string;
+  tutorId: string;
+  tutorName: string;
+  method: string | null;
+  amount: number;
+  currency: string;
+  bookingCount: number;
+  paidByEmail: string;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PaymentMethod {
@@ -79,6 +91,14 @@ function paymentMethodDetail(pm: PaymentMethod | null, lang: "fr" | "en" = "fr")
   }
 }
 
+const PAYOUT_METHODS = [
+  { value: "WISE",      label: "Wise" },
+  { value: "BANK_TN",   label: "Virement TN (RIB)" },
+  { value: "BANK_INTL", label: "Virement Intl (IBAN)" },
+  { value: "PAYPAL",    label: "PayPal" },
+  { value: "D17",       label: "D17 / Mobile" },
+];
+
 // ─── Mark-paid modal ──────────────────────────────────────────────────────────
 
 function MarkPaidModal({
@@ -88,11 +108,12 @@ function MarkPaidModal({
 }: {
   tutor: TutorRow;
   onClose: () => void;
-  onConfirm: (bookingIds: string[], reference: string) => Promise<void>;
+  onConfirm: (bookingIds: string[], reference: string, method: string) => Promise<void>;
 }) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [reference, setReference] = useState("");
+  const [method, setMethod] = useState(tutor.paymentMethod?.type ?? PAYOUT_METHODS[0].value);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     new Set(tutor.bookings.map((b) => b.id)),
@@ -110,7 +131,7 @@ function MarkPaidModal({
     if (selectedIds.size === 0) return;
     setLoading(true);
     try {
-      await onConfirm(Array.from(selectedIds), reference);
+      await onConfirm(Array.from(selectedIds), reference, method);
       onClose();
     } finally {
       setLoading(false);
@@ -189,19 +210,35 @@ function MarkPaidModal({
           </div>
         </div>
 
-        {/* Reference + total */}
+        {/* Method + Reference + total */}
         <div className="px-6 py-4 border-t border-black/5 space-y-4">
-          <div>
-            <label className="block text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1.5">
-              {t("Référence de virement (optionnel)", "Transfer reference (optional)")}
-            </label>
-            <input
-              type="text"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Ex: PAYPAL-TX-123456, VIR-20251012…"
-              className="w-full border border-[#D9D0C3] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C400]/40"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1.5">
+                {t("Méthode de paiement", "Payment method")}
+              </label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="w-full border border-[#D9D0C3] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C400]/40 bg-white"
+              >
+                {PAYOUT_METHODS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-[#7A6B55] uppercase tracking-widest mb-1.5">
+                {t("Référence (optionnel)", "Reference (optional)")}
+              </label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Ex: WISE-TX-123456…"
+                className="w-full border border-[#D9D0C3] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#F5C400]/40"
+              />
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <div>
@@ -237,6 +274,7 @@ function MarkPaidModal({
 export default function PayoutsClient() {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "fr" ? fr : en;
+  const [tab, setTab] = useState<"pending" | "history">("pending");
   const [tutors, setTutors] = useState<TutorRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -244,6 +282,11 @@ export default function PayoutsClient() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [markingTutor, setMarkingTutor] = useState<TutorRow | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // History tab state
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -261,7 +304,19 @@ export default function PayoutsClient() {
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/admin/payouts/history");
+      const data = await res.json();
+      if (res.ok) setHistory(data.history ?? []);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (tab === "history") loadHistory(); }, [tab, loadHistory]);
 
   function toggleExpand(tutorId: string) {
     setExpanded((prev) => {
@@ -271,11 +326,11 @@ export default function PayoutsClient() {
     });
   }
 
-  async function handleMarkPaid(bookingIds: string[], reference: string) {
+  async function handleMarkPaid(bookingIds: string[], reference: string, method: string) {
     const res = await fetch("/api/admin/payouts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bookingIds, reference }),
+      body: JSON.stringify({ bookingIds, reference, method }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? t("Erreur", "Error"));
@@ -286,15 +341,47 @@ export default function PayoutsClient() {
     load();
   }
 
+  async function downloadHistoryCsv() {
+    setExportingCsv(true);
+    const res = await fetch("/api/admin/payouts/history?format=csv");
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `payout_history_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    setExportingCsv(false);
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-[#1A0F00]">{t("Virements tuteurs", "Tutor payouts")}</h1>
-        <p className="text-sm text-[#9B8A6B] mt-1">
-          {t("Séances terminées en attente de paiement tuteur.", "Completed sessions pending tutor payment.")}
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-black text-[#1A0F00]">{t("Virements tuteurs", "Tutor payouts")}</h1>
+          <p className="text-sm text-[#9B8A6B] mt-1">
+            {t("Séances terminées en attente de paiement tuteur.", "Completed sessions pending tutor payment.")}
+          </p>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-2 mb-6 border-b border-black/5">
+        <button onClick={() => setTab("pending")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px ${tab === "pending" ? "border-[#F5C400] text-[#5C3D00]" : "border-transparent text-[#9B8A6B] hover:text-[#5C3D00]"}`}>
+          {t("En attente", "Pending")}
+          {summary && summary.pendingBookingCount > 0 && (
+            <span className="ml-2 bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{summary.pendingBookingCount}</span>
+          )}
+        </button>
+        <button onClick={() => setTab("history")}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 transition -mb-px ${tab === "history" ? "border-[#F5C400] text-[#5C3D00]" : "border-transparent text-[#9B8A6B] hover:text-[#5C3D00]"}`}>
+          {t("Historique", "History")}
+        </button>
       </div>
 
       {/* Success banner */}
@@ -312,7 +399,7 @@ export default function PayoutsClient() {
         </div>
       )}
 
-      {/* Summary cards */}
+      {/* Summary cards — always visible */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
@@ -328,7 +415,7 @@ export default function PayoutsClient() {
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
             <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Revenus bruts (mois)", "Gross revenue (month)")}</p>
             <p className="text-3xl font-black text-[#2D1A00]">${summary.platformGrossUsd.toFixed(0)}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">{t("USD perçus", "USD collected")}</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("payés ce mois (createdAt)", "booked this month")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
             <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Marge plateforme (mois)", "Platform margin (month)")}</p>
@@ -338,109 +425,163 @@ export default function PayoutsClient() {
         </div>
       )}
 
-      {/* Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-sm text-red-700">{error}</div>
-      ) : tutors.length === 0 ? (
-        <div className="bg-white border border-black/5 rounded-2xl p-12 text-center">
-          <p className="text-2xl mb-2">✅</p>
-          <p className="font-bold text-[#2D1A00]">{t("Aucun virement en attente", "No pending payouts")}</p>
-          <p className="text-sm text-[#9B8A6B] mt-1">{t("Tous les tuteurs ont été payés.", "All tutors have been paid.")}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {tutors.map((tutor) => {
-            const isExpanded = expanded.has(tutor.tutorId);
-            const hasPaymentMethod = !!tutor.paymentMethod;
-            return (
-              <div key={tutor.tutorId} className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-
-                {/* Tutor row */}
-                <div className="flex items-center gap-4 px-6 py-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#F5C400]/20 flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">
-                    {tutor.tutorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#2D1A00]">{tutor.tutorName}</p>
-                    <p className="text-xs text-[#9B8A6B] mt-0.5 truncate">
-                      {hasPaymentMethod ? (
-                        <>
-                          <span className="font-semibold text-[#6B5E44]">
-                            {TYPE_LABELS[tutor.paymentMethod!.type] ?? tutor.paymentMethod!.type}
-                          </span>
-                          {" — "}
-                          <span className="font-mono">{paymentMethodDetail(tutor.paymentMethod, lang)}</span>
-                        </>
-                      ) : (
-                        <span className="text-red-500 font-semibold">{t("Aucun moyen de paiement", "No payment method")}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0 mr-2">
-                    <p className="text-xl font-black text-[#2D1A00]">
-                      {formatAmount(tutor.totalOwed, tutor.currency)}
-                    </p>
-                    <p className="text-xs text-[#9B8A6B]">
-                      {tutor.bookings.length} {lang === "fr" ? `séance${tutor.bookings.length !== 1 ? "s" : ""}` : `session${tutor.bookings.length !== 1 ? "s" : ""}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => toggleExpand(tutor.tutorId)}
-                      className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold px-3 py-1.5 rounded-lg hover:bg-[#FAF8F0]"
-                    >
-                      {isExpanded ? t("Masquer", "Hide") : t("Détails", "Details")}
-                    </button>
-                    <button
-                      onClick={() => setMarkingTutor(tutor)}
-                      className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] transition"
-                    >
-                      {t("Marquer payé", "Mark paid")}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Expanded session list */}
-                {isExpanded && (
-                  <div className="border-t border-black/5">
-                    <div className="divide-y divide-black/4">
-                      {tutor.bookings.map((b) => {
-                        const date = b.scheduledAt
-                          ? new Date(b.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
-                          : "—";
-                        return (
-                          <div key={b.id} className="flex items-center gap-4 px-6 py-3 bg-[#FAF8F0]">
-                            <p className="text-xs text-[#6B5E44] w-24 flex-shrink-0">{date}</p>
-                            <p className="text-xs text-[#9B8A6B] flex-1">
-                              {b.sessionType === "DISCOVERY" ? t("Découverte", "Discovery") : t("Séance", "Session")} · {b.durationMins} min
-                              {b.paymentProvider === "paypal" && (
-                                <span className="ml-1.5 text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">PayPal</span>
-                              )}
-                            </p>
-                            <p className="text-xs text-[#9B8A6B] flex-shrink-0">
-                              {t("Étudiant", "Student")}: <span className="font-semibold">${b.studentPriceUsd?.toFixed(2) ?? "—"}</span>
-                            </p>
-                            <p className="text-sm font-bold text-[#2D1A00] flex-shrink-0">
-                              {formatAmount(b.tutorPayoutAmount ?? 0, b.tutorCurrency)}
-                            </p>
-                          </div>
-                        );
-                      })}
+      {/* ── PENDING TAB ── */}
+      {tab === "pending" && (
+        loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-sm text-red-700">{error}</div>
+        ) : tutors.length === 0 ? (
+          <div className="bg-white border border-black/5 rounded-2xl p-12 text-center">
+            <p className="text-2xl mb-2">✅</p>
+            <p className="font-bold text-[#2D1A00]">{t("Aucun virement en attente", "No pending payouts")}</p>
+            <p className="text-sm text-[#9B8A6B] mt-1">{t("Tous les tuteurs ont été payés.", "All tutors have been paid.")}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tutors.map((tutor) => {
+              const isExpanded = expanded.has(tutor.tutorId);
+              const hasPaymentMethod = !!tutor.paymentMethod;
+              return (
+                <div key={tutor.tutorId} className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-4 px-6 py-4">
+                    <div className="w-10 h-10 rounded-xl bg-[#F5C400]/20 flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">
+                      {tutor.tutorName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                     </div>
-                    <div className="px-6 py-3 bg-[#F7F4EE] flex justify-end">
-                      <p className="text-sm font-bold text-[#5C3D00]">
-                        {t("Total dû", "Total owed")} : {formatAmount(tutor.totalOwed, tutor.currency)}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#2D1A00]">{tutor.tutorName}</p>
+                      <p className="text-xs text-[#9B8A6B] mt-0.5 truncate">
+                        {hasPaymentMethod ? (
+                          <>
+                            <span className="font-semibold text-[#6B5E44]">
+                              {TYPE_LABELS[tutor.paymentMethod!.type] ?? tutor.paymentMethod!.type}
+                            </span>
+                            {" — "}
+                            <span className="font-mono">{paymentMethodDetail(tutor.paymentMethod, lang)}</span>
+                          </>
+                        ) : (
+                          <span className="text-red-500 font-semibold">{t("Aucun moyen de paiement", "No payment method")}</span>
+                        )}
                       </p>
                     </div>
+                    <div className="text-right flex-shrink-0 mr-2">
+                      <p className="text-xl font-black text-[#2D1A00]">{formatAmount(tutor.totalOwed, tutor.currency)}</p>
+                      <p className="text-xs text-[#9B8A6B]">
+                        {tutor.bookings.length} {lang === "fr" ? `séance${tutor.bookings.length !== 1 ? "s" : ""}` : `session${tutor.bookings.length !== 1 ? "s" : ""}`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => toggleExpand(tutor.tutorId)}
+                        className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold px-3 py-1.5 rounded-lg hover:bg-[#FAF8F0]">
+                        {isExpanded ? t("Masquer", "Hide") : t("Détails", "Details")}
+                      </button>
+                      <button onClick={() => setMarkingTutor(tutor)}
+                        className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] transition">
+                        {t("Marquer payé", "Mark paid")}
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  {isExpanded && (
+                    <div className="border-t border-black/5">
+                      <div className="divide-y divide-black/4">
+                        {tutor.bookings.map((b) => {
+                          const date = b.scheduledAt
+                            ? new Date(b.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
+                            : "—";
+                          return (
+                            <div key={b.id} className="flex items-center gap-4 px-6 py-3 bg-[#FAF8F0]">
+                              <p className="text-xs text-[#6B5E44] w-24 flex-shrink-0">{date}</p>
+                              <p className="text-xs text-[#9B8A6B] flex-1">
+                                {b.sessionType === "DISCOVERY" ? t("Découverte", "Discovery") : t("Séance", "Session")} · {b.durationMins} min
+                                {b.paymentProvider === "paypal" && (
+                                  <span className="ml-1.5 text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">PayPal</span>
+                                )}
+                              </p>
+                              <p className="text-xs text-[#9B8A6B] flex-shrink-0">
+                                {t("Étudiant", "Student")}: <span className="font-semibold">${b.studentPriceUsd?.toFixed(2) ?? "—"}</span>
+                              </p>
+                              <p className="text-sm font-bold text-[#2D1A00] flex-shrink-0">
+                                {formatAmount(b.tutorPayoutAmount ?? 0, b.tutorCurrency)}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="px-6 py-3 bg-[#F7F4EE] flex justify-end">
+                        <p className="text-sm font-bold text-[#5C3D00]">
+                          {t("Total dû", "Total owed")} : {formatAmount(tutor.totalOwed, tutor.currency)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* ── HISTORY TAB ── */}
+      {tab === "history" && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm text-[#9B8A6B]">
+              {historyLoading ? t("Chargement…", "Loading…") : `${history.length} ${t("virement(s)", "payout(s)")}`}
+            </p>
+            <button onClick={downloadHistoryCsv} disabled={exportingCsv || history.length === 0}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#F5C400] text-[#5C3D00] font-bold text-xs rounded-xl hover:bg-[#FFDE59] disabled:opacity-50 transition">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              {exportingCsv ? t("Export…", "Exporting…") : t("Exporter CSV", "Export CSV")}
+            </button>
+          </div>
+          {historyLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : history.length === 0 ? (
+            <div className="bg-white border border-black/5 rounded-2xl p-12 text-center">
+              <p className="font-bold text-[#2D1A00]">{t("Aucun virement enregistré", "No payout history yet")}</p>
+              <p className="text-sm text-[#9B8A6B] mt-1">{t("Les virements marqués comme payés apparaîtront ici.", "Payouts marked as paid will appear here.")}</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black/5">
+                    <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-5 py-3">{t("Date", "Date")}</th>
+                    <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Tuteur", "Tutor")}</th>
+                    <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Méthode", "Method")}</th>
+                    <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Référence", "Reference")}</th>
+                    <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Montant", "Amount")}</th>
+                    <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Admin", "Admin")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {history.map((h, i) => (
+                    <tr key={i} className="hover:bg-[#FAF8F0] transition">
+                      <td className="px-5 py-3 text-xs text-[#6B5E44]">
+                        {new Date(h.paidAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-[#2D1A00]">{h.tutorName}</td>
+                      <td className="px-4 py-3 text-xs text-[#9B8A6B]">
+                        {h.method ? (TYPE_LABELS[h.method] ?? h.method) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-mono text-[#9B8A6B] max-w-[160px] truncate">{h.reference}</td>
+                      <td className="px-4 py-3 text-right font-bold text-[#2D1A00]">
+                        {formatAmount(h.amount, h.currency)}
+                        <span className="block text-[10px] font-normal text-[#9B8A6B]">{h.bookingCount} {lang === "fr" ? "séance(s)" : "session(s)"}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[#9B8A6B]">{h.paidByEmail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

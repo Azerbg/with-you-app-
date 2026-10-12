@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 // ─── GET /api/admin/payouts ───────────────────────────────────────────────────
-// Returns completed bookings grouped by tutor with pending payout amounts.
-// A booking is "unpaid" when status=COMPLETED and stripeTransferId is null.
+// Pending = COMPLETED bookings where tutorPaidAt IS NULL (all-time).
+// Revenue = sum of studentPriceUsd for CONFIRMED/COMPLETED bookings created this month.
 
 export async function GET() {
   const session = await auth();
@@ -12,10 +12,12 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [unpaidBookings, allPaidThisMonth] = await Promise.all([
-    // Unpaid: COMPLETED, no payout reference yet
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+  const [unpaidBookings, allPaidThisMonth, revenueThisMonth] = await Promise.all([
+    // Unpaid: COMPLETED, not yet manually paid
     db.booking.findMany({
-      where: { status: "COMPLETED", stripeTransferId: null, tutorPayoutAmount: { gt: 0 } },
+      where: { status: "COMPLETED", tutorPaidAt: null },
       orderBy: { scheduledAt: "desc" },
       select: {
         id: true,
@@ -51,27 +53,25 @@ export async function GET() {
         },
       },
     }),
-    // Paid this month for summary stat
+    // Paid this month (tutorPaidAt in current month)
     db.booking.aggregate({
       where: {
         status: "COMPLETED",
-        stripeTransferId: { not: null },
-        scheduledAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        tutorPaidAt: { gte: monthStart },
       },
       _sum: { tutorPayoutAmount: true },
       _count: { id: true },
     }),
+    // Revenue this month = paid bookings by createdAt (= student payment date)
+    db.booking.aggregate({
+      where: {
+        status: { in: ["CONFIRMED", "COMPLETED"] },
+        createdAt: { gte: monthStart },
+      },
+      _sum: { platformMargin: true, studentPriceUsd: true },
+      _count: { id: true },
+    }),
   ]);
-
-  // Platform revenue (student price minus payout) for completed bookings this month
-  const revenueThisMonth = await db.booking.aggregate({
-    where: {
-      status: "COMPLETED",
-      createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-    },
-    _sum: { platformMargin: true, studentPriceUsd: true },
-    _count: { id: true },
-  });
 
   // Group unpaid bookings by tutor
   const tutorMap = new Map<string, {
@@ -130,9 +130,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { bookingIds, reference } = await req.json() as {
+  const { bookingIds, reference, method } = await req.json() as {
     bookingIds?: string[];
     reference?: string;
+    method?: string;
   };
 
   if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
@@ -140,14 +141,20 @@ export async function POST(req: NextRequest) {
   }
 
   const ref = (reference?.trim()) || `MANUAL-${Date.now()}`;
+  const now = new Date();
 
   await db.booking.updateMany({
     where: {
       id: { in: bookingIds },
       status: "COMPLETED",
-      stripeTransferId: null,
+      tutorPaidAt: null,
     },
-    data: { stripeTransferId: ref },
+    data: {
+      stripeTransferId: ref,
+      tutorPaidAt: now,
+      tutorPaidBy: session.user.id,
+      tutorPaidMethod: method ?? null,
+    },
   });
 
   return NextResponse.json({ success: true, reference: ref, count: bookingIds.length });

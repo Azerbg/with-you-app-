@@ -39,7 +39,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       status: true,
       createdAt: true,
       interviewSlots: true,
-      interviewToken: true,
       interviewSelectedAt: true,
       interviewScheduledAt: true,
       interviewMeetingUrl: true,
