@@ -16,24 +16,27 @@ export async function generateMetadata(): Promise<Metadata> {
     ? "Cours individuels en direct avec des tuteurs experts vérifiés. Commencez par une séance découverte gratuite de 30 min."
     : "Live 1-on-1 language learning with verified expert tutors. Start with a free 30-min discovery session.";
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://with-you-app-red.vercel.app";
+  const ogImage = `${siteUrl}/api/og?lang=${isFr ? "fr" : "en"}`;
+
   return {
-    metadataBase: new URL("https://withyou.app"),
+    metadataBase: new URL(siteUrl),
     title,
     description,
     openGraph: {
       title,
       description,
-      url: "https://withyou.app",
+      url: siteUrl,
       siteName: "WithYou",
       locale: isFr ? "fr_FR" : "en_US",
       type: "website",
-      images: [{ url: "/hero-tutor.jpg", width: 1200, height: 630, alt: "WithYou" }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: "WithYou" }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/hero-tutor.jpg"],
+      images: [ogImage],
     },
   };
 }

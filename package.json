@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "prisma db push --accept-data-loss && prisma generate && node scripts/backfill-pricing.mjs && node scripts/migrate-blobs.mjs && next build --webpack",
     "start": "next start",
+    "cleanup-demo": "node scripts/cleanup-demo.mjs",
     "lint": "eslint",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"

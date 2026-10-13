@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, use } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface Tutor {
@@ -32,7 +33,14 @@ const SPEC_LABELS: Record<string, string> = {
 };
 
 
-function StarRating({ rating, total }: { rating: number; total: number }) {
+function StarRating({ rating, total, lang }: { rating: number; total: number; lang: string }) {
+  if (total < 3) {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+        {lang === "fr" ? "Nouveau" : "New"}
+      </span>
+    );
+  }
   return (
     <div className="flex items-center gap-1">
       <div className="flex">
@@ -47,13 +55,9 @@ function StarRating({ rating, total }: { rating: number; total: number }) {
           </svg>
         ))}
       </div>
-      {total > 0 ? (
-        <span className="text-xs text-[#6B5E44]">
-          {rating.toFixed(1)} <span className="text-[#9B8A6B]">({total})</span>
-        </span>
-      ) : (
-        <span className="text-xs text-[#9B8A6B]">Nouveau</span>
-      )}
+      <span className="text-xs text-[#6B5E44]">
+        {rating.toFixed(1)} <span className="text-[#9B8A6B]">({total})</span>
+      </span>
     </div>
   );
 }
@@ -144,7 +148,7 @@ function TutorCard({ tutor }: { tutor: Tutor }) {
         )}
 
         <div className="flex items-center">
-          <StarRating rating={tutor.averageRating} total={tutor.totalReviews} />
+          <StarRating rating={tutor.averageRating} total={tutor.totalReviews} lang={lang} />
         </div>
       </div>
     </Link>
@@ -428,7 +432,8 @@ export default function FindTutorsClient({
   }>;
   studentCefrLevel: string | null;
 }) {
-  const { lang } = useLanguage();
+  const { lang, setLang } = useLanguage();
+  const { data: session } = useSession();
   const searchParams = use(searchParamsPromise);
   const router = useRouter();
   const pathname = usePathname();
@@ -582,19 +587,48 @@ export default function FindTutorsClient({
   return (
     <div className="min-h-screen bg-[#FAF8F0]">
       {/* Nav */}
-      <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
-        <Link href="/">
-          <img src="/logo.svg" alt="WithYou" className="h-8 w-auto" />
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/student"
-            className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition"
-          >
-            Mon espace →
+      <header className="sticky top-0 z-30 bg-[#fdfaf4]/95 backdrop-blur-md border-b border-[#F5C400]/15 shadow-[0_1px_12px_rgba(92,61,0,0.06)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[62px] flex items-center justify-between gap-4">
+          <Link href="/" className="flex-shrink-0">
+            <span className="text-[22px] font-bold tracking-tight text-[#2D1A00]">
+              With<span className="text-[#F5C400]">You</span>
+            </span>
           </Link>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLang(lang === "fr" ? "en" : "fr")}
+              className="h-8 px-2.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-500 hover:border-[#F5C400] hover:text-[#5C3D00] hover:bg-[#FFFBEA] transition-all"
+            >
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
+
+            {session?.user ? (
+              <Link
+                href="/dashboard"
+                className="h-8 px-4 rounded-lg bg-[#5C3D00] text-white text-[13px] font-semibold hover:bg-[#3d2900] transition-colors flex items-center"
+              >
+                {lang === "fr" ? "Mon espace →" : "My space →"}
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/auth/login"
+                  className="h-8 px-4 rounded-lg text-[13px] font-bold text-gray-600 hover:text-[#5C3D00] hover:bg-gray-50 transition-colors items-center hidden sm:flex"
+                >
+                  {lang === "fr" ? "Se connecter" : "Log in"}
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="h-8 px-4 rounded-lg bg-[#F5C400] text-[#5C3D00] text-[13px] font-bold hover:bg-[#FFDE59] transition-colors shadow-sm flex items-center"
+                >
+                  {lang === "fr" ? "Commencer" : "Get started"}
+                </Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}

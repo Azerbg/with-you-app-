@@ -16,12 +16,12 @@ export default async function HomePage() {
     }),
     db.studentProfile.count({ where: { onboardingCompleted: true } }),
     db.review.aggregate({
-      where: { isPublished: true },
+      where: { isPublished: true, booking: { status: "COMPLETED" } },
       _avg: { ratingComposite: true },
       _count: { _all: true },
     }),
     db.review.findMany({
-      where: { isPublished: true, text: { not: null } },
+      where: { isPublished: true, text: { not: null }, booking: { status: "COMPLETED" } },
       take: 3,
       orderBy: { ratingComposite: "desc" },
       select: {

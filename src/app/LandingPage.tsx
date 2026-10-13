@@ -427,7 +427,9 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
                     </div>
                     <div>
                       <p className="text-sm font-bold text-white">{item.name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{item.learningLang}</p>
+                      <p className="text-xs text-white/40 mt-0.5">
+                        {LANG_DISPLAY[item.learningLang]?.[lang] ?? item.learningLang}
+                      </p>
                     </div>
                   </div>
                 </div>

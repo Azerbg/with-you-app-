@@ -114,7 +114,7 @@ export default async function TutorProfilePage({ params }: Props) {
   const tagline = bioParagraphs[0] ?? null;
   const bioBody = bioParagraphs.slice(1).join("\n\n") || null;
 
-  const hasReviews = reviewsRaw.length > 0;
+  const hasReviews = reviewsRaw.length >= 3;
   const avg = (key: "ratingCommunication" | "ratingStructure" | "ratingAccuracy" | "ratingValue") =>
     hasReviews ? reviewsRaw.reduce((s, r) => s + r[key], 0) / reviewsRaw.length : 0;
   const avgComm    = avg("ratingCommunication");
