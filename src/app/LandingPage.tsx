@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
@@ -39,29 +39,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
   const { lang, setLang } = useLanguage();
   const t = T[lang];
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // Rotating language word in hero H1
-  const rotatingWords = languages.length > 0
-    ? languages.map(l => LANG_DISPLAY[l]?.[lang] ?? l)
-    : (lang === "fr" ? ["Français", "Anglais", "Espagnol"] : ["French", "English", "Spanish"]);
-  const [wordIdx, setWordIdx] = useState(0);
-
-  useEffect(() => {
-    if (rotatingWords.length <= 1) return;
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setWordIdx(i => (i + 1) % rotatingWords.length), 2500);
-    return () => clearInterval(id);
-  }, [rotatingWords.length]);
-
-  // Greeting cycling in hero chip 3
-  const greetings = ["Bonjour", "Hello", "مرحبا", "Hola", "こんにちは"];
-  const [greetIdx, setGreetIdx] = useState(0);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => setGreetIdx(i => (i + 1) % greetings.length), 2200);
-    return () => clearInterval(id);
-  }, []);
 
   const hasStats = tutorCount > 0 || studentCount > 0;
   const hasRating = avgRating !== null && reviewCount > 0;
@@ -127,47 +104,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           background: #5C3D00;
           color: white;
           transform: scale(1.05);
-        }
-        @keyframes heroFloat {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-8px); }
-        }
-        @keyframes blobPulse {
-          0%, 100% { transform: scale(1); opacity: 0.35; }
-          50%       { transform: scale(1.15); opacity: 0.55; }
-        }
-        @keyframes marqueeScroll {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-        @keyframes chipIn {
-          from { opacity: 0; transform: translateY(14px) scale(0.92); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes ctaPulse {
-          0%, 100% { box-shadow: 0 4px 22px rgba(245,196,0,0.5); }
-          50%       { box-shadow: 0 8px 36px rgba(245,196,0,0.8), 0 0 0 5px rgba(245,196,0,0.12); }
-        }
-        .hero-card  { animation: heroFloat 6s ease-in-out infinite; }
-        .hero-blob  { animation: blobPulse 8s ease-in-out infinite; }
-        .hero-chip-1 { animation: chipIn 0.55s ease 0.6s both, heroFloat 3.2s ease-in-out 1.4s infinite; }
-        .hero-chip-2 { animation: chipIn 0.55s ease 0.8s both, heroFloat 3.8s ease-in-out 1.6s infinite; }
-        .hero-chip-3 { animation: chipIn 0.55s ease 1.0s both, heroFloat 4.4s ease-in-out 1.8s infinite; }
-        .marquee-track { animation: marqueeScroll 30s linear infinite; width: max-content; }
-        .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
-        .cta-primary {
-          box-shadow: 0 4px 22px rgba(245,196,0,0.5);
-          animation: ctaPulse 4s ease-in-out 1s infinite;
-          transition: transform 0.25s ease;
-        }
-        .cta-primary:hover { transform: translateY(-2px); animation-play-state: paused; box-shadow: 0 8px 28px rgba(245,196,0,0.7); }
-        @media (prefers-reduced-motion: reduce) {
-          .hero-card, .hero-blob, .hero-chip-1, .hero-chip-2, .hero-chip-3,
-          .marquee-track, .cta-primary, .blob, .blob-2, .blob-3,
-          .a1, .a2, .a3, .a4, .a5, .a6 { animation: none !important; transition: none !important; }
-          .hero-chip-1, .hero-chip-2, .hero-chip-3 { opacity: 1 !important; transform: none !important; }
-          .hero-word-slot *, .hero-greeting * { transition: none !important; }
-          .cta-primary { box-shadow: 0 4px 22px rgba(245,196,0,0.5); }
         }
       `}</style>
 
@@ -288,75 +224,44 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         {/* Left — content */}
         <div className="flex flex-col justify-center px-8 md:px-10 lg:px-20 py-12 md:py-20 relative z-10">
 
-          {/* Badge */}
           <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
             {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
           </div>
 
-          {/* H1 with rotating language word — inline-grid prevents CLS */}
-          <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.08] mb-6">
-            {lang === "fr" ? "Apprenez le" : "Learn"}{" "}
-            <span
-              className="hero-word-slot"
-              style={{ display: "inline-grid", gridTemplateAreas: '"w"', color: "#F5C518", verticalAlign: "bottom" }}
-            >
-              {rotatingWords.map((word, i) => (
-                <span
-                  key={i}
-                  style={{
-                    gridArea: "w",
-                    display: "block",
-                    opacity: i === wordIdx ? 1 : 0,
-                    transform: i === wordIdx ? "translateY(0)" : i < wordIdx ? "translateY(-10px)" : "translateY(12px)",
-                    transition: "opacity 0.45s ease, transform 0.45s ease",
-                  }}
-                >
-                  {word}
-                </span>
-              ))}
-            </span>
-            <br />
-            {lang === "fr" ? "avec le bon tuteur." : "with the right tutor."}
+          <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
+            {t.hero.heading1}<br />
+            {t.hero.heading2}{" "}
+            <span className="shimmer">{t.hero.shimmer}</span>
           </h1>
 
-          {/* Subtitle */}
           <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-            {lang === "fr"
-              ? "Séances en direct 1-à-1 avec des tuteurs vérifiés et experts."
-              : "Live 1-on-1 sessions with verified expert tutors."}
+            {t.hero.sub}{" "}
+            <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
           </p>
 
           {/* Language chips — from DB */}
-          {languages.length > 0 && (
-            <div className="a4 flex flex-wrap gap-2 mb-8">
-              {languages.map((l) => {
-                const display = LANG_DISPLAY[l]?.[lang] ?? l;
-                return (
-                  <Link
-                    key={l}
-                    href={`/find-tutors?lang=${encodeURIComponent(l)}`}
-                    className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
-                  >
-                    {display}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+          <div className="a4 flex flex-wrap gap-2 mb-8">
+            {languages.map((l) => {
+              const display = LANG_DISPLAY[l]?.[lang] ?? l;
+              return (
+                <Link
+                  key={l}
+                  href={`/find-tutors?lang=${encodeURIComponent(l)}`}
+                  className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
+                >
+                  {display}
+                </Link>
+              );
+            })}
+          </div>
 
           {/* CTAs */}
           <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
-            <Link
-              href="/auth/register"
-              className="cta-primary bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center"
-            >
-              {lang === "fr" ? "Commencer gratuitement" : "Start for free"}
+            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
+              {t.hero.cta1}
             </Link>
-            <Link
-              href="/find-tutors"
-              className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition"
-            >
+            <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
               {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
             </Link>
           </div>
@@ -390,90 +295,21 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           )}
         </div>
 
-        {/* Right — animated card */}
-        <div className="relative flex items-center justify-center h-[360px] md:h-auto md:py-16 overflow-hidden">
-
-          {/* Gradient blob behind card */}
-          <div
-            className="hero-blob absolute inset-0 m-auto w-[480px] h-[480px] rounded-full blur-3xl pointer-events-none"
-            style={{ background: "radial-gradient(ellipse at 45% 45%, rgba(245,196,0,0.55) 0%, rgba(196,146,0,0.25) 45%, transparent 70%)" }}
+        {/* Right — full-bleed image (shown on all screen sizes) */}
+        <div className="relative h-64 md:h-auto">
+          <Image
+            src="/hero-tutor.jpg"
+            alt={lang === "fr" ? "Tuteur WithYou" : "WithYou tutor"}
+            fill
+            className="object-cover object-center"
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
-
-          {/* Image card with float animation */}
-          <div
-            className="hero-card relative z-10 rounded-3xl overflow-hidden shadow-2xl aspect-[3/4]"
-            style={{ width: "clamp(200px, 65%, 360px)" }}
-          >
-            <Image
-              src="/hero-tutor.jpg"
-              alt={lang === "fr" ? "Tuteur WithYou" : "WithYou tutor"}
-              fill
-              className="object-cover object-center"
-              priority
-              sizes="(max-width: 768px) 220px, (max-width: 1024px) 300px, 360px"
-            />
-          </div>
-
-          {/* Chip 1 — live session */}
-          <div className="hero-chip-1 absolute bottom-[8%] left-[5%] bg-white rounded-2xl shadow-xl px-3.5 py-2.5 flex items-center gap-2 text-[13px] font-semibold text-[#2D1A00] z-20 whitespace-nowrap">
-            <span aria-hidden="true">🎥</span>
-            <span>{lang === "fr" ? "Séance en direct · 50 min" : "Live session · 50 min"}</span>
-          </div>
-
-          {/* Chip 2 — verified tutors */}
-          <div className="hero-chip-2 absolute top-[10%] right-[5%] bg-[#F5C400] rounded-2xl shadow-xl px-3.5 py-2.5 flex items-center gap-2 text-[13px] font-bold text-[#5C3D00] z-20 whitespace-nowrap">
-            <span aria-hidden="true">✅</span>
-            <span>{lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}</span>
-          </div>
-
-          {/* Chip 3 — rotating greeting */}
-          <div className="hero-chip-3 absolute bottom-[32%] right-[5%] bg-white rounded-2xl shadow-xl px-3.5 py-2.5 flex items-center gap-2 text-[13px] font-semibold text-[#2D1A00] z-20">
-            <span aria-hidden="true">💬</span>
-            <span
-              className="hero-greeting"
-              style={{ display: "inline-grid", gridTemplateAreas: '"g"', minWidth: "4.5rem" }}
-            >
-              {greetings.map((g, i) => (
-                <span
-                  key={i}
-                  style={{
-                    gridArea: "g",
-                    display: "block",
-                    opacity: i === greetIdx ? 1 : 0,
-                    transform: i === greetIdx ? "translateY(0)" : "translateY(5px)",
-                    transition: "opacity 0.35s ease, transform 0.35s ease",
-                  }}
-                >
-                  {g}
-                </span>
-              ))}
-            </span>
-          </div>
-
-          {/* Fade edge left — desktop */}
-          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#fdfaf4] to-transparent z-10 hidden md:block pointer-events-none" />
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#fdfaf4] to-transparent z-10 hidden md:block" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#fdfaf4]/60 to-transparent z-10" />
         </div>
 
       </section>
-
-      {/* ── Marquee strip ── */}
-      <div className="marquee-wrap w-full overflow-hidden border-y border-[#5C3D00]/10 py-3.5" style={{ background: "rgba(45,26,0,0.03)" }}>
-        <div className="marquee-track flex items-center">
-          {[0, 1].map((n) => (
-            <div key={n} className="flex items-center shrink-0">
-              {(lang === "fr"
-                ? ["Satisfait ou réessayez", "Première séance de découverte", "Horaires flexibles", "Paiement sécurisé", "Cours en direct 1-à-1"]
-                : ["Satisfaction guaranteed", "Free discovery session", "Flexible scheduling", "Secure payment", "Live 1-on-1 lessons"]
-              ).map((item) => (
-                <span key={item} className="flex items-center gap-3 px-6 text-[13px] font-semibold whitespace-nowrap" style={{ color: "rgba(92,61,0,0.55)" }}>
-                  {item}
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "rgba(245,196,0,0.55)" }} aria-hidden="true" />
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
