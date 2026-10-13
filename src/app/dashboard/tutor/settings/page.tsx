@@ -14,7 +14,7 @@ export default async function TutorSettingsPage() {
   if (!session?.user) redirect("/auth/login");
   if (session.user.role !== "TUTOR") redirect("/dashboard");
 
-  const [app, user, profile] = await Promise.all([
+  const [app, user, profile, paymentMethod] = await Promise.all([
     db.hrApplication.findUnique({
       where: { userId: session.user.id },
       select: { status: true, fullName: true, phone: true, city: true, country: true },
@@ -26,6 +26,10 @@ export default async function TutorSettingsPage() {
     db.tutorProfile.findUnique({
       where: { userId: session.user.id },
       select: { isHidden: true },
+    }),
+    db.tutorPaymentMethod.findUnique({
+      where: { userId: session.user.id },
+      select: { type: true, accountHolder: true, iban: true, email: true, phone: true },
     }),
   ]);
 
@@ -42,6 +46,7 @@ export default async function TutorSettingsPage() {
         city: app?.city ?? null,
         country: app?.country ?? null,
       }}
+      paymentMethod={paymentMethod ?? null}
     />
   );
 }

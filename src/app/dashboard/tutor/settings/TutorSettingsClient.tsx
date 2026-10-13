@@ -11,16 +11,25 @@ interface Contact {
   country: string | null;
 }
 
+interface PaymentMethod {
+  type: string;
+  accountHolder: string | null;
+  iban: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 interface Props {
   email: string;
   hasPassword: boolean;
   isHidden: boolean;
   contact: Contact;
+  paymentMethod: PaymentMethod | null;
 }
 
-type Tab = "compte" | "contact" | "notifications";
+type Tab = "compte" | "contact" | "notifications" | "virements";
 
-export default function TutorSettingsClient({ email, hasPassword, isHidden: initialHidden, contact }: Props) {
+export default function TutorSettingsClient({ email, hasPassword, isHidden: initialHidden, contact, paymentMethod: initialPm }: Props) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [tab, setTab] = useState<Tab>("compte");
@@ -41,6 +50,34 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
   const [deactivateConfirm, setDeactivateConfirm] = useState(false);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [deactivateMsg, setDeactivateMsg] = useState<string | null>(null);
+
+  // Payout method
+  const [pmType, setPmType] = useState(initialPm?.type ?? "WISE");
+  const [pmHolder, setPmHolder] = useState(initialPm?.accountHolder ?? "");
+  const [pmIban, setPmIban] = useState(initialPm?.iban ?? "");
+  const [pmEmail, setPmEmail] = useState(initialPm?.email ?? "");
+  const [pmPhone, setPmPhone] = useState(initialPm?.phone ?? "");
+  const [pmLoading, setPmLoading] = useState(false);
+  const [pmMsg, setPmMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function savePm(e: React.FormEvent) {
+    e.preventDefault();
+    setPmLoading(true);
+    setPmMsg(null);
+    try {
+      const res = await fetch("/api/tutor/payout-method", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: pmType, accountHolder: pmHolder || null, iban: pmIban || null, email: pmEmail || null, phone: pmPhone || null }),
+      });
+      if (!res.ok) throw new Error();
+      setPmMsg({ text: t("Méthode de paiement mise à jour.", "Payout method updated."), ok: true });
+    } catch {
+      setPmMsg({ text: t("Une erreur est survenue.", "An error occurred."), ok: false });
+    } finally {
+      setPmLoading(false);
+    }
+  }
 
   async function toggleVisibility() {
     setVisibilityLoading(true);
@@ -128,6 +165,7 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
     { key: "compte", label: t("Compte", "Account") },
     { key: "contact", label: t("Informations de contact", "Contact") },
     { key: "notifications", label: "Notifications" },
+    { key: "virements", label: t("Virements", "Payouts") },
   ];
 
   return (
@@ -344,6 +382,69 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
 
           {/* ── NOTIFICATIONS TAB ── */}
           {tab === "notifications" && <NotifPreferencesTab />}
+
+          {/* ── VIREMENTS TAB ── */}
+          {tab === "virements" && (
+            <div className="space-y-5">
+              <div className="bg-white border border-black/5 rounded-2xl p-6">
+                <p className="font-bold text-[#2D1A00] text-sm mb-1">{t("Méthode de paiement", "Payout method")}</p>
+                <p className="text-xs text-[#6B5E44] mb-5">
+                  {t("Vos coordonnées bancaires pour recevoir vos virements.", "Your banking details to receive your payouts.")}
+                </p>
+                <form onSubmit={savePm} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Méthode", "Method")}</label>
+                    <select value={pmType} onChange={e => setPmType(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20">
+                      <option value="WISE">Wise</option>
+                      <option value="BANK_TN">{t("Banque TN (RIB)", "Tunisian bank (RIB)")}</option>
+                      <option value="BANK_INTL">{t("Banque internationale (IBAN)", "International bank (IBAN)")}</option>
+                      <option value="D17">D17</option>
+                    </select>
+                  </div>
+                  {(pmType === "BANK_TN" || pmType === "BANK_INTL") && (
+                    <>
+                      <div>
+                        <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Titulaire du compte", "Account holder")}</label>
+                        <input type="text" value={pmHolder} onChange={e => setPmHolder(e.target.value)}
+                          placeholder={t("Nom complet", "Full name")}
+                          className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{pmType === "BANK_TN" ? "RIB" : "IBAN"}</label>
+                        <input type="text" value={pmIban} onChange={e => setPmIban(e.target.value)}
+                          placeholder={pmType === "BANK_TN" ? t("20 chiffres", "20 digits") : "FR76..."}
+                          className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm font-mono text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20" />
+                      </div>
+                    </>
+                  )}
+                  {pmType === "WISE" && (
+                    <div>
+                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Email Wise", "Wise email")}</label>
+                      <input type="email" value={pmEmail} onChange={e => setPmEmail(e.target.value)}
+                        placeholder="email@wise.com"
+                        className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20" />
+                    </div>
+                  )}
+                  {pmType === "D17" && (
+                    <div>
+                      <label className="block text-xs text-[#6B5E44] mb-1.5 font-medium">{t("Numéro de téléphone", "Phone number")}</label>
+                      <input type="tel" value={pmPhone} onChange={e => setPmPhone(e.target.value)}
+                        placeholder="+216 XX XXX XXX"
+                        className="w-full px-4 py-2.5 rounded-xl border border-black/10 text-sm text-[#2D1A00] bg-[#FAFAF8] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20" />
+                    </div>
+                  )}
+                  {pmMsg && (
+                    <p className={`text-xs font-semibold ${pmMsg.ok ? "text-green-600" : "text-red-500"}`}>{pmMsg.text}</p>
+                  )}
+                  <button type="submit" disabled={pmLoading}
+                    className="px-5 py-2.5 bg-[#5C3D00] text-[#F5C400] font-bold text-sm rounded-xl hover:bg-[#3d2900] transition disabled:opacity-50">
+                    {pmLoading ? t("Enregistrement…", "Saving…") : t("Enregistrer", "Save")}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
