@@ -81,7 +81,7 @@ export default async function TutorProfilePage({ params }: Props) {
     },
   });
 
-  if (!profile || profile.user.hrApplication?.status !== "ACTIVE") notFound();
+  if (!profile || profile.user.hrApplication?.status !== "ACTIVE" || profile.isHidden) notFound();
 
   const reviewsRaw = await db.review.findMany({
     where: { tutorId: id, isPublished: true },

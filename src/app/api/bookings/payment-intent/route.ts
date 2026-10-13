@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  if (!profile || profile.user.hrApplication?.status !== "ACTIVE") {
+  if (!profile || profile.user.hrApplication?.status !== "ACTIVE" || profile.isHidden) {
     return NextResponse.json({ error: "Tutor not found" }, { status: 404 });
   }
 

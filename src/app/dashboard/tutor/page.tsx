@@ -70,6 +70,7 @@ export default async function TutorDashboardPage() {
           cefrTeachingMin: true,
           cefrTeachingMax: true,
           verificationTier: true,
+          isHidden: true,
         },
       },
     },
@@ -128,6 +129,7 @@ export default async function TutorDashboardPage() {
         }))}
         offerHourlyRate={offerHourlyRate ?? null}
         offerCurrency={app.offerCurrency ?? null}
+        isHidden={profile?.isHidden ?? false}
       />
     );
   }

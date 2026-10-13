@@ -28,6 +28,7 @@ interface Props {
   upcomingSessions: UpcomingSession[];
   offerHourlyRate: number | null;
   offerCurrency: string | null;
+  isHidden: boolean;
 }
 
 function formatDay(iso: string, lang: string) {
@@ -44,7 +45,7 @@ function formatTime(iso: string, lang: string) {
 }
 
 export default function TutorDashboardContent({
-  fullName, initials, photo, profileComplete, stats, upcomingSessions, offerHourlyRate, offerCurrency,
+  fullName, initials, photo, profileComplete, stats, upcomingSessions, offerHourlyRate, offerCurrency, isHidden,
 }: Props) {
   const { lang } = useLanguage();
   const firstName = fullName.split(" ")[0];
@@ -105,6 +106,23 @@ export default function TutorDashboardContent({
               </div>
             )}
           </div>
+
+          {/* Profile hidden banner */}
+          {isHidden && (
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-200 flex items-center justify-center flex-shrink-0 text-base">🙈</div>
+                <div>
+                  <p className="text-sm font-bold text-amber-900">{lang === "fr" ? "Profil masqué" : "Profile hidden"}</p>
+                  <p className="text-xs text-amber-700">{lang === "fr" ? "Votre profil n'est pas visible dans les recherches et les réservations sont bloquées." : "Your profile is not visible in search and bookings are blocked."}</p>
+                </div>
+              </div>
+              <Link href="/dashboard/tutor/settings"
+                className="flex-shrink-0 bg-amber-600 text-white font-bold text-xs px-4 py-2 rounded-xl hover:bg-amber-700 transition whitespace-nowrap">
+                {lang === "fr" ? "Rendre visible →" : "Make visible →"}
+              </Link>
+            </div>
+          )}
 
           {/* Profile incomplete banner */}
           {!profileComplete && (

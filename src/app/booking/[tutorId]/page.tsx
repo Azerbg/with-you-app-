@@ -50,7 +50,7 @@ export default async function BookingPage({ params }: Props) {
     },
   });
 
-  if (!profile || profile.user.hrApplication?.status !== "ACTIVE") notFound();
+  if (!profile || profile.user.hrApplication?.status !== "ACTIVE" || profile.isHidden) notFound();
 
   // Check if student already has any session with this tutor (blocks discovery)
   const [existingSession, studentProfile] = await Promise.all([
