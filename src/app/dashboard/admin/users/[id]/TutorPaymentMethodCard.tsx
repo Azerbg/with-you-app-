@@ -14,16 +14,11 @@ interface PaymentMethod {
 interface Props {
   tutorId: string;
   paymentMethod: PaymentMethod | null;
+  lang: string;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  WISE: "Wise",
-  BANK_TN: "Banque TN",
-  BANK_INTL: "Banque internationale",
-  D17: "D17",
-};
-
-export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial }: Props) {
+export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial, lang }: Props) {
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [type, setType] = useState(initial?.type ?? "WISE");
@@ -33,6 +28,13 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const TYPE_LABELS: Record<string, string> = {
+    WISE: "Wise",
+    BANK_TN: t("Banque TN", "Tunisian bank"),
+    BANK_INTL: t("Banque internationale", "International bank"),
+    D17: "D17",
+  };
 
   async function save() {
     setLoading(true);
@@ -46,7 +48,7 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
       router.refresh();
       setEditing(false);
     } else {
-      setError("Erreur lors de la sauvegarde.");
+      setError(t("Erreur lors de la sauvegarde.", "Save failed."));
     }
     setLoading(false);
   }
@@ -67,15 +69,15 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-0.5">Méthode de paiement tuteur</p>
-          <p className="text-xs text-[#9B8A6B]">Coordonnées pour les virements</p>
+          <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-0.5">{t("Méthode de paiement tuteur", "Tutor payout method")}</p>
+          <p className="text-xs text-[#9B8A6B]">{t("Coordonnées pour les virements", "Payout details")}</p>
         </div>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
             className="px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] transition"
           >
-            Modifier
+            {t("Modifier", "Edit")}
           </button>
         )}
       </div>
@@ -84,12 +86,12 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
         initial ? (
           <div className="space-y-2 text-sm">
             <div className="flex gap-3">
-              <span className="text-[#9B8A6B] w-32 shrink-0">Méthode</span>
+              <span className="text-[#9B8A6B] w-32 shrink-0">{t("Méthode", "Method")}</span>
               <span className="font-semibold text-[#2D1A00]">{TYPE_LABELS[initial.type] ?? initial.type}</span>
             </div>
             {initial.accountHolder && (
               <div className="flex gap-3">
-                <span className="text-[#9B8A6B] w-32 shrink-0">Titulaire</span>
+                <span className="text-[#9B8A6B] w-32 shrink-0">{t("Titulaire", "Holder")}</span>
                 <span className="text-[#2D1A00]">{initial.accountHolder}</span>
               </div>
             )}
@@ -101,52 +103,52 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
             )}
             {initial.email && (
               <div className="flex gap-3">
-                <span className="text-[#9B8A6B] w-32 shrink-0">Email Wise</span>
+                <span className="text-[#9B8A6B] w-32 shrink-0">{t("Email Wise", "Wise email")}</span>
                 <span className="text-[#2D1A00]">{initial.email}</span>
               </div>
             )}
             {initial.phone && (
               <div className="flex gap-3">
-                <span className="text-[#9B8A6B] w-32 shrink-0">Téléphone D17</span>
+                <span className="text-[#9B8A6B] w-32 shrink-0">{t("Téléphone D17", "D17 phone")}</span>
                 <span className="text-[#2D1A00]">{initial.phone}</span>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-sm text-[#9B8A6B] italic">Aucune méthode de paiement définie.</p>
+          <p className="text-sm text-[#9B8A6B] italic">{t("Aucune méthode de paiement définie.", "No payment method set.")}</p>
         )
       ) : (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-[#6B5E44] mb-1 font-medium">Méthode</label>
+            <label className="block text-xs text-[#6B5E44] mb-1 font-medium">{t("Méthode", "Method")}</label>
             <select value={type} onChange={e => setType(e.target.value)} className={inputCls}>
               <option value="WISE">Wise</option>
-              <option value="BANK_TN">Banque TN (RIB)</option>
-              <option value="BANK_INTL">Banque internationale (IBAN)</option>
+              <option value="BANK_TN">{t("Banque TN (RIB)", "Tunisian bank (RIB)")}</option>
+              <option value="BANK_INTL">{t("Banque internationale (IBAN)", "International bank (IBAN)")}</option>
               <option value="D17">D17</option>
             </select>
           </div>
           {(type === "BANK_TN" || type === "BANK_INTL") && (
             <>
               <div>
-                <label className="block text-xs text-[#6B5E44] mb-1 font-medium">Titulaire du compte</label>
-                <input type="text" value={accountHolder} onChange={e => setAccountHolder(e.target.value)} placeholder="Nom complet" className={inputCls} />
+                <label className="block text-xs text-[#6B5E44] mb-1 font-medium">{t("Titulaire du compte", "Account holder")}</label>
+                <input type="text" value={accountHolder} onChange={e => setAccountHolder(e.target.value)} placeholder={t("Nom complet", "Full name")} className={inputCls} />
               </div>
               <div>
                 <label className="block text-xs text-[#6B5E44] mb-1 font-medium">{type === "BANK_TN" ? "RIB" : "IBAN"}</label>
-                <input type="text" value={iban} onChange={e => setIban(e.target.value)} placeholder={type === "BANK_TN" ? "20 chiffres" : "FR76..."} className={inputCls} />
+                <input type="text" value={iban} onChange={e => setIban(e.target.value)} placeholder={type === "BANK_TN" ? t("20 chiffres", "20 digits") : "FR76..."} className={inputCls} />
               </div>
             </>
           )}
           {type === "WISE" && (
             <div>
-              <label className="block text-xs text-[#6B5E44] mb-1 font-medium">Email Wise</label>
+              <label className="block text-xs text-[#6B5E44] mb-1 font-medium">{t("Email Wise", "Wise email")}</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@wise.com" className={inputCls} />
             </div>
           )}
           {type === "D17" && (
             <div>
-              <label className="block text-xs text-[#6B5E44] mb-1 font-medium">Numéro de téléphone</label>
+              <label className="block text-xs text-[#6B5E44] mb-1 font-medium">{t("Numéro de téléphone", "Phone number")}</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+216 XX XXX XXX" className={inputCls} />
             </div>
           )}
@@ -154,11 +156,11 @@ export default function TutorPaymentMethodCard({ tutorId, paymentMethod: initial
           <div className="flex gap-3 pt-1">
             <button onClick={save} disabled={loading}
               className="px-4 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] disabled:opacity-50 transition">
-              {loading ? "…" : "Enregistrer"}
+              {loading ? "…" : t("Enregistrer", "Save")}
             </button>
             <button onClick={cancel} disabled={loading}
               className="px-4 py-2.5 border border-black/10 text-[#9B8A6B] font-semibold text-sm rounded-xl hover:bg-black/5 transition">
-              Annuler
+              {t("Annuler", "Cancel")}
             </button>
           </div>
         </div>

@@ -64,6 +64,33 @@ export default function TutorSettingsClient({ email, hasPassword, isHidden: init
     e.preventDefault();
     setPmLoading(true);
     setPmMsg(null);
+
+    // Client-side validation
+    if (pmType === "BANK_TN") {
+      const ribClean = pmIban.replace(/\s/g, "");
+      if (ribClean && !/^\d{20}$/.test(ribClean)) {
+        setPmMsg({ text: t("Le RIB doit contenir exactement 20 chiffres.", "RIB must be exactly 20 digits."), ok: false });
+        setPmLoading(false);
+        return;
+      }
+    }
+    if (pmType === "BANK_INTL") {
+      const ibanClean = pmIban.replace(/\s/g, "").toUpperCase();
+      if (ibanClean && !/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(ibanClean)) {
+        setPmMsg({ text: t("Format IBAN invalide (ex : FR76…).", "Invalid IBAN format (e.g. FR76…)."), ok: false });
+        setPmLoading(false);
+        return;
+      }
+    }
+    if (pmType === "D17") {
+      const phoneClean = pmPhone.replace(/\s/g, "");
+      if (phoneClean && !/^\+216\d{8}$/.test(phoneClean)) {
+        setPmMsg({ text: t("Le numéro D17 doit être au format +216 suivi de 8 chiffres.", "D17 number must be +216 followed by 8 digits."), ok: false });
+        setPmLoading(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch("/api/tutor/payout-method", {
         method: "PUT",

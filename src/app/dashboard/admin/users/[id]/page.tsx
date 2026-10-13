@@ -30,6 +30,20 @@ const BOOKING_STATUS_BADGE: Record<string, string> = {
   NO_SHOW:   "bg-orange-100 text-orange-700",
 };
 
+const SESSION_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
+  DISCOVERY: { fr: "Découverte", en: "Discovery" },
+  SINGLE:    { fr: "Séance",     en: "Session"   },
+  PACK_5:    { fr: "Pack 5",     en: "Pack 5"    },
+  PACK_10:   { fr: "Pack 10",    en: "Pack 10"   },
+};
+
+const SESSION_TYPE_BADGE: Record<string, string> = {
+  DISCOVERY: "bg-violet-100 text-violet-700",
+  SINGLE:    "bg-[#FFF3B0] text-[#C49200]",
+  PACK_5:    "bg-blue-100 text-blue-700",
+  PACK_10:   "bg-green-100 text-green-700",
+};
+
 export default async function UserDetailPage({ params }: Props) {
   const session = await auth();
   if (!session?.user?.id || session.user.role !== "ADMIN") redirect("/auth/login");
@@ -185,6 +199,7 @@ export default async function UserDetailPage({ params }: Props) {
           <TutorPricingCard
             tutorId={user.id}
             currentPrice={user.tutorProfile.sessionPriceUsd ?? null}
+            lang={lang}
           />
         )}
 
@@ -193,6 +208,7 @@ export default async function UserDetailPage({ params }: Props) {
           <TutorPaymentMethodCard
             tutorId={user.id}
             paymentMethod={user.paymentMethod ?? null}
+            lang={lang}
           />
         )}
 
@@ -224,7 +240,11 @@ export default async function UserDetailPage({ params }: Props) {
                     return (
                       <tr key={b.id} className="hover:bg-[#FAF8F0] transition">
                         <td className="px-6 py-3 text-sm text-[#2D1A00]">{other}</td>
-                        <td className="px-4 py-3 text-xs text-[#9B8A6B]">{b.sessionType}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${SESSION_TYPE_BADGE[b.sessionType] ?? "bg-gray-100 text-gray-500"}`}>
+                            {SESSION_TYPE_LABELS[b.sessionType]?.[lang] ?? b.sessionType}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${BOOKING_STATUS_BADGE[b.status] ?? ""}`}>
                             {b.status}

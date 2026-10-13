@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 interface Props {
   tutorId: string;
   currentPrice: number | null;
+  lang: string;
 }
 
-export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
+export default function TutorPricingCard({ tutorId, currentPrice, lang }: Props) {
+  const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(currentPrice?.toString() ?? "");
@@ -20,7 +22,7 @@ export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
     setError(null);
     const parsed = value.trim() === "" ? null : parseFloat(value);
     if (parsed !== null && (isNaN(parsed) || parsed < 0)) {
-      setError("Prix invalide.");
+      setError(t("Prix invalide.", "Invalid price."));
       setLoading(false);
       return;
     }
@@ -33,7 +35,7 @@ export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
       router.refresh();
       setEditing(false);
     } else {
-      setError("Erreur lors de la sauvegarde.");
+      setError(t("Erreur lors de la sauvegarde.", "Save failed."));
     }
     setLoading(false);
   }
@@ -42,15 +44,15 @@ export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-0.5">Prix de séance</p>
-          <p className="text-xs text-[#9B8A6B]">Affiché aux étudiants lors de la réservation</p>
+          <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-0.5">{t("Prix de séance", "Session price")}</p>
+          <p className="text-xs text-[#9B8A6B]">{t("Affiché aux étudiants lors de la réservation", "Shown to students when booking")}</p>
         </div>
         {!editing && (
           <button
             onClick={() => setEditing(true)}
             className="px-4 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] transition"
           >
-            Modifier
+            {t("Modifier", "Edit")}
           </button>
         )}
       </div>
@@ -60,10 +62,10 @@ export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
           {currentPrice != null ? (
             <>
               <span className="text-3xl font-black text-[#1A0F00]">${currentPrice.toFixed(0)}</span>
-              <span className="text-sm text-[#9B8A6B]">USD / séance</span>
+              <span className="text-sm text-[#9B8A6B]">USD / {t("séance", "session")}</span>
             </>
           ) : (
-            <span className="text-[#9B8A6B] text-sm italic">Aucun prix défini — utilise le tarif plateforme</span>
+            <span className="text-[#9B8A6B] text-sm italic">{t("Aucun prix défini — utilise le tarif plateforme", "No price set — uses platform rate")}</span>
           )}
         </div>
       ) : (
@@ -87,17 +89,17 @@ export default function TutorPricingCard({ tutorId, currentPrice }: Props) {
               disabled={loading}
               className="px-4 py-2.5 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] disabled:opacity-50 transition"
             >
-              {loading ? "…" : "Enregistrer"}
+              {loading ? "…" : t("Enregistrer", "Save")}
             </button>
             <button
               onClick={() => { setEditing(false); setValue(currentPrice?.toString() ?? ""); setError(null); }}
               disabled={loading}
               className="px-4 py-2.5 border border-black/10 text-[#9B8A6B] font-semibold text-sm rounded-xl hover:bg-black/5 transition"
             >
-              Annuler
+              {t("Annuler", "Cancel")}
             </button>
           </div>
-          <p className="text-[11px] text-[#9B8A6B]">Laisser vide pour utiliser le tarif plateforme par défaut.</p>
+          <p className="text-[11px] text-[#9B8A6B]">{t("Laisser vide pour utiliser le tarif plateforme par défaut.", "Leave empty to use the default platform rate.")}</p>
           {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
       )}

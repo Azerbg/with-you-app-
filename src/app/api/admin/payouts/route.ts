@@ -73,6 +73,8 @@ export async function GET() {
     }),
   ]);
 
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
   // Group unpaid bookings by tutor
   const tutorMap = new Map<string, {
     tutorId: string;
@@ -105,17 +107,19 @@ export async function GET() {
     entry.bookings.push(b);
   }
 
-  const tutors = Array.from(tutorMap.values()).sort((a, b) => b.totalOwed - a.totalOwed);
+  const tutors = Array.from(tutorMap.values())
+    .map(e => ({ ...e, totalOwed: r2(e.totalOwed) }))
+    .sort((a, b) => b.totalOwed - a.totalOwed);
 
   return NextResponse.json({
     tutors,
     summary: {
       pendingTutorCount:  tutors.length,
       pendingBookingCount: unpaidBookings.length,
-      paidThisMonthAmount: allPaidThisMonth._sum.tutorPayoutAmount ?? 0,
+      paidThisMonthAmount: r2(allPaidThisMonth._sum.tutorPayoutAmount ?? 0),
       paidThisMonthCount:  allPaidThisMonth._count.id,
-      platformGrossUsd:    revenueThisMonth._sum.studentPriceUsd ?? 0,
-      platformRevenueUsd:  (revenueThisMonth._sum.studentPriceUsd ?? 0) - (revenueThisMonth._sum.tutorPayoutUsd ?? 0),
+      platformGrossUsd:    r2(revenueThisMonth._sum.studentPriceUsd ?? 0),
+      platformRevenueUsd:  r2((revenueThisMonth._sum.studentPriceUsd ?? 0) - (revenueThisMonth._sum.tutorPayoutUsd ?? 0)),
     },
   });
 }

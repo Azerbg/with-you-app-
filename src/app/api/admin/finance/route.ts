@@ -7,6 +7,8 @@ export async function GET(req: NextRequest) {
   const { error } = await requireAdmin();
   if (error) return error;
 
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+
   try {
   const { searchParams } = new URL(req.url);
   const format = searchParams.get("format");
@@ -38,10 +40,10 @@ export async function GET(req: NextRequest) {
         _count: { id: true },
       }).then(r => ({
         label: m.label,
-        revenue: r._sum.studentPriceUsd ?? 0,
-        payouts: r._sum.tutorPayoutUsd ?? 0,
+        revenue: r2(r._sum.studentPriceUsd ?? 0),
+        payouts: r2(r._sum.tutorPayoutUsd ?? 0),
         // Recompute margin server-side in case stored value is stale
-        margin: (r._sum.studentPriceUsd ?? 0) - (r._sum.tutorPayoutUsd ?? 0),
+        margin: r2((r._sum.studentPriceUsd ?? 0) - (r._sum.tutorPayoutUsd ?? 0)),
         count:  r._count.id,
       }))
     )),
@@ -92,10 +94,10 @@ export async function GET(req: NextRequest) {
         b.id, b.status, b.sessionType, b.durationMins,
         b.scheduledAt?.toISOString() ?? "",
         b.student.email, `"${tutorName}"`,
-        b.studentPriceUsd ?? "", b.studentCurrency,
-        b.tutorPayoutAmount ?? "", b.tutorCurrency,
-        b.tutorPayoutUsd ?? "",
-        b.platformMargin ?? "", b.paymentProvider, paymentId,
+        b.studentPriceUsd?.toFixed(2) ?? "", b.studentCurrency,
+        b.tutorPayoutAmount?.toFixed(2) ?? "", b.tutorCurrency,
+        b.tutorPayoutUsd?.toFixed(2) ?? "",
+        b.platformMargin?.toFixed(2) ?? "", b.paymentProvider, paymentId,
       ].join(",");
     });
     return new NextResponse(header + rows.join("\n"), {
@@ -113,19 +115,19 @@ export async function GET(req: NextRequest) {
     usdToTnd,
     monthly: monthlyRevenue,
     totals: {
-      revenue: allTimeRevenue,
-      payoutsUsd: allTimePayoutsUsd,
-      margin: allTimeRevenue - allTimePayoutsUsd,
-      bookings: totals._count.id,
+      revenue:    r2(allTimeRevenue),
+      payoutsUsd: r2(allTimePayoutsUsd),
+      margin:     r2(allTimeRevenue - allTimePayoutsUsd),
+      bookings:   totals._count.id,
     },
     payoutsOwed: {
-      amountLocal: payoutsOwed._sum.tutorPayoutAmount ?? 0,
-      amountUsd:   payoutsOwed._sum.tutorPayoutUsd ?? 0,
+      amountLocal: r2(payoutsOwed._sum.tutorPayoutAmount ?? 0),
+      amountUsd:   r2(payoutsOwed._sum.tutorPayoutUsd ?? 0),
       count:       payoutsOwed._count.id,
     },
     payoutsPaid: {
-      amountLocal: payoutsPaid._sum.tutorPayoutAmount ?? 0,
-      amountUsd:   payoutsPaid._sum.tutorPayoutUsd ?? 0,
+      amountLocal: r2(payoutsPaid._sum.tutorPayoutAmount ?? 0),
+      amountUsd:   r2(payoutsPaid._sum.tutorPayoutUsd ?? 0),
       count:       payoutsPaid._count.id,
     },
   });
