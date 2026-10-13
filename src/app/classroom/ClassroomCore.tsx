@@ -24,8 +24,13 @@ import { Track, RoomEvent, ConnectionQuality, ParticipantEvent, LocalVideoTrack 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface ChatAttachment {
+  url: string; name: string; type: "image" | "pdf";
+}
 interface ChatMessage {
   id: string; sender: string; text: string; time: number; isLocal: boolean;
+  reactions?: Record<string, string[]>;
+  attachment?: ChatAttachment;
 }
 interface FloatingReaction {
   id: string; emoji: string; sender: string; x: number;
@@ -199,16 +204,33 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
 
 // ─── Chat Panel ───────────────────────────────────────────────────────────────
 
-function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef, lang }: {
-  messages: ChatMessage[]; input: string; setInput: (v: string) => void;
+const MSG_REACTIONS = ["👍", "❤️", "😂", "🎉", "👏"];
+
+function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef, lang, onReact, onAttach, uploading, myName }: {
+  messages: ChatMessage[];
+  input: string;
+  setInput: (v: string) => void;
   sendMessage: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   lang: string;
+  onReact: (msgId: string, emoji: string) => void;
+  onAttach: (file: File) => void;
+  uploading: boolean;
+  myName: string;
 }) {
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
+  const attachRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) onAttach(file);
+    e.target.value = "";
+  }
+
   return (
     <>
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" onClick={() => setReactionPickerMsgId(null)}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <p className="text-3xl mb-2">💬</p>
@@ -219,9 +241,66 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
             <span className="text-[10px] font-semibold mb-1" style={{ color: msg.isLocal ? "#F5C400" : "#9B8A6B" }}>
               {msg.sender.split(" ")[0]}
             </span>
-            <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-              msg.isLocal ? "bg-[#F5C400] text-[#2D1A00] rounded-tr-sm" : "bg-[#2A1F0E] text-white/85 rounded-tl-sm"
-            }`}>{renderWithLinks(msg.text)}</div>
+            <div className="relative group/msg">
+              {/* Text bubble */}
+              {msg.text && (
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                  msg.isLocal ? "bg-[#F5C400] text-[#2D1A00] rounded-tr-sm" : "bg-[#2A1F0E] text-white/85 rounded-tl-sm"
+                }`}>{renderWithLinks(msg.text)}</div>
+              )}
+              {/* Attachment */}
+              {msg.attachment && (
+                msg.attachment.type === "image" ? (
+                  <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="block mt-1">
+                    <img src={msg.attachment.url} alt={msg.attachment.name}
+                      className="max-w-[200px] max-h-[180px] rounded-xl object-cover border border-white/10 hover:opacity-90 transition" />
+                  </a>
+                ) : (
+                  <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer"
+                    className="mt-1 flex items-center gap-2 bg-[#1A1209] border border-white/10 rounded-xl px-3 py-2 hover:bg-[#2A1F0E] transition max-w-[220px]">
+                    <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-white/70 text-xs truncate">{msg.attachment.name}</span>
+                  </a>
+                )
+              )}
+              {/* Hover reaction trigger */}
+              <button
+                onClick={e => { e.stopPropagation(); setReactionPickerMsgId(prev => prev === msg.id ? null : msg.id); }}
+                className={`absolute ${msg.isLocal ? "-left-7" : "-right-7"} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition text-base leading-none text-white/40 hover:text-white/80`}
+                aria-label="Add reaction">
+                😊
+              </button>
+              {/* Mini reaction picker */}
+              {reactionPickerMsgId === msg.id && (
+                <div
+                  className={`absolute z-50 bottom-full mb-1 ${msg.isLocal ? "right-0" : "left-0"} bg-[#1A1209] border border-[#3A2A0E] rounded-2xl px-3 py-2 flex items-center gap-2 shadow-2xl`}
+                  onClick={e => e.stopPropagation()}>
+                  {MSG_REACTIONS.map(e => (
+                    <button key={e} onClick={() => { onReact(msg.id, e); setReactionPickerMsgId(null); }}
+                      className="text-xl hover:scale-125 transition-transform">{e}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Reaction chips */}
+            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {Object.entries(msg.reactions).map(([emoji, senders]) => {
+                  const isMine = senders.includes(myName);
+                  return (
+                    <button key={emoji} onClick={() => onReact(msg.id, emoji)}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition ${
+                        isMine ? "bg-[#F5C400]/20 border-[#F5C400]/50 text-[#F5C400]" : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+                      }`}>
+                      <span>{emoji}</span>
+                      <span className="font-semibold">{senders.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <span className="text-[9px] text-white/20 mt-1">
               {new Date(msg.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -231,6 +310,18 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
       </div>
       <div className="px-3 py-3 border-t border-white/5 flex-shrink-0">
         <div className="flex items-end gap-2">
+          {/* Attachment button */}
+          <button onClick={() => attachRef.current?.click()} disabled={uploading}
+            className="w-9 h-9 flex-shrink-0 rounded-xl bg-[#1A1209] border border-white/10 flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-[#2A1F0E] transition disabled:opacity-30"
+            aria-label={lang === "fr" ? "Pièce jointe" : "Attach file"}>
+            {uploading
+              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white/70 rounded-full animate-spin" />
+              : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+            }
+          </button>
+          <input ref={attachRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFileChange} />
           <input ref={inputRef} type="text" value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
@@ -500,6 +591,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
 
   // Reactions
   const [floatingReactions, setFloatReactions] = useState<FloatingReaction[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   // Recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -591,6 +683,24 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
             break;
           case "reaction":     addFloat(msg.emoji, msg.sender); break;
+          case "chat-react":
+            setMessages(prev => prev.map(m => {
+              if (m.id !== msg.messageId) return m;
+              const reactions = { ...(m.reactions ?? {}) };
+              const list = reactions[msg.emoji] ?? [];
+              if (list.includes(msg.sender)) {
+                const filtered = list.filter((s: string) => s !== msg.sender);
+                if (filtered.length === 0) delete reactions[msg.emoji]; else reactions[msg.emoji] = filtered;
+              } else {
+                reactions[msg.emoji] = [...list, msg.sender];
+              }
+              return { ...m, reactions };
+            }));
+            break;
+          case "chat-file":
+            setMessages(prev => [...prev, { id: msg.id, sender: msg.sender, text: "", time: msg.time, isLocal: false, attachment: { url: msg.url, name: msg.fileName, type: msg.fileType } }]);
+            setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
+            break;
           case "excalidraw-sync": setIncomingSync({ elements: msg.elements ?? [], files: msg.files, version: msg.version ?? 0 }); break;
         }
       } catch { /* ignore */ }
@@ -614,6 +724,44 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
     setTimeout(() => setFloatReactions(prev => prev.filter(r => r.id !== id)), 2500);
   }
   function sendReaction(emoji: string) { sendData({ type: "reaction", sender: myName, emoji }); addFloat(emoji, myName); setShowPicker(false); }
+
+  function sendReactionToMsg(msgId: string, emoji: string) {
+    sendData({ type: "chat-react", messageId: msgId, emoji, sender: myName });
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+      const reactions = { ...(m.reactions ?? {}) };
+      const list = reactions[emoji] ?? [];
+      if (list.includes(myName)) {
+        const filtered = list.filter(s => s !== myName);
+        if (filtered.length === 0) delete reactions[emoji]; else reactions[emoji] = filtered;
+      } else {
+        reactions[emoji] = [...list, myName];
+      }
+      return { ...m, reactions };
+    }));
+  }
+
+  async function sendAttachment(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/classroom/upload", { method: "POST", body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const { url, name, type } = await res.json();
+      const id = crypto.randomUUID();
+      const time = Date.now();
+      sendData({ type: "chat-file", id, sender: myName, url, fileName: name, fileType: type, time });
+      setMessages(prev => [...prev, { id, sender: myName, text: "", time, isLocal: true, attachment: { url, name, type } }]);
+    } catch (err) {
+      console.error("[classroom] attachment upload failed:", err);
+    } finally {
+      setUploading(false);
+    }
+  }
   async function toggleScreen() { try { await localParticipant.setScreenShareEnabled(!isSharing); } catch { /* cancelled */ } }
 
   const panelTitles: Record<string, string> = { chat: "Chat", info: lang === "fr" ? "Informations" : "Info" };
@@ -860,7 +1008,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
               </button>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
-              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} lang={lang} />}
+              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} lang={lang} onReact={sendReactionToMsg} onAttach={sendAttachment} uploading={uploading} myName={myName} />}
               {activePanel === "info" && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
             </div>
           </div>
