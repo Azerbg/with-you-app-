@@ -50,7 +50,7 @@ export default async function UserDetailPage({ params }: Props) {
       hrApplication: { select: { fullName: true, status: true } },
       studentProfile: { select: { cefrLevel: true, programTier: true, country: true, targetLanguage: true } },
       tutorProfile: { select: { averageRating: true, totalReviews: true, verificationTier: true, languagesTaught: true, sessionPriceUsd: true } },
-      tutorPaymentMethod: { select: { type: true, accountHolder: true, iban: true, email: true, phone: true } },
+      paymentMethod: { select: { type: true, accountHolder: true, iban: true, email: true, phone: true } },
       bookingsAsStudent: {
         orderBy: { createdAt: "desc" }, take: 20,
         select: {
@@ -192,7 +192,7 @@ export default async function UserDetailPage({ params }: Props) {
         {user.role === "TUTOR" && (
           <TutorPaymentMethodCard
             tutorId={user.id}
-            paymentMethod={user.tutorPaymentMethod ?? null}
+            paymentMethod={user.paymentMethod ?? null}
           />
         )}
 
