@@ -839,7 +839,8 @@ model Message {
   // Message content
   type    String @default("TEXT") // TEXT | IMAGE | AUDIO | FILE
   content String
-  fileUrl String?
+  fileUrl   String?
+  reactions Json?   // {"emoji": ["userId1", "userId2", ...], ...}
 
   // Anti-bypass detection
   isFlagged      Boolean   @default(false)
