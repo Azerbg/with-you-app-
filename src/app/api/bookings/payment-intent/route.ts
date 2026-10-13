@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const slots = generateAvailableSlots(
     profile.availability,
     existingBookings.map((b) => b.scheduledAt),
-    21,
+    28,
   );
 
   const isValid = slots.some((s) => s.utc.toISOString() === slotDate.toISOString());

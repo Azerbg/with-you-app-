@@ -30,25 +30,17 @@ interface Props {
   offerCurrency: string | null;
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("fr-FR", {
-    weekday: "short", day: "numeric", month: "short",
-    hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis",
-  });
-}
-
-function formatDay(iso: string) {
+function formatDay(iso: string, lang: string) {
   const d = new Date(iso);
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  if (d.toDateString() === today.toDateString()) return "Aujourd'hui";
-  if (d.toDateString() === tomorrow.toDateString()) return "Demain";
-  return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short", timeZone: "Africa/Tunis" });
+  if (d.toDateString() === today.toDateString()) return lang === "en" ? "Today" : "Aujourd'hui";
+  if (d.toDateString() === tomorrow.toDateString()) return lang === "en" ? "Tomorrow" : "Demain";
+  return d.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { weekday: "long", day: "numeric", month: "short", timeZone: "Africa/Tunis" });
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" });
+function formatTime(iso: string, lang: string) {
+  return new Date(iso).toLocaleTimeString(lang === "en" ? "en-GB" : "fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Tunis" });
 }
 
 export default function TutorDashboardContent({
@@ -174,8 +166,8 @@ export default function TutorDashboardContent({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[#2D1A00] truncate">{s.studentName}</p>
                         <p className="text-xs text-[#9B8A6B] mt-0.5">
-                          <span className="font-semibold text-[#5C3D00]">{formatDay(s.scheduledAt)}</span>
-                          {" · "}{formatTime(s.scheduledAt)} · {s.durationMins} min
+                          <span className="font-semibold text-[#5C3D00]">{formatDay(s.scheduledAt, lang)}</span>
+                          {" · "}{formatTime(s.scheduledAt, lang)} · {s.durationMins} min
                         </p>
                       </div>
                       {(() => {
@@ -187,14 +179,14 @@ export default function TutorDashboardContent({
                             href={`/classroom/${s.id}`}
                             className="flex-shrink-0 bg-[#F5C400] text-[#5C3D00] px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#FFDE59] transition"
                           >
-                            Rejoindre →
+                            {lang === "en" ? "Join →" : "Rejoindre →"}
                           </a>
                         ) : (
                           <a
                             href={`/classroom/${s.id}`}
                             className="flex-shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-xl border border-[#E8E0D4] text-[#9B8A6B] bg-[#FAF8F0] hover:bg-[#F0EAD8] transition"
                           >
-                            Salle de classe →
+                            {lang === "en" ? "Classroom →" : "Salle de classe →"}
                           </a>
                         );
                       })()}
