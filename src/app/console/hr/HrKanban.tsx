@@ -83,6 +83,18 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   REJECTED:            [],
 };
 
+// ─── Video URL helpers ────────────────────────────────────────────────────────
+
+function getYouTubeEmbedUrl(url: string): string | null {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?#\s]+)/);
+  return m ? `https://www.youtube.com/embed/${m[1]}` : null;
+}
+
+function getLoomEmbedUrl(url: string): string | null {
+  const m = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+  return m ? `https://www.loom.com/embed/${m[1]}` : null;
+}
+
 // ─── Language tabs ────────────────────────────────────────────────────────────
 
 const LANG_FLAGS: Record<string, string> = {
@@ -363,7 +375,7 @@ function DetailPanel({
               <div className="flex flex-col gap-2">
                 {fullApp?.cvUrl && (
                   <a
-                    href={fullApp.cvUrl}
+                    href={fullApp.cvUrl.startsWith("data:") ? fullApp.cvUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.cvUrl)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-xl hover:bg-[#FFDE59]/30 transition"
@@ -379,7 +391,7 @@ function DetailPanel({
                 )}
                 {fullApp?.motivationLetterUrl && (
                   <a
-                    href={fullApp.motivationLetterUrl}
+                    href={fullApp.motivationLetterUrl.startsWith("data:") ? fullApp.motivationLetterUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.motivationLetterUrl)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#F0F7FF] border border-blue-200 rounded-xl hover:bg-blue-50 transition"
@@ -396,7 +408,7 @@ function DetailPanel({
                 {fullApp?.certificateUrls?.map((url, i) => (
                   <a
                     key={i}
-                    href={url}
+                    href={url.startsWith("data:") ? url : `/api/hr/document?url=${encodeURIComponent(url)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
@@ -414,44 +426,60 @@ function DetailPanel({
             </Section>
           ) : null}
 
-          {/* Video — shown in VIDEO_SUBMITTED and all subsequent stages */}
-          {VIDEO_STAGES.includes(app.status) && !fullLoading && videoUrl && (
+          {/* Video — shown for VIDEO_SUBMITTED and all subsequent stages */}
+          {VIDEO_STAGES.includes(app.status) && !fullLoading && (
             <Section title={t("Vidéo de présentation", "Presentation video")}>
-              {app.videoSubmittedAt && (
-                <p className="text-xs text-[#6B5E44] mb-3">
-                  {t("Reçue le", "Received on")} {new Date(app.videoSubmittedAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
-                </p>
-              )}
-              {/\.(mp4|webm|mov|ogg)(\?|$)/i.test(videoUrl) ? (
-                <div className="rounded-xl overflow-hidden border border-violet-200 bg-black">
-                  <video
-                    src={videoUrl}
-                    controls
-                    className="w-full max-h-72 object-contain"
-                    preload="metadata"
-                  />
-                  <a href={videoUrl} target="_blank" rel="noreferrer"
-                    className="flex items-center justify-center gap-2 py-2 text-xs text-violet-500 hover:text-violet-700 transition bg-violet-50">
-                    {t("Ouvrir dans un nouvel onglet", "Open in new tab")} ↗
-                  </a>
-                </div>
+              {!videoUrl ? (
+                <p className="text-sm text-[#9B8A6B] italic py-2">{t("Aucune vidéo soumise.", "No video submitted.")}</p>
               ) : (
-                <a
-                  href={videoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition"
-                >
-                  <span className="text-xl">▶️</span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-violet-800">{t("Visionner la vidéo", "Watch video")}</p>
-                    <p className="text-xs text-violet-500 truncate">{videoUrl}</p>
-                  </div>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
-                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                  </svg>
-                </a>
+                <>
+                  {app.videoSubmittedAt && (
+                    <p className="text-xs text-[#6B5E44] mb-3">
+                      {t("Reçue le", "Received on")} {new Date(app.videoSubmittedAt).toLocaleString(lang === "fr" ? "fr-FR" : "en-GB")}
+                    </p>
+                  )}
+                  {(() => {
+                    const ytEmbed = getYouTubeEmbedUrl(videoUrl);
+                    const loomEmbed = getLoomEmbedUrl(videoUrl);
+                    if (ytEmbed || loomEmbed) {
+                      return (
+                        <div className="rounded-xl overflow-hidden border border-violet-200 aspect-video">
+                          <iframe
+                            src={ytEmbed ?? loomEmbed!}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      );
+                    }
+                    if (/\.(mp4|webm|mov|ogg)(\?|$)/i.test(videoUrl)) {
+                      return (
+                        <div className="rounded-xl overflow-hidden border border-violet-200 bg-black">
+                          <video src={videoUrl} controls className="w-full max-h-72 object-contain" preload="metadata" />
+                          <a href={videoUrl} target="_blank" rel="noreferrer"
+                            className="flex items-center justify-center gap-2 py-2 text-xs text-violet-500 hover:text-violet-700 transition bg-violet-50">
+                            {t("Ouvrir dans un nouvel onglet", "Open in new tab")} ↗
+                          </a>
+                        </div>
+                      );
+                    }
+                    return (
+                      <a href={videoUrl} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl hover:bg-violet-100 transition">
+                        <span className="text-xl">▶️</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-violet-800">{t("Visionner la vidéo", "Watch video")}</p>
+                          <p className="text-xs text-violet-500 truncate">{videoUrl}</p>
+                        </div>
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-violet-400 ml-auto flex-shrink-0">
+                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                        </svg>
+                      </a>
+                    );
+                  })()}
+                </>
               )}
             </Section>
           )}
@@ -483,11 +511,13 @@ function DetailPanel({
                 {nextStatuses.map(s => {
                   const col = COLUMNS.find(c => c.key === s);
                   const isRejected = s === "REJECTED";
+                  const noVideo = s === "VIDEO_SUBMITTED" && !fullLoading && !fullApp?.videoSubmissionUrl;
                   return (
                     <button key={s}
                       onClick={() => handleMove(s)}
-                      disabled={!!movingTo}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition disabled:opacity-50 ${
+                      disabled={!!movingTo || noVideo}
+                      title={noVideo ? t("Aucune vidéo soumise par le candidat", "No video submitted by candidate") : undefined}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition disabled:opacity-50 disabled:cursor-not-allowed ${
                         isRejected
                           ? "border-red-300 text-red-600 hover:bg-red-50"
                           : "border-[#F5C400] text-[#5C3D00] hover:bg-[#FFF3B0]"

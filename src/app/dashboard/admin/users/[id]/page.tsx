@@ -30,6 +30,14 @@ const BOOKING_STATUS_BADGE: Record<string, string> = {
   NO_SHOW:   "bg-orange-100 text-orange-700",
 };
 
+const BOOKING_STATUS_LABELS: Record<string, { fr: string; en: string }> = {
+  PENDING:   { fr: "En attente",  en: "Pending"   },
+  CONFIRMED: { fr: "Confirmé",    en: "Confirmed" },
+  COMPLETED: { fr: "Terminé",     en: "Completed" },
+  CANCELLED: { fr: "Annulé",      en: "Cancelled" },
+  NO_SHOW:   { fr: "Absent",      en: "No show"   },
+};
+
 const SESSION_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   DISCOVERY: { fr: "Découverte", en: "Discovery" },
   SINGLE:    { fr: "Séance",     en: "Session"   },
@@ -247,7 +255,7 @@ export default async function UserDetailPage({ params }: Props) {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${BOOKING_STATUS_BADGE[b.status] ?? ""}`}>
-                            {b.status}
+                            {BOOKING_STATUS_LABELS[b.status]?.[lang] ?? b.status}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-[#2D1A00]">
