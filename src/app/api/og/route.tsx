@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
+export const runtime = "nodejs";
+
 export async function GET(req: NextRequest) {
   const lang = req.nextUrl.searchParams.get("lang") ?? "en";
   const isFr = lang === "fr";
@@ -76,9 +78,6 @@ export async function GET(req: NextRequest) {
         </div>
       </div>
     ),
-    {
-      width: 1200,
-      height: 630,
-    },
+    { width: 1200, height: 630 },
   );
 }
