@@ -5,23 +5,38 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { cookies } from "next/headers";
 
-export const metadata: Metadata = {
-  title: "WithYou — Language Learning Platform",
-  description: "Connect with expert tutors and accelerate your language learning.",
-  openGraph: {
-    title: "WithYou — Language Learning Platform",
-    description: "Live 1-on-1 language learning with verified expert tutors. Start with a free 30-min discovery session.",
-    url: "https://withyou.app",
-    siteName: "WithYou",
-    locale: "en_US",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "WithYou — Language Learning Platform",
-    description: "Live 1-on-1 language learning with verified expert tutors. Start with a free 30-min discovery session.",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const jar = await cookies();
+  const isFr = jar.get("wy_lang")?.value === "fr";
+
+  const title = isFr
+    ? "WithYou — Cours de langues en direct"
+    : "WithYou — Language Learning Platform";
+  const description = isFr
+    ? "Cours individuels en direct avec des tuteurs experts vérifiés. Commencez par une séance découverte gratuite de 30 min."
+    : "Live 1-on-1 language learning with verified expert tutors. Start with a free 30-min discovery session.";
+
+  return {
+    metadataBase: new URL("https://withyou.app"),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: "https://withyou.app",
+      siteName: "WithYou",
+      locale: isFr ? "fr_FR" : "en_US",
+      type: "website",
+      images: [{ url: "/hero-tutor.jpg", width: 1200, height: 630, alt: "WithYou" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/hero-tutor.jpg"],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
