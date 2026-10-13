@@ -108,6 +108,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Invalid status" }, { status: 422 });
   }
 
+  // Guard: VIDEO_SUBMITTED requires a video to have been submitted
+  if (status === "VIDEO_SUBMITTED") {
+    const current = await db.hrApplication.findUnique({
+      where: { id },
+      select: { videoSubmissionUrl: true },
+    });
+    if (!current?.videoSubmissionUrl) {
+      return NextResponse.json(
+        { error: "Cannot move to Video received: no video has been submitted by the candidate." },
+        { status: 422 }
+      );
+    }
+  }
+
   const updateData: Record<string, unknown> = {};
   if (status) updateData.status = status;
 

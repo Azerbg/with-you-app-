@@ -38,7 +38,9 @@ export async function POST(req: NextRequest) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const pathname = `hr/${session.user.id}/${Date.now()}_${safeName}`;
 
-    const blob = await put(pathname, file, { access: "public" });
+    // Documents are private; videos stay public (needed for the HR inline player)
+    const isVideo = file.type.startsWith("video/");
+    const blob = await put(pathname, file, { access: isVideo ? "public" : "private" });
 
     return NextResponse.json({ url: blob.url, pathname: blob.pathname });
   } catch (err) {
