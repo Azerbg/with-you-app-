@@ -62,7 +62,7 @@ function StarRating({ rating, total, lang }: { rating: number; total: number; la
   );
 }
 
-function TutorCard({ tutor }: { tutor: Tutor }) {
+function TutorCard({ tutor, lang }: { tutor: Tutor; lang: string }) {
   const initials = tutor.displayName
     .split(" ")
     .map((w) => w[0])
@@ -723,7 +723,7 @@ export default function FindTutorsClient({
             ) : (
               <div className="space-y-4">
                 {tutors.map((t) => (
-                  <TutorCard key={t.userId} tutor={t} />
+                  <TutorCard key={t.userId} tutor={t} lang={lang} />
                 ))}
               </div>
             )}
