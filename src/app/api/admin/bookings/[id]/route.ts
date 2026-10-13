@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { db } from "@/lib/db";
+import { getUsdToTndRate } from "@/lib/adminSettings";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAdmin();
@@ -8,30 +9,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const booking = await db.booking.findUnique({
-    where: { id },
-    select: {
-      id: true, status: true, sessionType: true,
-      studentPriceUsd: true, studentCurrency: true,
-      tutorPayoutAmount: true, tutorCurrency: true, tutorPayoutUsd: true,
-      platformMargin: true, durationMins: true,
-      scheduledAt: true, startedAt: true, endedAt: true,
-      createdAt: true, updatedAt: true,
-      paymentProvider: true, stripePaymentIntentId: true,
-      stripeTransferId: true, paypalOrderId: true, paypalCaptureId: true,
-      cancelledAt: true, cancelledBy: true, cancellationReason: true,
-      noShowReportedAt: true, noShowReportedBy: true,
-      creditAppliedTnd: true,
-      student: { select: { id: true, email: true, firstName: true, lastName: true } },
-      tutor:   { select: { id: true, email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
-      disputes: { select: { id: true, type: true, status: true, description: true, createdAt: true } },
-    },
-  });
+  const [booking, usdToTnd] = await Promise.all([
+    db.booking.findUnique({
+      where: { id },
+      select: {
+        id: true, status: true, sessionType: true,
+        studentPriceUsd: true, studentCurrency: true,
+        tutorPayoutAmount: true, tutorCurrency: true, tutorPayoutUsd: true,
+        platformMargin: true, durationMins: true,
+        scheduledAt: true, startedAt: true, endedAt: true,
+        createdAt: true, updatedAt: true,
+        paymentProvider: true, stripePaymentIntentId: true,
+        stripeTransferId: true, paypalOrderId: true, paypalCaptureId: true,
+        cancelledAt: true, cancelledBy: true, cancellationReason: true,
+        noShowReportedAt: true, noShowReportedBy: true,
+        creditAppliedTnd: true,
+        student: { select: { id: true, email: true, firstName: true, lastName: true } },
+        tutor:   { select: { id: true, email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
+        disputes: { select: { id: true, type: true, status: true, description: true, createdAt: true } },
+      },
+    }),
+    getUsdToTndRate(),
+  ]);
 
   if (!booking) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({
     ...booking,
+    usdToTnd,
     scheduledAt: booking.scheduledAt?.toISOString() ?? null,
     startedAt:   booking.startedAt?.toISOString() ?? null,
     endedAt:     booking.endedAt?.toISOString() ?? null,

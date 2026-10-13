@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
+import { computeMarginUsd } from "@/lib/finance";
+import { formatUsd } from "@/lib/adminSettings";
 
 interface BookingDetail {
   id: string;
@@ -19,6 +21,7 @@ interface BookingDetail {
   tutorCurrency: string;
   tutorPayoutUsd: number | null;
   platformMargin: number | null;
+  usdToTnd: number;
   paymentProvider: string | null;
   stripePaymentIntentId: string | null;
   paypalOrderId: string | null;
@@ -164,15 +167,13 @@ export default function BookingDetailPage() {
           {/* Financials */}
           <div className="bg-white rounded-2xl border border-black/5 p-6 shadow-sm space-y-3">
             {(() => {
-              // Compute margin: prefer tutorPayoutUsd (USD-normalised), fall back to stored platformMargin
-              const margin = booking.studentPriceUsd != null && booking.tutorPayoutUsd != null
-                ? booking.studentPriceUsd - booking.tutorPayoutUsd
-                : booking.platformMargin;
-              const fmtUsd = (v: number | null) => {
-                if (v == null) return "—";
-                const sign = v < 0 ? "-" : "";
-                return `${sign}$${Math.abs(v).toFixed(2)}`;
-              };
+              const margin = computeMarginUsd(
+                booking.studentPriceUsd,
+                booking.tutorPayoutUsd,
+                booking.tutorPayoutAmount,
+                booking.tutorCurrency,
+                booking.usdToTnd,
+              );
               return (
                 <>
                   <h2 className="font-bold text-[#2D1A00] text-sm border-b border-black/5 pb-2">{t("Finances", "Financials")}</h2>
@@ -184,7 +185,7 @@ export default function BookingDetailPage() {
                   <div className="flex items-start justify-between gap-4 py-1 border-b border-black/5 text-sm">
                     <span className="text-[#9B8A6B] flex-shrink-0">{t("Marge plateforme", "Platform margin")}</span>
                     <span className={`font-semibold text-right ${margin != null && margin < 0 ? "text-red-600" : "text-[#2D1A00]"}`}>
-                      {fmtUsd(margin)}
+                      {formatUsd(margin)}
                     </span>
                   </div>
                   <Row label={t("Crédits utilisés", "Credits used")} value={booking.creditAppliedTnd > 0 ? `${booking.creditAppliedTnd.toFixed(2)} TND` : "—"} />

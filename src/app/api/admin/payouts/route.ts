@@ -68,7 +68,7 @@ export async function GET() {
         status: { in: ["CONFIRMED", "COMPLETED"] },
         createdAt: { gte: monthStart },
       },
-      _sum: { platformMargin: true, studentPriceUsd: true },
+      _sum: { tutorPayoutUsd: true, studentPriceUsd: true },
       _count: { id: true },
     }),
   ]);
@@ -114,8 +114,8 @@ export async function GET() {
       pendingBookingCount: unpaidBookings.length,
       paidThisMonthAmount: allPaidThisMonth._sum.tutorPayoutAmount ?? 0,
       paidThisMonthCount:  allPaidThisMonth._count.id,
-      platformRevenueUsd:  revenueThisMonth._sum.platformMargin ?? 0,
       platformGrossUsd:    revenueThisMonth._sum.studentPriceUsd ?? 0,
+      platformRevenueUsd:  (revenueThisMonth._sum.studentPriceUsd ?? 0) - (revenueThisMonth._sum.tutorPayoutUsd ?? 0),
     },
   });
 }
