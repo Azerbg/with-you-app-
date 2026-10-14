@@ -285,12 +285,34 @@ export default function ExcalidrawBoard({
           if (!api) return;
           const currentAppState = api.getAppState();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const patched = (api.getSceneElements() as any[]).map(el =>
+          const zoom    = (currentAppState as any).zoom?.value ?? 1;
+          const scrollX = currentAppState.scrollX ?? 0;
+          // Container width in CSS px (the 900px page); Excalidraw's right toolbar ≈ 56px
+          const containerPx   = currentAppState.width ?? 900;
+          const rightToolbarPx = 56;
+          const marginPx       = 16;
+          // Right boundary in canvas units
+          const rightBoundaryCanvas = (containerPx - rightToolbarPx - marginPx) / zoom - scrollX;
+          // Max sensible default width (canvas units)
+          const MAX_WIDTH = 400;
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const patched = (api.getSceneElements() as any[]).map(el => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            newTextEls.find((n: any) => n.id === el.id)
-              ? { ...el, autoResize: false, width: 800 }
-              : el
-          );
+            if (!newTextEls.find((n: any) => n.id === el.id)) return el;
+
+            // Available space from element's x to right boundary
+            const available = rightBoundaryCanvas - el.x;
+            const width = Math.max(120, Math.min(MAX_WIDTH, available));
+
+            // If element is too close to the right edge, shift it left so it fits
+            const x = available < 120
+              ? Math.max(0, rightBoundaryCanvas - MAX_WIDTH - marginPx / zoom)
+              : el.x;
+
+            return { ...el, autoResize: false, width, x };
+          });
+
           applyingRemote.current = true;
           try {
             api.updateScene({
@@ -504,6 +526,21 @@ export default function ExcalidrawBoard({
       </div>
 
       {/* ── Editor ── */}
+      {/*
+        CSS injection: Excalidraw's live-editing textarea expands horizontally by default
+        (autoResize:true). We constrain max-width + force word-wrap so text wraps in real
+        time during the first keystroke, identical to the rendered result after validation.
+      */}
+      <style>{`
+        .excalidraw textarea {
+          max-width: 400px !important;
+          white-space: pre-wrap !important;
+          word-break: break-word !important;
+          overflow-wrap: anywhere !important;
+          overflow-x: hidden !important;
+        }
+      `}</style>
+
       <BoardErrorBoundary lang={lang} onClose={onClose}>
         {/* Outer: light gray background so users see the page boundary */}
         <div className="flex-1 relative min-h-0 bg-[#e8e8e8] flex justify-center overflow-hidden">
