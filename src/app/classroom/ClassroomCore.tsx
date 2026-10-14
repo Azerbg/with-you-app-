@@ -549,14 +549,12 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         setOpenDropdown(null);
         setShowPicker(false);
         setBgPanelOpen(false);
-        // Board has its own Escape handler but also close it here as fallback
-        if (boardOpen) setBoardOpen(false);
+        // Board has its own Escape handler that checks focus — don't close it here
       }
     };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardOpen]);
+  }, []);
 
   // Opening bgPanel or picker closes the other
   function openBgPanel() { setBgPanelOpen(v => !v); setShowPicker(false); setOpenDropdown(null); }

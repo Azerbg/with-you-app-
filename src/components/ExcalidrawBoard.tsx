@@ -142,6 +142,7 @@ export default function ExcalidrawBoard({
   bookingId, lang, isOpen, isFull, onClose, onToggleFull, sendData, incomingSync,
 }: Props) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const boardRef       = useRef<HTMLDivElement>(null);
   const saveTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const applyingRemote = useRef(false);
   const lastVersion    = useRef(-1);
@@ -169,10 +170,15 @@ export default function ExcalidrawBoard({
   }, [isOpen, onClose]);
 
   // ─── Escape key closes board ─────────────────────────────────────────────
+  // Only close when focus is NOT inside the board (Excalidraw uses Escape to
+  // finish text editing — we must not intercept it in that case).
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      // If the focused element is inside the board container, let Excalidraw handle it
+      if (boardRef.current?.contains(document.activeElement)) return;
+      onClose();
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
@@ -362,6 +368,28 @@ export default function ExcalidrawBoard({
     } finally { applyingRemote.current = false; }
   }, [incomingSync, api]);
 
+  // ─── Save immediately when board closes (don't wait for 3 s debounce) ────
+  const prevIsOpenRef = useRef(isOpen);
+  useEffect(() => {
+    const wasOpen = prevIsOpenRef.current;
+    prevIsOpenRef.current = isOpen;
+    if (!wasOpen || isOpen) return;          // only fires on true → false transition
+    if (!bookingId || !api) return;
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+    const els      = api.getSceneElements();
+    const appState = api.getAppState();
+    const dbFiles  = api.getFiles();
+    const updated  = pagesRef.current.map(p =>
+      p.id === currentPageIdRef.current ? { ...p, elements: els, files: dbFiles } : p
+    );
+    pagesRef.current = updated;
+    fetch(`/api/lessons/${bookingId}/canvas`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshot: { version: 2, pages: updated, currentPageId: currentPageIdRef.current, appState } }),
+    }).catch(() => {});
+  }, [isOpen, api, bookingId]);
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
   useEffect(() => () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -391,12 +419,12 @@ export default function ExcalidrawBoard({
     URL.revokeObjectURL(url);
   }
 
-  if (!isOpen) return null;
-
   const fr = lang === "fr";
 
   return (
-    <div className={`fixed z-50 flex flex-col overflow-hidden ${
+    // Keep mounted at all times so Excalidraw state survives open/close cycles.
+    // CSS display:none hides the board without unmounting the component.
+    <div ref={boardRef} style={{ display: isOpen ? undefined : "none" }} className={`fixed z-50 flex flex-col overflow-hidden ${
       isFull ? "inset-0" : "top-16 left-4 right-4 bottom-24 rounded-2xl shadow-2xl border border-black/10"
     }`}>
 
