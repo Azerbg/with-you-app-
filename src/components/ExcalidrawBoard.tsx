@@ -291,7 +291,7 @@ export default function ExcalidrawBoard({
               elements: patched,
               // Preserve active editing so typing continues after wrap
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              appState: { editingElement: (currentAppState as any).editingElement, collaborators: new Map() },
+              appState: { editingTextElement: (currentAppState as any).editingTextElement, collaborators: new Map() },
             });
           }
           finally { applyingRemote.current = false; }
