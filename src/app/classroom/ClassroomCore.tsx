@@ -530,7 +530,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [openDropdown, setOpenDropdown] = useState<Dropdown>(null);
   const [showPicker,   setShowPicker]   = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
-  const [boardFull, setBoardFull] = useState(true);
+  const [boardFull, setBoardFull] = useState(false);
 
   function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); setShowPicker(false); setBgPanelOpen(false); }
   function toggleDd(dd: Exclude<Dropdown, null>) { setOpenDropdown(prev => prev === dd ? null : dd); }
@@ -549,11 +549,14 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
         setOpenDropdown(null);
         setShowPicker(false);
         setBgPanelOpen(false);
+        // Board has its own Escape handler but also close it here as fallback
+        if (boardOpen) setBoardOpen(false);
       }
     };
     document.addEventListener("keydown", fn);
     return () => document.removeEventListener("keydown", fn);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardOpen]);
 
   // Opening bgPanel or picker closes the other
   function openBgPanel() { setBgPanelOpen(v => !v); setShowPicker(false); setOpenDropdown(null); }
@@ -701,7 +704,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             setMessages(prev => [...prev, { id: msg.id, sender: msg.sender, text: "", time: msg.time, isLocal: false, attachment: { url: msg.url, name: msg.fileName, type: msg.fileType } }]);
             setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
             break;
-          case "excalidraw-sync": setIncomingSync({ elements: msg.elements ?? [], files: msg.files, version: msg.version ?? 0 }); break;
+          case "excalidraw-sync": setIncomingSync({ elements: msg.elements ?? [], files: msg.files, version: msg.version ?? 0, pageId: msg.pageId }); break;
+          case "excalidraw-page-add": setIncomingSync({ elements: [], files: undefined, version: 0, pageId: msg.page?.id }); break;
         }
       } catch { /* ignore */ }
     };

@@ -25,7 +25,6 @@ function BoardSkeleton() {
 }
 
 // CSS is imported statically in src/app/classroom/layout.tsx
-// Dynamic import uses the clean async arrow form so webpack can tree-shake correctly
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
   { ssr: false, loading: () => <BoardSkeleton /> },
@@ -77,6 +76,14 @@ export interface ExcalidrawSync {
   elements: ExcalidrawSceneElements;
   files?: BinaryFiles;
   version: number;
+  pageId?: string;
+}
+
+interface PageData {
+  id: string;
+  label: string;
+  elements: ExcalidrawSceneElements;
+  files: BinaryFiles;
 }
 
 interface Props {
@@ -104,7 +111,6 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
     for (let c = 0; c < cols; c++) {
       const rectId = `cell-${Date.now()}-${r}-${c}`;
       const textId = `text-${rectId}`;
-      // Rectangle acts as a container: double-clicking it opens the bound text editor
       elements.push({
         id: rectId,
         type: "rectangle",
@@ -132,7 +138,6 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
         link: null,
         locked: false,
       });
-      // Bound text element — positioned by Excalidraw inside the container
       elements.push({
         id: textId,
         type: "text",
@@ -174,7 +179,52 @@ function buildTableElements(rows: number, cols: number, x: number, y: number): a
   return elements;
 }
 
+// ─── Help Guide ───────────────────────────────────────────────────────────────
+
+function HelpGuide({ lang, onClose }: { lang: string; onClose: () => void }) {
+  const fr = lang === "fr";
+  const tips = fr ? [
+    { icon: "T", title: "Texte avec retour à la ligne", desc: "Faites glisser sur le tableau pour créer une zone de texte avec retour à la ligne automatique. Un simple clic crée une ligne continue." },
+    { icon: "B", title: "Gras & Italique", desc: "Sélectionnez un texte, puis utilisez les boutons G / I dans la barre de propriétés en haut." },
+    { icon: "✏️", title: "Stylo libre (dessin)", desc: "Cliquez sur le crayon (✏️) dans la barre d'outils pour dessiner à main levée." },
+    { icon: "□", title: "Formes (carré, cercle, flèche)", desc: "Glissez sur le tableau pour dessiner une forme. Double-cliquez une forme pour écrire à l'intérieur." },
+    { icon: "⌨", title: "Raccourcis clavier", desc: "T = Texte · P = Stylo · R = Rectangle · E = Ellipse · A = Flèche · V = Sélection · Suppr = Effacer · Échap = Fermer le tableau" },
+  ] : [
+    { icon: "T", title: "Text with word-wrap", desc: "Drag on the canvas to create a text box with automatic word-wrap. A single click creates a single continuous line." },
+    { icon: "B", title: "Bold & Italic", desc: "Select a text element, then use the B / I buttons in the properties toolbar at the top." },
+    { icon: "✏️", title: "Freehand drawing (pen)", desc: "Click the pencil (✏️) in the toolbar to draw freely." },
+    { icon: "□", title: "Shapes (rectangle, circle, arrow)", desc: "Drag on the canvas to draw a shape. Double-click a shape to write inside it." },
+    { icon: "⌨", title: "Keyboard shortcuts", desc: "T = Text · P = Pen · R = Rectangle · E = Ellipse · A = Arrow · V = Select · Del = Delete · Esc = Close board" },
+  ];
+
+  return (
+    <div className="absolute top-full right-0 mt-1 z-[400] bg-[#0D0904] border border-white/10 rounded-2xl shadow-2xl p-4 w-80">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white/80 text-sm font-bold">{fr ? "Guide du tableau" : "Board guide"}</p>
+        <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <div className="space-y-3">
+        {tips.map((tip, i) => (
+          <div key={i} className="flex gap-3 items-start">
+            <div className="w-7 h-7 rounded-lg bg-[#F5C400]/15 flex items-center justify-center flex-shrink-0 text-[#F5C400] text-xs font-bold mt-0.5">
+              {tip.icon}
+            </div>
+            <div>
+              <p className="text-white/80 text-xs font-semibold">{tip.title}</p>
+              <p className="text-white/40 text-[11px] mt-0.5 leading-relaxed">{tip.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
+
+const INITIAL_PAGES: PageData[] = [{ id: "p1", label: "Page 1", elements: [], files: {} }];
 
 export default function ExcalidrawBoard({
   bookingId,
@@ -195,8 +245,86 @@ export default function ExcalidrawBoard({
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
+  const [showHelp, setShowHelp] = useState(false);
 
-  // Load snapshot on mount
+  // ─── Multi-page state ──────────────────────────────────────────────────────
+  const [pages, setPages] = useState<PageData[]>(INITIAL_PAGES);
+  const [currentPageId, setCurrentPageId] = useState("p1");
+  // Refs so callbacks always read current values without stale closure
+  const pagesRef = useRef<PageData[]>(INITIAL_PAGES);
+  const currentPageIdRef = useRef("p1");
+
+  useEffect(() => { currentPageIdRef.current = currentPageId; }, [currentPageId]);
+
+  // ─── Browser back button: close board instead of navigating away ───────────
+  useEffect(() => {
+    if (!isOpen) return;
+    window.history.pushState({ boardOpen: true }, "");
+    const handlePop = () => { onClose(); };
+    window.addEventListener("popstate", handlePop);
+    return () => { window.removeEventListener("popstate", handlePop); };
+  }, [isOpen, onClose]);
+
+  // ─── Escape key closes board ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      // Only close if no input is focused (avoid closing while typing)
+      if (e.key === "Escape" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.removeEventListener("keydown", handleKey); };
+  }, [isOpen, onClose]);
+
+  // ─── Page helpers ──────────────────────────────────────────────────────────
+
+  function saveCurrentPageToRef(currentApi: ExcalidrawImperativeAPI) {
+    const els = currentApi.getSceneElements();
+    const files = currentApi.getFiles();
+    const updated = pagesRef.current.map(p =>
+      p.id === currentPageIdRef.current ? { ...p, elements: els, files } : p
+    );
+    pagesRef.current = updated;
+    return updated;
+  }
+
+  function switchPage(newPageId: string) {
+    if (!api || newPageId === currentPageIdRef.current) return;
+    const updatedPages = saveCurrentPageToRef(api);
+    setPages(updatedPages);
+    setCurrentPageId(newPageId);
+    currentPageIdRef.current = newPageId;
+    const page = updatedPages.find(p => p.id === newPageId);
+    if (page) {
+      applyingRemote.current = true;
+      try {
+        api.updateScene({ elements: page.elements ?? [], appState: { collaborators: new Map() } });
+        if (page.files && Object.keys(page.files).length) api.addFiles(Object.values(page.files));
+      } finally { applyingRemote.current = false; }
+    }
+  }
+
+  function addPage() {
+    const newId = `p${Date.now()}`;
+    const newLabel = `Page ${pagesRef.current.length + 1}`;
+    let updatedPages = pagesRef.current;
+    if (api) updatedPages = saveCurrentPageToRef(api);
+    const allPages = [...updatedPages, { id: newId, label: newLabel, elements: [], files: {} }];
+    pagesRef.current = allPages;
+    setPages(allPages);
+    setCurrentPageId(newId);
+    currentPageIdRef.current = newId;
+    if (api) {
+      applyingRemote.current = true;
+      try { api.updateScene({ elements: [], appState: { collaborators: new Map() } }); }
+      finally { applyingRemote.current = false; }
+    }
+    sendData({ type: "excalidraw-page-add", page: { id: newId, label: newLabel } });
+  }
+
+  // ─── Load snapshot on mount ────────────────────────────────────────────────
   const handleMount = useCallback(
     (excalidrawApi: ExcalidrawImperativeAPI) => {
       setApi(excalidrawApi);
@@ -207,12 +335,36 @@ export default function ExcalidrawBoard({
           if (!data?.snapshot) return;
           const snap = data.snapshot;
           try {
-            excalidrawApi.updateScene({
-              elements: snap.elements ?? [],
-              appState: { ...(snap.appState ?? {}), collaborators: new Map() },
-            });
-            if (snap.files && Object.keys(snap.files).length) {
-              excalidrawApi.addFiles(Object.values(snap.files));
+            if (snap.pages && Array.isArray(snap.pages)) {
+              // Multi-page format
+              const loadedPages: PageData[] = snap.pages;
+              const firstId = snap.currentPageId ?? loadedPages[0]?.id ?? "p1";
+              pagesRef.current = loadedPages;
+              setPages(loadedPages);
+              setCurrentPageId(firstId);
+              currentPageIdRef.current = firstId;
+              const page = loadedPages.find(p => p.id === firstId) ?? loadedPages[0];
+              if (page) {
+                excalidrawApi.updateScene({
+                  elements: page.elements ?? [],
+                  appState: { collaborators: new Map() },
+                });
+                if (page.files && Object.keys(page.files).length) {
+                  excalidrawApi.addFiles(Object.values(page.files));
+                }
+              }
+            } else {
+              // Legacy single-page format
+              excalidrawApi.updateScene({
+                elements: snap.elements ?? [],
+                appState: { ...(snap.appState ?? {}), collaborators: new Map() },
+              });
+              if (snap.files && Object.keys(snap.files).length) {
+                excalidrawApi.addFiles(Object.values(snap.files));
+              }
+              const page1: PageData = { id: "p1", label: "Page 1", elements: snap.elements ?? [], files: snap.files ?? {} };
+              pagesRef.current = [page1];
+              setPages([page1]);
             }
           } catch { /* schema mismatch — start fresh */ }
         })
@@ -221,7 +373,7 @@ export default function ExcalidrawBoard({
     [bookingId],
   );
 
-  // Broadcast + debounced save on change
+  // ─── Broadcast + debounced save on change ─────────────────────────────────
   const handleChange = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
@@ -236,7 +388,7 @@ export default function ExcalidrawBoard({
         const v = getSceneVersion(els);
         if (v === lastVersion.current) return;
         lastVersion.current = v;
-        sendData({ type: "excalidraw-sync", elements: els, files, version: v });
+        sendData({ type: "excalidraw-sync", elements: els, files, version: v, pageId: currentPageIdRef.current });
       }, 50);
 
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -245,19 +397,44 @@ export default function ExcalidrawBoard({
         const els = api.getSceneElements();
         const appState = api.getAppState();
         const dbFiles = api.getFiles();
+        // Update current page in ref before saving all pages
+        const updated = pagesRef.current.map(p =>
+          p.id === currentPageIdRef.current ? { ...p, elements: els, files: dbFiles } : p
+        );
+        pagesRef.current = updated;
         fetch(`/api/lessons/${bookingId}/canvas`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ snapshot: { elements: els, appState, files: dbFiles } }),
+          body: JSON.stringify({
+            snapshot: {
+              version: 2,
+              pages: updated,
+              currentPageId: currentPageIdRef.current,
+              appState,
+            },
+          }),
         }).catch(() => {});
       }, 3000);
     },
     [api, bookingId, sendData],
   );
 
-  // Apply incoming peer sync
+  // ─── Apply incoming peer sync ──────────────────────────────────────────────
   useEffect(() => {
-    if (!incomingSync || !api) return;
+    if (!incomingSync) return;
+    const pageId = incomingSync.pageId ?? "p1";
+
+    if (pageId !== currentPageIdRef.current) {
+      // Store for the other page but don't disturb current view
+      const updated = pagesRef.current.map(p =>
+        p.id === pageId ? { ...p, elements: incomingSync.elements, files: { ...(incomingSync.files ?? {}) } as BinaryFiles } : p
+      );
+      pagesRef.current = updated;
+      setPages(updated);
+      return;
+    }
+
+    if (!api) return;
     applyingRemote.current = true;
     try {
       api.updateScene({
@@ -272,7 +449,22 @@ export default function ExcalidrawBoard({
     }
   }, [incomingSync, api]);
 
-  // Cleanup timers
+  // ─── Handle page-add from remote ──────────────────────────────────────────
+  // (page-add messages are handled in ClassroomCore and trigger incomingSync with a new pageId,
+  //  which auto-creates the page via the effect above when the pageId isn't found)
+  useEffect(() => {
+    if (!incomingSync?.pageId) return;
+    const pageId = incomingSync.pageId;
+    if (!pagesRef.current.find(p => p.id === pageId)) {
+      const idx = pagesRef.current.length + 1;
+      const newPage: PageData = { id: pageId, label: `Page ${idx}`, elements: [], files: {} };
+      const updated = [...pagesRef.current, newPage];
+      pagesRef.current = updated;
+      setPages(updated);
+    }
+  }, [incomingSync]);
+
+  // ─── Cleanup timers ───────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -280,6 +472,7 @@ export default function ExcalidrawBoard({
     };
   }, []);
 
+  // ─── Table insert ─────────────────────────────────────────────────────────
   function insertTable() {
     if (!api) return;
     const elements = api.getSceneElements();
@@ -291,6 +484,7 @@ export default function ExcalidrawBoard({
     setShowTablePicker(false);
   }
 
+  // ─── Export PNG ───────────────────────────────────────────────────────────
   async function handleExportPng() {
     if (!api) return;
     const { exportToBlob } = await import("@excalidraw/excalidraw");
@@ -310,70 +504,83 @@ export default function ExcalidrawBoard({
 
   if (!isOpen) return null;
 
+  const fr = lang === "fr";
+
   return (
     <div
       className={`fixed z-50 flex flex-col overflow-hidden ${
         isFull
           ? "inset-0"
-          : "top-16 left-8 right-8 bottom-8 rounded-2xl shadow-2xl border border-black/10"
+          : "top-16 left-4 right-4 bottom-24 rounded-2xl shadow-2xl border border-black/10"
       }`}
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center gap-2 px-4 py-2 bg-[#1A1209] flex-shrink-0">
         <svg className="w-4 h-4 text-[#F5C400] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
         <span className="text-white/80 text-sm font-bold flex-1">
-          {lang === "fr" ? "Tableau blanc" : "Whiteboard"}
+          {fr ? "Tableau blanc" : "Whiteboard"}
         </span>
 
         {/* Table button */}
         <div className="relative">
           <button
-            onClick={() => setShowTablePicker((v) => !v)}
-            title={lang === "fr" ? "Insérer un tableau" : "Insert table"}
+            onClick={() => { setShowTablePicker(v => !v); setShowHelp(false); }}
+            title={fr ? "Insérer un tableau" : "Insert table"}
             className="flex items-center gap-1.5 px-2.5 h-7 text-white/60 hover:text-white/90 hover:bg-white/10 rounded-lg transition text-xs font-semibold"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
             </svg>
-            {lang === "fr" ? "Tableau" : "Table"}
+            {fr ? "Tableau" : "Table"}
           </button>
           {showTablePicker && (
             <div className="absolute top-9 left-0 z-[400] bg-[#0D0904] border border-white/10 rounded-xl shadow-2xl p-4 w-56">
-              <p className="text-white/60 text-xs font-bold mb-3">{lang === "fr" ? "Taille du tableau" : "Table size"}</p>
+              <p className="text-white/60 text-xs font-bold mb-3">{fr ? "Taille du tableau" : "Table size"}</p>
               <div className="flex items-center gap-2 mb-2">
-                <label className="text-white/40 text-xs w-16">{lang === "fr" ? "Lignes" : "Rows"}</label>
+                <label className="text-white/40 text-xs w-16">{fr ? "Lignes" : "Rows"}</label>
                 <input type="number" min={1} max={20} value={tableRows}
                   onChange={(e) => setTableRows(Math.max(1, Math.min(20, Number(e.target.value))))}
                   className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40" />
               </div>
               <div className="flex items-center gap-2 mb-4">
-                <label className="text-white/40 text-xs w-16">{lang === "fr" ? "Colonnes" : "Cols"}</label>
+                <label className="text-white/40 text-xs w-16">{fr ? "Colonnes" : "Cols"}</label>
                 <input type="number" min={1} max={20} value={tableCols}
                   onChange={(e) => setTableCols(Math.max(1, Math.min(20, Number(e.target.value))))}
                   className="w-16 bg-[#1A1209] border border-white/10 rounded-lg px-2 py-1 text-sm text-white/80 focus:outline-none focus:border-[#F5C400]/40" />
               </div>
               <button onClick={insertTable}
                 className="w-full bg-[#F5C400] text-[#5C3D00] font-bold text-sm py-2 rounded-xl hover:bg-[#FFDE59] transition">
-                {lang === "fr" ? "Insérer" : "Insert"}
+                {fr ? "Insérer" : "Insert"}
               </button>
             </div>
           )}
         </div>
 
         {/* Export PNG */}
-        <button onClick={handleExportPng} title={lang === "fr" ? "Exporter en PNG" : "Export PNG"}
+        <button onClick={handleExportPng} title={fr ? "Exporter en PNG" : "Export PNG"}
           className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
         </button>
 
+        {/* Help guide */}
+        <div className="relative">
+          <button
+            onClick={() => { setShowHelp(v => !v); setShowTablePicker(false); }}
+            title={fr ? "Guide d'utilisation" : "Usage guide"}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition text-sm font-bold ${showHelp ? "bg-[#F5C400]/20 text-[#F5C400]" : "text-white/40 hover:text-white/80 hover:bg-white/10"}`}>
+            ?
+          </button>
+          {showHelp && <HelpGuide lang={lang} onClose={() => setShowHelp(false)} />}
+        </div>
+
         {/* Minimize / Expand */}
         <button onClick={onToggleFull}
-          title={isFull ? (lang === "fr" ? "Réduire" : "Minimize") : (lang === "fr" ? "Agrandir" : "Expand")}
+          title={isFull ? (fr ? "Réduire" : "Minimize") : (fr ? "Agrandir" : "Expand")}
           className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
           {isFull ? (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -386,16 +593,46 @@ export default function ExcalidrawBoard({
           )}
         </button>
 
-        {/* Close */}
-        <button onClick={onClose} title={lang === "fr" ? "Fermer" : "Close"}
-          className="w-7 h-7 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-white/10 rounded-lg transition">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        {/* Close — prominent red button */}
+        <button onClick={onClose} title={fr ? "Fermer le tableau (Échap)" : "Close board (Esc)"}
+          className="flex items-center gap-1.5 h-7 px-3 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
+          {fr ? "Fermer" : "Close"}
         </button>
       </div>
 
-      {/* Editor — wrapped in ErrorBoundary so a crash never kills the call */}
+      {/* ── Page navigation bar ── */}
+      <div className="flex items-center gap-1 px-3 py-1.5 bg-[#130E07] border-b border-white/5 overflow-x-auto flex-shrink-0">
+        {pages.map((page) => (
+          <button
+            key={page.id}
+            onClick={() => switchPage(page.id)}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition flex-shrink-0 ${
+              page.id === currentPageId
+                ? "bg-[#F5C400] text-[#5C3D00]"
+                : "bg-[#1A1209] text-white/50 hover:text-white/80 hover:bg-[#2A1F0E] border border-white/10"
+            }`}
+          >
+            {page.label}
+          </button>
+        ))}
+        <button
+          onClick={addPage}
+          title={fr ? "Ajouter une page" : "Add page"}
+          className="w-6 h-6 flex-shrink-0 rounded-lg bg-[#1A1209] border border-white/10 flex items-center justify-center text-white/40 hover:text-white/80 hover:bg-[#2A1F0E] transition ml-1"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+        <span className="ml-auto text-white/20 text-[10px] flex-shrink-0 pl-2">
+          {fr ? "Glissez pour écrire avec retour à la ligne auto" : "Drag to write with auto word-wrap"}
+        </span>
+      </div>
+
+      {/* ── Editor ── */}
       <BoardErrorBoundary lang={lang} onClose={onClose}>
         <div className="flex-1 relative min-h-0 bg-white" style={{ height: "100%", width: "100%" }}>
           <Excalidraw
