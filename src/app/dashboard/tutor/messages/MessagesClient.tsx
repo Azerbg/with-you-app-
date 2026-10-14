@@ -155,7 +155,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: text.trim() }),
     });
-    if (res.ok) { setMessages(prev => [...prev, await res.json()]); setText(""); onMessageSent(); }
+    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setText(""); onMessageSent(); }
     else {
       const d = await res.json().catch(() => ({}));
       setSendError(d.error === "CONTACT_INFO_BLOCKED" ? "⚠️ Les coordonnées personnelles ne sont pas autorisées." : "Échec de l'envoi. Réessayez.");
@@ -168,7 +168,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, fileUrl, content }),
     });
-    if (res.ok) { setMessages(prev => [...prev, await res.json()]); onMessageSent(); }
+    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); onMessageSent(); }
     else setSendError("Échec de l'envoi du fichier.");
   }
 
