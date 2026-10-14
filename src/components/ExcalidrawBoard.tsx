@@ -150,6 +150,7 @@ export default function ExcalidrawBoard({
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
+  const seenElementIds = useRef<Set<string>>(new Set());
 
   // ─── Pages ────────────────────────────────────────────────────────────────
   const [pages, setPages]               = useState<PageData[]>(INITIAL_PAGES);
@@ -242,6 +243,8 @@ export default function ExcalidrawBoard({
             if (page) {
               excalidrawApi.updateScene({ elements: page.elements ?? [], appState: { collaborators: new Map() } });
               if (page.files && Object.keys(page.files).length) excalidrawApi.addFiles(Object.values(page.files));
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (page.elements as any[]).forEach(el => seenElementIds.current.add(el.id));
             }
           } else {
             // Legacy single-page
@@ -250,6 +253,8 @@ export default function ExcalidrawBoard({
             const page1: PageData = { id: "p1", label: "Page 1", elements: snap.elements ?? [], files: snap.files ?? {} };
             pagesRef.current = [page1];
             setPages([page1]);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (snap.elements ?? []).forEach((el: any) => seenElementIds.current.add(el.id));
           }
         } catch { /* schema mismatch — start fresh */ }
       })
@@ -261,6 +266,29 @@ export default function ExcalidrawBoard({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
       if (applyingRemote.current) return;
+
+      // Silently fix standalone text elements created by click so they wrap at page width
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newTextEls = (_elements as any[]).filter(el =>
+        el.type === "text" && !el.containerId && el.autoResize === true && !seenElementIds.current.has(el.id)
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (_elements as any[]).forEach(el => seenElementIds.current.add(el.id));
+      if (newTextEls.length > 0 && api) {
+        setTimeout(() => {
+          if (!api) return;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const patched = (api.getSceneElements() as any[]).map(el =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            newTextEls.find((n: any) => n.id === el.id)
+              ? { ...el, autoResize: false, width: 600 }
+              : el
+          );
+          applyingRemote.current = true;
+          try { api.updateScene({ elements: patched }); }
+          finally { applyingRemote.current = false; }
+        }, 0);
+      }
 
       if (!throttleTimer.current) {
         throttleTimer.current = setTimeout(async () => {
