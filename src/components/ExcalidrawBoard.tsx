@@ -277,15 +277,23 @@ export default function ExcalidrawBoard({
       if (newTextEls.length > 0 && api) {
         setTimeout(() => {
           if (!api) return;
+          const currentAppState = api.getAppState();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const patched = (api.getSceneElements() as any[]).map(el =>
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             newTextEls.find((n: any) => n.id === el.id)
-              ? { ...el, autoResize: false, width: 600 }
+              ? { ...el, autoResize: false, width: 800 }
               : el
           );
           applyingRemote.current = true;
-          try { api.updateScene({ elements: patched }); }
+          try {
+            api.updateScene({
+              elements: patched,
+              // Preserve active editing so typing continues after wrap
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              appState: { editingElement: (currentAppState as any).editingElement, collaborators: new Map() },
+            });
+          }
           finally { applyingRemote.current = false; }
         }, 0);
       }
