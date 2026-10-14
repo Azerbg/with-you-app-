@@ -151,6 +151,14 @@ export default function ExcalidrawBoard({
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
 
+  // ─── Auto word-wrap ───────────────────────────────────────────────────────
+  // When ON: any standalone text element created by a single click (autoResize=true)
+  // gets its width fixed to 300px so text wraps automatically.
+  const [autoWrap, setAutoWrap]   = useState(true);
+  const autoWrapRef               = useRef(true);
+  const seenElementIds            = useRef<Set<string>>(new Set());
+  useEffect(() => { autoWrapRef.current = autoWrap; }, [autoWrap]);
+
   // ─── Pages ────────────────────────────────────────────────────────────────
   const [pages, setPages]               = useState<PageData[]>(INITIAL_PAGES);
   const [currentPageId, setCurrentPageId] = useState("p1");
@@ -242,6 +250,9 @@ export default function ExcalidrawBoard({
             if (page) {
               excalidrawApi.updateScene({ elements: page.elements ?? [], appState: { collaborators: new Map() } });
               if (page.files && Object.keys(page.files).length) excalidrawApi.addFiles(Object.values(page.files));
+              // Mark all loaded elements as seen so auto-wrap doesn't touch them
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (page.elements as any[]).forEach(el => seenElementIds.current.add(el.id));
             }
           } else {
             // Legacy single-page
@@ -250,6 +261,8 @@ export default function ExcalidrawBoard({
             const page1: PageData = { id: "p1", label: "Page 1", elements: snap.elements ?? [], files: snap.files ?? {} };
             pagesRef.current = [page1];
             setPages([page1]);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (snap.elements ?? []).forEach((el: any) => seenElementIds.current.add(el.id));
           }
         } catch { /* schema mismatch — start fresh */ }
       })
@@ -261,6 +274,42 @@ export default function ExcalidrawBoard({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
       if (applyingRemote.current) return;
+
+      // Auto word-wrap: fix text elements created by click (not drag)
+      if (autoWrapRef.current && api) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newTextEls = (_elements as any[]).filter(el =>
+          el.type === "text" &&
+          !el.containerId &&           // standalone (not inside a shape)
+          el.autoResize === true &&    // click-created (drag sets autoResize false)
+          !seenElementIds.current.has(el.id)
+        );
+        // Mark all elements as seen
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (_elements as any[]).forEach(el => seenElementIds.current.add(el.id));
+
+        if (newTextEls.length > 0) {
+          // Defer so Excalidraw finishes its internal update first
+          setTimeout(() => {
+            if (!api) return;
+            const currentEls = api.getSceneElements();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const patched = (currentEls as any[]).map(el =>
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              newTextEls.find((n: any) => n.id === el.id)
+                ? { ...el, autoResize: false, width: Math.max((el.width as number) ?? 0, 300) }
+                : el
+            );
+            applyingRemote.current = true;
+            try { api.updateScene({ elements: patched }); }
+            finally { applyingRemote.current = false; }
+          }, 0);
+        }
+      } else {
+        // Still mark elements as seen even when autoWrap is off
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (_elements as any[]).forEach(el => seenElementIds.current.add(el.id));
+      }
 
       if (!throttleTimer.current) {
         throttleTimer.current = setTimeout(async () => {
@@ -371,6 +420,18 @@ export default function ExcalidrawBoard({
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
         <span className="text-white/80 text-sm font-bold flex-1">{fr ? "Tableau blanc" : "Whiteboard"}</span>
+
+        {/* Auto word-wrap toggle */}
+        <button
+          onClick={() => setAutoWrap(v => !v)}
+          title={fr ? (autoWrap ? "Retour à la ligne auto : activé" : "Retour à la ligne auto : désactivé") : (autoWrap ? "Auto word-wrap: on" : "Auto word-wrap: off")}
+          className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg transition text-xs font-semibold border ${
+            autoWrap
+              ? "bg-[#F5C400]/20 border-[#F5C400]/40 text-[#F5C400]"
+              : "bg-transparent border-white/10 text-white/40 hover:text-white/70"
+          }`}>
+          ↵ {fr ? "Retour auto" : "Auto wrap"}
+        </button>
 
         {/* Insert table */}
         <div className="relative">
