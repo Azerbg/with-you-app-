@@ -152,6 +152,8 @@ export default function ExcalidrawBoard({
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
   const seenElementIds = useRef<Set<string>>(new Set());
+  const selTextElRef = useRef<{ id: string; fontFamily: number; strokeColor: string; fontSize: number } | null>(null);
+  const [selTextEl, setSelTextEl] = useState<{ id: string; fontFamily: number; strokeColor: string; fontSize: number } | null>(null);
 
   // ─── Pages ────────────────────────────────────────────────────────────────
   const [pages, setPages]               = useState<PageData[]>(INITIAL_PAGES);
@@ -183,6 +185,43 @@ export default function ExcalidrawBoard({
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [isOpen, onClose]);
+
+  // ─── Ctrl+B / Ctrl+I / Ctrl+U — text format shortcuts ────────────────────
+  useEffect(() => {
+    if (!isOpen || !api) return;
+    const handleFmtKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (!["b", "i", "u"].includes(k)) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const editingEl = (api.getAppState() as any).editingTextElement;
+      if (!editingEl) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (k === "b") {
+        const newFamily = (editingEl.fontFamily ?? 1) === 2 ? 1 : 2;
+        api.updateScene({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          elements: (api.getSceneElements() as any[]).map(el =>
+            el.id === editingEl.id ? { ...el, fontFamily: newFamily } : el
+          ),
+          appState: { editingTextElement: { ...editingEl, fontFamily: newFamily }, collaborators: new Map() },
+        });
+      } else if (k === "i") {
+        const newFamily = (editingEl.fontFamily ?? 2) === 1 ? 2 : 1;
+        api.updateScene({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          elements: (api.getSceneElements() as any[]).map(el =>
+            el.id === editingEl.id ? { ...el, fontFamily: newFamily } : el
+          ),
+          appState: { editingTextElement: { ...editingEl, fontFamily: newFamily }, collaborators: new Map() },
+        });
+      }
+      // u: preventDefault only — underline not supported by Excalidraw's canvas renderer
+    };
+    document.addEventListener("keydown", handleFmtKey, true);
+    return () => document.removeEventListener("keydown", handleFmtKey, true);
+  }, [isOpen, api]);
 
   // ─── Page helpers ─────────────────────────────────────────────────────────
   function saveCurrentPageToRef(currentApi: ExcalidrawImperativeAPI) {
@@ -271,6 +310,24 @@ export default function ExcalidrawBoard({
   const handleChange = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_elements: readonly any[], _state: AppState, files: BinaryFiles) => {
+      // ─── Selection tracking for text format toolbar ──────────────────────
+      {
+        const selIds = Object.keys(_state.selectedElementIds).filter(
+          id => (_state.selectedElementIds as Record<string, boolean>)[id]
+        );
+        if (selIds.length === 1) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const el = (_elements as any[]).find(e => e.id === selIds[0] && e.type === "text" && !e.isDeleted);
+          const n = el
+            ? { id: el.id, fontFamily: el.fontFamily ?? 1, strokeColor: el.strokeColor ?? "#1e1e1e", fontSize: el.fontSize ?? 16 }
+            : null;
+          const p = selTextElRef.current;
+          if (!n && p) { selTextElRef.current = null; setSelTextEl(null); }
+          else if (n && (!p || p.id !== n.id || p.fontFamily !== n.fontFamily || p.strokeColor !== n.strokeColor || p.fontSize !== n.fontSize)) {
+            selTextElRef.current = n; setSelTextEl(n);
+          }
+        } else if (selTextElRef.current) { selTextElRef.current = null; setSelTextEl(null); }
+      }
       if (applyingRemote.current) return;
 
       // Silently fix standalone text elements created by click so they wrap at page width
@@ -441,6 +498,19 @@ export default function ExcalidrawBoard({
     URL.revokeObjectURL(url);
   }
 
+  // ─── Apply font/color/size to selected text element ──────────────────────
+  function applyTextFormat(updates: { fontFamily?: number; strokeColor?: string; fontSize?: number }) {
+    if (!api || !selTextEl) return;
+    api.updateScene({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      elements: (api.getSceneElements() as any[]).map(el =>
+        el.id === selTextEl.id ? { ...el, ...updates } : el
+      ),
+      appState: { collaborators: new Map() },
+    });
+    setSelTextEl(prev => prev ? { ...prev, ...updates } : null);
+  }
+
   const fr = lang === "fr";
 
   return (
@@ -457,6 +527,39 @@ export default function ExcalidrawBoard({
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
         </svg>
         <span className="text-white/80 text-sm font-bold flex-1">{fr ? "Tableau blanc" : "Whiteboard"}</span>
+
+        {/* ── Text format toolbar — appears when a text element is selected ── */}
+        {selTextEl && (
+          <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-1">
+            {/* Font family */}
+            <button onMouseDown={e => { e.preventDefault(); applyTextFormat({ fontFamily: 1 }); }}
+              title="Virgil (dessin)"
+              className={`w-6 h-6 rounded text-xs italic transition ${selTextEl.fontFamily === 1 ? "bg-[#F5C400] text-[#5C3D00]" : "text-white/40 hover:text-white hover:bg-white/10"}`}>I</button>
+            <button onMouseDown={e => { e.preventDefault(); applyTextFormat({ fontFamily: 2 }); }}
+              title={`Helvetica (Ctrl+B)`}
+              className={`w-6 h-6 rounded text-xs font-bold transition ${selTextEl.fontFamily === 2 ? "bg-[#F5C400] text-[#5C3D00]" : "text-white/40 hover:text-white hover:bg-white/10"}`}>B</button>
+            <button onMouseDown={e => { e.preventDefault(); applyTextFormat({ fontFamily: 3 }); }}
+              title="Code (monospace)"
+              className={`w-6 h-6 rounded text-[10px] font-mono transition ${selTextEl.fontFamily === 3 ? "bg-[#F5C400] text-[#5C3D00]" : "text-white/40 hover:text-white hover:bg-white/10"}`}>&lt;/&gt;</button>
+            {/* Font size */}
+            <button onMouseDown={e => { e.preventDefault(); applyTextFormat({ fontSize: Math.max(8, selTextEl.fontSize - 2) }); }}
+              title={fr ? "Réduire la taille" : "Smaller"}
+              className="w-6 h-6 rounded text-sm transition text-white/40 hover:text-white hover:bg-white/10">−</button>
+            <span className="text-white/40 text-[10px] w-5 text-center tabular-nums">{selTextEl.fontSize}</span>
+            <button onMouseDown={e => { e.preventDefault(); applyTextFormat({ fontSize: Math.min(100, selTextEl.fontSize + 2) }); }}
+              title={fr ? "Agrandir la taille" : "Larger"}
+              className="w-6 h-6 rounded text-sm transition text-white/40 hover:text-white hover:bg-white/10">+</button>
+            {/* Color */}
+            <label onMouseDown={e => e.preventDefault()} title={fr ? "Couleur du texte" : "Text color"}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition cursor-pointer">
+              <span className="w-4 h-4 rounded-sm border border-white/30 flex-shrink-0" style={{ backgroundColor: selTextEl.strokeColor }} />
+              <input type="color" value={selTextEl.strokeColor}
+                onMouseDown={e => e.preventDefault()}
+                onChange={e => applyTextFormat({ strokeColor: e.target.value })}
+                className="sr-only" />
+            </label>
+          </div>
+        )}
 
         {/* Insert table */}
         <div className="relative">
