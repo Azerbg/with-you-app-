@@ -7,6 +7,13 @@ import { sendBookingConfirmationEmail } from "@/lib/email";
 // PayPal requires the raw body for signature verification — disable body parsing.
 export const runtime = "nodejs";
 
+/** Mask an email for display */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+  return `${local[0]}•••@${domain}`;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
 
@@ -25,8 +32,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  type PayPalEvent = { event_type: string; resource: Record<string, unknown> };
+  type PayPalEvent = { id: string; event_type: string; resource: Record<string, unknown> };
   const event = JSON.parse(body) as PayPalEvent;
+
+  // ── Idempotency: skip already-processed events ────────────────────────────────
+  if (event.id) {
+    const already = await db.paypalWebhookEvent.findUnique({ where: { id: event.id } }).catch(() => null);
+    if (already) return NextResponse.json({ received: true });
+
+    await db.paypalWebhookEvent.create({
+      data: { id: event.id, eventType: event.event_type },
+    }).catch(() => {});
+  }
 
   // ── PAYMENT.CAPTURE.COMPLETED ────────────────────────────────────────────────
   if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
@@ -124,6 +141,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── PAYMENT.CAPTURE.DENIED ───────────────────────────────────────────────────
+  if (event.event_type === "PAYMENT.CAPTURE.DENIED") {
+    const resource = event.resource as {
+      supplementary_data?: { related_ids?: { order_id?: string } };
+    };
+    const orderId = resource.supplementary_data?.related_ids?.order_id;
+    if (orderId) {
+      // Mark any PENDING booking as CANCELLED so the student is notified
+      await db.booking.updateMany({
+        where: { paypalOrderId: orderId, status: "PENDING" },
+        data:  { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "SYSTEM", cancellationReason: "PAYMENT_DENIED" },
+      }).catch(() => {});
+    }
+  }
+
   // ── PAYMENT.CAPTURE.REFUNDED ─────────────────────────────────────────────────
   if (event.event_type === "PAYMENT.CAPTURE.REFUNDED") {
     const resource = event.resource as {
@@ -136,6 +168,62 @@ export async function POST(req: NextRequest) {
         data:  { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "SYSTEM" },
       }).catch(() => {});
       revalidatePath("/dashboard/student/sessions");
+    }
+  }
+
+  // ── VAULT.PAYMENT-TOKEN.CREATED ──────────────────────────────────────────────
+  // Sync: if created via another channel, ensure a DB record exists.
+  if (event.event_type === "VAULT.PAYMENT-TOKEN.CREATED") {
+    const resource = event.resource as {
+      id:             string;
+      customer?:      { id?: string };
+      payment_source?: { paypal?: { email_address?: string; customer?: { id?: string } } };
+      metadata?:      { order_id?: string };
+    };
+
+    const vaultId    = resource.id;
+    const customerId = resource.customer?.id ?? resource.payment_source?.paypal?.customer?.id ?? "";
+    const email      = resource.payment_source?.paypal?.email_address ?? "";
+
+    if (vaultId && customerId) {
+      // Check if we already have it (created via /api/paypal/payment-token)
+      const existing = await db.studentPaymentMethod.findFirst({
+        where: { providerRef: vaultId, deletedAt: null },
+      }).catch(() => null);
+
+      if (!existing) {
+        // Try to locate the user from the PayPal customer id
+        const user = await db.studentPaymentMethod.findFirst({
+          where: { paypalCustomerId: customerId, deletedAt: null },
+          select: { userId: true },
+        }).catch(() => null);
+
+        if (user?.userId) {
+          await db.studentPaymentMethod.create({
+            data: {
+              userId:          user.userId,
+              provider:        "paypal",
+              type:            "paypal",
+              providerRef:     vaultId,
+              paypalCustomerId: customerId,
+              displayLabel:    email ? maskEmail(email) : "PayPal",
+              isDefault:       false,
+            },
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  // ── VAULT.PAYMENT-TOKEN.DELETED ──────────────────────────────────────────────
+  if (event.event_type === "VAULT.PAYMENT-TOKEN.DELETED") {
+    const resource = event.resource as { id?: string };
+    const vaultId = resource.id;
+    if (vaultId) {
+      await db.studentPaymentMethod.updateMany({
+        where: { providerRef: vaultId, deletedAt: null },
+        data:  { deletedAt: new Date(), isDefault: false },
+      }).catch(() => {});
     }
   }
 

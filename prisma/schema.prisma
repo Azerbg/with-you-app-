@@ -184,7 +184,8 @@ model User {
   payoutsReceived    Payout[]              @relation("TutorPayouts")
   auditActions       AuditLog[]            @relation("AuditActor")
   hrNotesAuthored    HrNote[]              @relation("HrNoteAuthor")
-  paymentMethod      TutorPaymentMethod?
+  paymentMethod          TutorPaymentMethod?
+  studentPaymentMethods  StudentPaymentMethod[]
   pendingProfileChanges  PendingProfileChange[] @relation("TutorPendingChanges")
   hrProfileChangeReviews PendingProfileChange[] @relation("HrProfileChangeReviewer")
   tutorNotesWritten      TutorStudentNote[]     @relation("TutorNotes")
@@ -931,6 +932,44 @@ model TutorPaymentMethod {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("tutor_payment_methods")
+}
+
+// ─── STUDENT PAYMENT METHODS (PayPal Vault v3) ───────────────────────────────
+// Stripe cards are stored in Stripe and referenced by stripeCustomerId.
+// This table tracks PayPal vault tokens saved via Vault v3.
+
+model StudentPaymentMethod {
+  id               String    @id @default(cuid())
+  userId           String
+
+  provider         String    // "paypal"
+  type             String    @default("paypal") // "paypal"
+
+  // PayPal vault token id (from /v3/vault/payment-tokens)
+  providerRef      String
+  // PayPal customer.id (reuse across multiple tokens for same payer)
+  paypalCustomerId String?
+  // Masked display, e.g. "a•••@gmail.com"
+  displayLabel     String
+
+  isDefault        Boolean   @default(false)
+
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime? // soft-delete
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_payment_methods")
+}
+
+// ─── PAYPAL WEBHOOK EVENTS (idempotency) ─────────────────────────────────────
+
+model PaypalWebhookEvent {
+  id          String   @id // PayPal event_id
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@map("paypal_webhook_events")
 }
 
 // ─── PLATFORM PRICING (Admin-Configurable) ────────────────────────────────────

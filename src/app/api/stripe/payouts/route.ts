@@ -20,8 +20,6 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   // Only pay out sessions completed more than 24h ago
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  // Period = last 7 days
-  const periodStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const pendingBookings = await db.booking.findMany({
     where: {
@@ -66,6 +64,11 @@ export async function POST(req: NextRequest) {
     const currencyPref = (tutor.tutorCompensation?.currencyPref ?? "TND") as Currency;
     const totalAmount = bookings.reduce((sum, b) => sum + (b.tutorPayoutAmount ?? 0), 0);
 
+    // Period = actual range of session dates (not a fixed 7-day window)
+    const sessionTimes = bookings.map(b => b.scheduledAt.getTime());
+    const periodStart = new Date(Math.min(...sessionTimes));
+    const periodEnd   = new Date(Math.max(...sessionTimes));
+
     // Convert to USD cents for Stripe (phase 1 simplification)
     const amountUsdCents = Math.round(totalAmount * 100);
     if (amountUsdCents < 100) {
@@ -100,7 +103,7 @@ export async function POST(req: NextRequest) {
           sessionCount: bookings.length,
           status: "PAID",
           periodStart,
-          periodEnd: now,
+          periodEnd,
           initiatedAt: now,
           completedAt: now,
         },
@@ -120,7 +123,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
 
-      await db.payout.create({
+      const failedPayout = await db.payout.create({
         data: {
           tutorId,
           amount: totalAmount,
@@ -128,9 +131,16 @@ export async function POST(req: NextRequest) {
           sessionCount: bookings.length,
           status: "FAILED",
           periodStart,
-          periodEnd: now,
+          periodEnd,
           failureReason: message,
         },
+      });
+
+      // Mark bookings so they aren't re-counted on the next cron run.
+      // An admin can reset stripeTransferId to null to trigger a retry.
+      await db.booking.updateMany({
+        where: { id: { in: bookings.map((b) => b.id) } },
+        data: { stripeTransferId: `FAILED_${failedPayout.id}` },
       });
 
       results.push({ tutorId, amount: totalAmount, currency: currencyPref, error: message });

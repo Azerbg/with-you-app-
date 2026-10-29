@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, Component } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "@/context/LanguageContext";
 import { getDisplayName, getInitials } from "@/lib/userUtils";
 
@@ -50,14 +51,15 @@ function displayName(u: ThreadUser, fallback = "Élève"): string {
 // re-export so callers use consistent helper
 function initials(name: string): string { return getInitials(name); }
 
-function timeLabel(iso: string): string {
+function timeLabel(iso: string, lang: string): string {
   const d = new Date(iso);
   const now = new Date();
+  const locale = lang === "en" ? "en-US" : "fr-FR";
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  if (diffDays === 1) return "Hier";
-  if (diffDays < 7) return d.toLocaleDateString("fr-FR", { weekday: "short" });
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (diffDays === 0) return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return lang === "en" ? "Yesterday" : "Hier";
+  if (diffDays < 7) return d.toLocaleDateString(locale, { weekday: "short" });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 // ─── Thread list item ─────────────────────────────────────────────────────────
@@ -66,11 +68,13 @@ function ThreadItem({
   thread,
   currentUserId,
   active,
+  lang,
   onClick,
 }: {
   thread: Thread;
   currentUserId: string;
   active: boolean;
+  lang: string;
   onClick: () => void;
 }) {
   const other = thread.tutorId === currentUserId ? thread.student : thread.tutor;
@@ -91,12 +95,14 @@ function ThreadItem({
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-bold text-[#2D1A00] truncate">{name}</p>
           {last && (
-            <span className="text-[10px] text-[#9B8A6B] shrink-0">{timeLabel(last.createdAt)}</span>
+            <span className="text-[10px] text-[#9B8A6B] shrink-0">{timeLabel(last.createdAt, lang)}</span>
           )}
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <p className="text-xs text-[#9B8A6B] truncate">
-            {last ? (last.senderId === currentUserId ? "Vous : " : "") + last.content : "Aucun message"}
+            {last
+              ? (last.senderId === currentUserId ? (lang === "en" ? "You: " : "Vous : ") : "") + last.content
+              : (lang === "en" ? "No messages" : "Aucun message")}
           </p>
           {thread.unreadCount > 0 && (
             <span className="text-[10px] font-bold bg-[#F5C400] text-[#5C3D00] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
@@ -111,8 +117,8 @@ function ThreadItem({
 
 // ─── Chat panel ───────────────────────────────────────────────────────────────
 
-function ChatPanel({ thread, currentUserId, onMessageSent }: {
-  thread: Thread; currentUserId: string; onMessageSent: () => void;
+function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
+  thread: Thread; currentUserId: string; lang: string; onMessageSent: () => void;
 }) {
   const [messages, setMessages]                 = useState<Message[]>([]);
   const [text, setText]                         = useState("");
@@ -159,7 +165,9 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
     if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setText(""); onMessageSent(); }
     else {
       const d = await res.json().catch(() => ({}));
-      setSendError(d.error === "CONTACT_INFO_BLOCKED" ? "⚠️ Les coordonnées personnelles ne sont pas autorisées." : "Échec de l'envoi. Réessayez.");
+      setSendError(d.error === "CONTACT_INFO_BLOCKED"
+        ? (lang === "en" ? "⚠️ Personal contact details are not allowed." : "⚠️ Les coordonnées personnelles ne sont pas autorisées.")
+        : (lang === "en" ? "Failed to send. Please retry." : "Échec de l'envoi. Réessayez."));
     }
     setSending(false);
   }
@@ -170,7 +178,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       body: JSON.stringify({ type, fileUrl, content }),
     });
     if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); onMessageSent(); }
-    else setSendError("Échec de l'envoi du fichier.");
+    else setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier.");
   }
 
   async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
@@ -183,7 +191,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       if (!res.ok) throw new Error();
       const { url, type } = await res.json();
       await sendMedia(type === "image" ? "IMAGE" : "FILE", url, file.name);
-    } catch { setSendError("Échec de l'envoi du fichier."); }
+    } catch { setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier."); }
     setUploading(null);
   }
 
@@ -206,13 +214,13 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
           if (!res.ok) throw new Error();
           const { url } = await res.json();
           await sendMedia("AUDIO", url, `${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}`);
-        } catch { setSendError("Échec de l'envoi du message vocal."); }
+        } catch { setSendError(lang === "en" ? "Failed to send voice message." : "Échec de l'envoi du message vocal."); }
         setUploading(null);
       };
       mr.start(100); mediaRecRef.current = mr;
       setRecording(true); setRecSeconds(0); recSecondsRef.current = 0;
       recTimerRef.current = setInterval(() => { recSecondsRef.current += 1; setRecSeconds(recSecondsRef.current); }, 1000);
-    } catch { setSendError("Accès au microphone refusé."); }
+    } catch { setSendError(lang === "en" ? "Microphone access denied." : "Accès au microphone refusé."); }
   }
 
   function stopRecord() { mediaRecRef.current?.stop(); }
@@ -252,9 +260,10 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
     return <p className="whitespace-pre-wrap break-words">{m.content}</p>;
   }
 
+  const locale = lang === "en" ? "en-US" : "fr-FR";
   const groups: { date: string; msgs: Message[] }[] = [];
   for (const m of messages) {
-    const date = new Date(m.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const date = new Date(m.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
     const last = groups[groups.length - 1];
     if (last?.date === date) last.msgs.push(m); else groups.push({ date, msgs: [m] });
   }
@@ -265,7 +274,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         <div className="w-9 h-9 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">{initials(name)}</div>
         <div>
           <p className="text-sm font-bold text-[#2D1A00]">{name}</p>
-          <p className="text-[10px] text-[#9B8A6B]">{thread.tutorId === currentUserId ? "Étudiant" : "Tuteur"}</p>
+          <p className="text-[10px] text-[#9B8A6B]">{thread.tutorId === currentUserId ? (lang === "en" ? "Student" : "Étudiant") : (lang === "en" ? "Tutor" : "Tuteur")}</p>
         </div>
       </div>
 
@@ -273,8 +282,8 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-4xl mb-3">💬</div>
-            <p className="text-sm font-semibold text-[#5C3D00]">Aucun message pour l'instant</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">Envoyez un premier message pour commencer la conversation.</p>
+            <p className="text-sm font-semibold text-[#5C3D00]">{lang === "en" ? "No messages yet" : "Aucun message pour l'instant"}</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{lang === "en" ? "Send a first message to start the conversation." : "Envoyez un premier message pour commencer la conversation."}</p>
           </div>
         )}
         {groups.map(g => (
@@ -295,8 +304,8 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
                       }`}>
                         {renderContent(m, isMe)}
                         <p className={`text-[10px] mt-1 ${isMe ? "text-white/50 text-right" : "text-[#9B8A6B]"}`}>
-                          {new Date(m.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                          {isMe && (m.isRead ? " · Lu" : " · Envoyé")}
+                          {new Date(m.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+                          {isMe && (m.isRead ? (lang === "en" ? " · Read" : " · Lu") : (lang === "en" ? " · Sent" : " · Envoyé"))}
                         </p>
                       </div>
                       <button
@@ -360,7 +369,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
 
         <textarea value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); } }}
-          rows={1} placeholder="Écrire un message… (Entrée pour envoyer)"
+          rows={1} placeholder={lang === "en" ? "Write a message… (Enter to send)" : "Écrire un message… (Entrée pour envoyer)"}
           className="flex-1 border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 resize-none transition"
           style={{ maxHeight: 120 }} />
 
@@ -425,6 +434,7 @@ class MessagesErrorBoundary extends Component<{ children: ReactNode }, { crashed
 
 export default function MessagesClient({ currentUserId }: { currentUserId: string }) {
   const { lang } = useLanguage();
+  const router = useRouter();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -440,6 +450,17 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
     const iv = setInterval(loadThreads, 10000);
     return () => clearInterval(iv);
   }, [loadThreads]);
+
+  function openThread(threadId: string) {
+    // Immediately zero the unread badge in local state
+    setThreads(prev => prev.map(t =>
+      t.id === threadId ? { ...t, unreadCount: 0 } : t
+    ));
+    setActiveId(threadId);
+    // Refresh server-side layout so the global message badge updates
+    const thread = threads.find(t => t.id === threadId);
+    if (thread && thread.unreadCount > 0) router.refresh();
+  }
 
   const active = threads.find(t => t.id === activeId) ?? null;
 
@@ -460,8 +481,8 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
           {!loading && threads.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">
               <div className="text-3xl mb-2">💬</div>
-              <p className="text-sm font-semibold text-[#5C3D00]">Aucune conversation</p>
-              <p className="text-xs text-[#9B8A6B] mt-1">Les étudiants vous contacteront ici.</p>
+              <p className="text-sm font-semibold text-[#5C3D00]">{lang === "en" ? "No conversations" : "Aucune conversation"}</p>
+              <p className="text-xs text-[#9B8A6B] mt-1">{lang === "en" ? "Students will contact you here." : "Les étudiants vous contacteront ici."}</p>
             </div>
           )}
           {threads.map(t => (
@@ -470,7 +491,8 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
               thread={t}
               currentUserId={currentUserId}
               active={t.id === activeId}
-              onClick={() => setActiveId(t.id)}
+              lang={lang}
+              onClick={() => openThread(t.id)}
             />
           ))}
         </div>
@@ -482,13 +504,14 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
           key={active.id}
           thread={active}
           currentUserId={currentUserId}
+          lang={lang}
           onMessageSent={loadThreads}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#FAF8F0]">
           <div className="text-5xl mb-4">💬</div>
-          <p className="text-base font-bold text-[#5C3D00]">Sélectionnez une conversation</p>
-          <p className="text-sm text-[#9B8A6B] mt-1">Choisissez une conversation dans la liste pour commencer.</p>
+          <p className="text-base font-bold text-[#5C3D00]">{lang === "en" ? "Select a conversation" : "Sélectionnez une conversation"}</p>
+          <p className="text-sm text-[#9B8A6B] mt-1">{lang === "en" ? "Choose a conversation from the list to start." : "Choisissez une conversation dans la liste pour commencer."}</p>
         </div>
       )}
     </div>

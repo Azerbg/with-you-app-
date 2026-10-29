@@ -12,7 +12,7 @@ export async function generateMetadata() {
 }
 
 interface Props {
-  searchParams: Promise<{ setup?: string; setup_complete?: string }>;
+  searchParams: Promise<{ setup?: string; setup_complete?: string; paypal?: string }>;
 }
 
 export default async function BillingPage({ searchParams }: Props) {
@@ -22,8 +22,10 @@ export default async function BillingPage({ searchParams }: Props) {
 
   const params = await searchParams;
   // Support both new ?setup=success and legacy ?setup_complete=true
-  const setupComplete = params.setup === "success" || params.setup_complete === "true";
-  const setupCancelled = params.setup === "cancel";
+  const setupComplete   = params.setup === "success" || params.setup_complete === "true";
+  const setupCancelled  = params.setup === "cancel";
+  const paypalComplete  = params.paypal === "success";
+  const paypalCancelled = params.paypal === "cancel";
 
   const [bookings, studentUser] = await Promise.all([
     db.booking.findMany({
@@ -126,7 +128,7 @@ export default async function BillingPage({ searchParams }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
-      <PaymentSetupClient setupComplete={setupComplete} setupCancelled={setupCancelled} paymentHistory={paymentHistory} />
+      <PaymentSetupClient setupComplete={setupComplete} setupCancelled={setupCancelled} paypalComplete={paypalComplete} paypalCancelled={paypalCancelled} paymentHistory={paymentHistory} />
     </div>
   );
 }

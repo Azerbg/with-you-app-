@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -48,18 +49,19 @@ function initials(name: string): string {
   return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function timeLabel(iso: string): string {
+function timeLabel(iso: string, lang: string): string {
   const d = new Date(iso);
   const now = new Date();
+  const locale = lang === "en" ? "en-US" : "fr-FR";
   const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  if (diffDays === 1) return "Hier";
-  if (diffDays < 7) return d.toLocaleDateString("fr-FR", { weekday: "short" });
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (diffDays === 0) return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 1) return lang === "en" ? "Yesterday" : "Hier";
+  if (diffDays < 7) return d.toLocaleDateString(locale, { weekday: "short" });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
-function ThreadItem({ thread, currentUserId, active, onClick }: {
-  thread: Thread; currentUserId: string; active: boolean; onClick: () => void;
+function ThreadItem({ thread, currentUserId, active, lang, onClick }: {
+  thread: Thread; currentUserId: string; active: boolean; lang: string; onClick: () => void;
 }) {
   const other = thread.studentId === currentUserId ? thread.tutor : thread.student;
   const name = displayName(other);
@@ -76,11 +78,13 @@ function ThreadItem({ thread, currentUserId, active, onClick }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-bold text-[#2D1A00] truncate">{name}</p>
-          {last && <span className="text-[10px] text-[#9B8A6B] shrink-0">{timeLabel(last.createdAt)}</span>}
+          {last && <span className="text-[10px] text-[#9B8A6B] shrink-0">{timeLabel(last.createdAt, lang)}</span>}
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <p className="text-xs text-[#9B8A6B] truncate">
-            {last ? (last.senderId === currentUserId ? "Vous : " : "") + last.content : "Aucun message"}
+            {last
+              ? (last.senderId === currentUserId ? (lang === "en" ? "You: " : "Vous : ") : "") + last.content
+              : (lang === "en" ? "No messages" : "Aucun message")}
           </p>
           {thread.isLocked ? (
             <span className="text-[10px] text-[#9B8A6B] shrink-0">🔒</span>
@@ -95,8 +99,8 @@ function ThreadItem({ thread, currentUserId, active, onClick }: {
   );
 }
 
-function ChatPanel({ thread, currentUserId, onMessageSent }: {
-  thread: Thread; currentUserId: string; onMessageSent: () => void;
+function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
+  thread: Thread; currentUserId: string; lang: string; onMessageSent: () => void;
 }) {
   const [messages, setMessages]             = useState<Message[]>([]);
   const [isLocked, setIsLocked]             = useState(thread.isLocked);
@@ -145,9 +149,9 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
     if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setText(""); onMessageSent(); }
     else {
       const d = await res.json().catch(() => ({}));
-      if (d.error === "CONTACT_INFO_BLOCKED") setSendError("⚠️ Les coordonnées personnelles ne sont pas autorisées.");
-      else if (d.error === "MESSAGE_LIMIT_REACHED") setSendError("Attendez la réponse du tuteur ou réservez une séance.");
-      else setSendError("Échec de l'envoi. Réessayez.");
+      if (d.error === "CONTACT_INFO_BLOCKED") setSendError(lang === "en" ? "⚠️ Personal contact details are not allowed." : "⚠️ Les coordonnées personnelles ne sont pas autorisées.");
+      else if (d.error === "MESSAGE_LIMIT_REACHED") setSendError(lang === "en" ? "Wait for the tutor's reply or book a session." : "Attendez la réponse du tuteur ou réservez une séance.");
+      else setSendError(lang === "en" ? "Failed to send. Please retry." : "Échec de l'envoi. Réessayez.");
     }
     setSending(false);
   }
@@ -158,7 +162,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       body: JSON.stringify({ type, fileUrl, content }),
     });
     if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); onMessageSent(); }
-    else setSendError("Échec de l'envoi du fichier.");
+    else setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier.");
   }
 
   async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
@@ -171,7 +175,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
       if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
       const { url, type } = await res.json();
       await sendMedia(type === "image" ? "IMAGE" : "FILE", url, file.name);
-    } catch { setSendError("Échec de l'envoi du fichier."); }
+    } catch { setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier."); }
     setUploading(null);
   }
 
@@ -195,7 +199,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
           const { url } = await res.json();
           const label = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, "0")}`;
           await sendMedia("AUDIO", url, label);
-        } catch { setSendError("Échec de l'envoi du message vocal."); }
+        } catch { setSendError(lang === "en" ? "Failed to send voice message." : "Échec de l'envoi du message vocal."); }
         setUploading(null);
       };
       mr.start(100); mediaRecRef.current = mr;
@@ -204,7 +208,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         recSecondsRef.current += 1;
         setRecSeconds(recSecondsRef.current);
       }, 1000);
-    } catch { setSendError("Accès au microphone refusé."); }
+    } catch { setSendError(lang === "en" ? "Microphone access denied." : "Accès au microphone refusé."); }
   }
 
   function stopRecord() { mediaRecRef.current?.stop(); }
@@ -245,9 +249,10 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
     return <p className="whitespace-pre-wrap break-words">{m.content}</p>;
   }
 
+  const locale = lang === "en" ? "en-US" : "fr-FR";
   const groups: { date: string; msgs: Message[] }[] = [];
   for (const m of messages) {
-    const date = new Date(m.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const date = new Date(m.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
     const last = groups[groups.length - 1];
     if (last?.date === date) last.msgs.push(m); else groups.push({ date, msgs: [m] });
   }
@@ -258,7 +263,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         <div className="w-9 h-9 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">{initials(name)}</div>
         <div>
           <p className="text-sm font-bold text-[#2D1A00]">{name}</p>
-          <p className="text-[10px] text-[#9B8A6B]">Tuteur</p>
+          <p className="text-[10px] text-[#9B8A6B]">{lang === "en" ? "Tutor" : "Tuteur"}</p>
         </div>
         <div className="ml-auto"><LanguageSwitcher /></div>
       </div>
@@ -267,8 +272,8 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-4xl mb-3">💬</div>
-            <p className="text-sm font-semibold text-[#5C3D00]">Démarrez la conversation</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">Envoyez un premier message à votre tuteur.</p>
+            <p className="text-sm font-semibold text-[#5C3D00]">{lang === "en" ? "Start the conversation" : "Démarrez la conversation"}</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{lang === "en" ? "Send a first message to your tutor." : "Envoyez un premier message à votre tuteur."}</p>
           </div>
         )}
         {groups.map(g => (
@@ -289,8 +294,8 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
                       }`}>
                         {renderContent(m, isMe)}
                         <p className={`text-[10px] mt-1 ${isMe ? "text-white/50 text-right" : "text-[#9B8A6B]"}`}>
-                          {new Date(m.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                          {isMe && (m.isRead ? " · Lu" : " · Envoyé")}
+                          {new Date(m.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+                          {isMe && (m.isRead ? (lang === "en" ? " · Read" : " · Lu") : (lang === "en" ? " · Sent" : " · Envoyé"))}
                         </p>
                       </div>
                       {/* Hover reaction trigger */}
@@ -345,7 +350,9 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
         <div className="border-t border-black/5 bg-[#FAF8F0] px-4 py-3 flex items-center gap-3">
           <span className="text-lg">🔒</span>
           <p className="text-xs text-[#9B8A6B] leading-relaxed">
-            En attente de la réponse du tuteur. Le chat complet s&apos;active dès qu&apos;il répond ou après une réservation.
+            {lang === "en"
+              ? "Waiting for the tutor's reply. Full chat unlocks once they respond or after a booking."
+              : "En attente de la réponse du tuteur. Le chat complet s'active dès qu'il répond ou après une réservation."}
           </p>
         </div>
       ) : (
@@ -365,7 +372,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
 
           <textarea value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); } }}
-            rows={1} placeholder="Écrire un message… (Entrée pour envoyer)"
+            rows={1} placeholder={lang === "en" ? "Write a message… (Enter to send)" : "Écrire un message… (Entrée pour envoyer)"}
             className="flex-1 border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] bg-white focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 resize-none transition"
             style={{ maxHeight: 120 }} />
 
@@ -402,6 +409,7 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
 
 export default function StudentMessagesClient({ currentUserId }: { currentUserId: string }) {
   const { lang } = useLanguage();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(searchParams.get("thread"));
@@ -419,6 +427,15 @@ export default function StudentMessagesClient({ currentUserId }: { currentUserId
     return () => clearInterval(iv);
   }, [loadThreads]);
 
+  function openThread(threadId: string) {
+    setThreads(prev => prev.map(t =>
+      t.id === threadId ? { ...t, unreadCount: 0 } : t
+    ));
+    setActiveId(threadId);
+    const thread = threads.find(t => t.id === threadId);
+    if (thread && thread.unreadCount > 0) router.refresh();
+  }
+
   const active = threads.find(t => t.id === activeId) ?? null;
 
   return (
@@ -435,24 +452,24 @@ export default function StudentMessagesClient({ currentUserId }: { currentUserId
           {!loading && threads.length === 0 && (
             <div className="flex flex-col items-center justify-center h-48 text-center px-4">
               <div className="text-3xl mb-2">💬</div>
-              <p className="text-sm font-semibold text-[#5C3D00]">Aucune conversation</p>
-              <p className="text-xs text-[#9B8A6B] mt-1">Contactez votre tuteur depuis la page Mes Tuteurs.</p>
+              <p className="text-sm font-semibold text-[#5C3D00]">{lang === "en" ? "No conversations" : "Aucune conversation"}</p>
+              <p className="text-xs text-[#9B8A6B] mt-1">{lang === "en" ? "Contact your tutor from the My Tutors page." : "Contactez votre tuteur depuis la page Mes Tuteurs."}</p>
             </div>
           )}
           {threads.map(t => (
             <ThreadItem key={t.id} thread={t} currentUserId={currentUserId}
-              active={t.id === activeId} onClick={() => setActiveId(t.id)} />
+              active={t.id === activeId} lang={lang} onClick={() => openThread(t.id)} />
           ))}
         </div>
       </div>
 
       {active ? (
-        <ChatPanel key={active.id} thread={active} currentUserId={currentUserId} onMessageSent={loadThreads} />
+        <ChatPanel key={active.id} thread={active} currentUserId={currentUserId} lang={lang} onMessageSent={loadThreads} />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center bg-[#FAF8F0]">
           <div className="text-5xl mb-4">💬</div>
-          <p className="text-base font-bold text-[#5C3D00]">Sélectionnez une conversation</p>
-          <p className="text-sm text-[#9B8A6B] mt-1">Ou contactez votre tuteur depuis la page Mes Tuteurs.</p>
+          <p className="text-base font-bold text-[#5C3D00]">{lang === "en" ? "Select a conversation" : "Sélectionnez une conversation"}</p>
+          <p className="text-sm text-[#9B8A6B] mt-1">{lang === "en" ? "Or contact your tutor from the My Tutors page." : "Ou contactez votre tuteur depuis la page Mes Tuteurs."}</p>
         </div>
       )}
     </div>

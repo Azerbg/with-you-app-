@@ -466,8 +466,10 @@ export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, 
     }
   }, [paypalStatus, errorParam]);
 
-  // Payout-based (actual disbursements)
-  const pending = payouts.filter(p => p.status === "PENDING" || p.status === "PROCESSING").reduce((s, p) => s + p.amount, 0);
+  // Payout-based: PENDING + PROCESSING + FAILED (failed = owed but not yet paid)
+  const pending = payouts
+    .filter(p => p.status === "PENDING" || p.status === "PROCESSING" || p.status === "FAILED")
+    .reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-auto">
@@ -483,6 +485,26 @@ export default function EarningsClient({ paymentMethod, payouts, hourlyRateTnd, 
               }`}>
                 <p className="text-sm font-semibold">{banner.msg}</p>
                 <button onClick={() => setBanner(null)} className="text-lg leading-none opacity-60 hover:opacity-100">×</button>
+              </div>
+            )}
+
+            {/* No payment method banner */}
+            {!pm && (
+              <div className="rounded-2xl px-5 py-4 flex items-start gap-3 bg-amber-50 border border-amber-200">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-amber-500 shrink-0 mt-0.5">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                </svg>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">
+                    {t("Aucune méthode de paiement configurée", "No payment method configured")}
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    {t(
+                      "Ajoutez vos coordonnées bancaires ci-dessous pour recevoir vos virements.",
+                      "Add your banking details below to receive your payouts."
+                    )}
+                  </p>
+                </div>
               </div>
             )}
 
