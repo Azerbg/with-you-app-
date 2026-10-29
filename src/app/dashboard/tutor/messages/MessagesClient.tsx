@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Component } from "react";
+import type { ReactNode } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { getDisplayName, getInitials } from "@/lib/userUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,7 +11,8 @@ interface ThreadUser {
   id: string;
   firstName: string | null;
   lastName: string | null;
-  email: string;
+  email: string | null;
+  image?: string | null;
   hrApplication?: { fullName: string | null } | null;
 }
 
@@ -39,15 +42,13 @@ const MSG_EMOJIS = ["👍", "❤️", "😂", "🎉", "👏"];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function displayName(u: ThreadUser): string {
+function displayName(u: ThreadUser, fallback = "Élève"): string {
   if (u.hrApplication?.fullName) return u.hrApplication.fullName;
-  const name = [u.firstName, u.lastName].filter(Boolean).join(" ");
-  return name || u.email.split("@")[0];
+  return getDisplayName(u, fallback);
 }
 
-function initials(name: string): string {
-  return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
-}
+// re-export so callers use consistent helper
+function initials(name: string): string { return getInitials(name); }
 
 function timeLabel(iso: string): string {
   const d = new Date(iso);
@@ -74,7 +75,7 @@ function ThreadItem({
 }) {
   const other = thread.tutorId === currentUserId ? thread.student : thread.tutor;
   const name = displayName(other);
-  const last = thread.messages[0];
+  const last = thread.messages[0] ?? null;
 
   return (
     <button
@@ -392,6 +393,34 @@ function ChatPanel({ thread, currentUserId, onMessageSent }: {
   );
 }
 
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+
+class MessagesErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { crashed: false };
+  }
+  static getDerivedStateFromError() { return { crashed: true }; }
+  render() {
+    if (this.state.crashed) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-8 text-center">
+          <div>
+            <p className="text-2xl mb-3">⚠️</p>
+            <p className="text-sm font-bold text-[#5C3D00]">Une conversation ne peut pas s&apos;afficher.</p>
+            <p className="text-xs text-[#9B8A6B] mt-1">Rechargez la page pour réessayer.</p>
+            <button onClick={() => this.setState({ crashed: false })}
+              className="mt-4 text-xs font-bold bg-[#F5C400] text-[#5C3D00] px-4 py-2 rounded-xl hover:bg-[#FFDE59] transition">
+              Réessayer
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function MessagesClient({ currentUserId }: { currentUserId: string }) {
@@ -415,6 +444,7 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
   const active = threads.find(t => t.id === activeId) ?? null;
 
   return (
+    <MessagesErrorBoundary>
     <div className="flex-1 flex min-w-0 overflow-hidden">
       {/* Thread list */}
       <div className="w-72 flex-shrink-0 border-r border-black/5 bg-white flex flex-col overflow-hidden">
@@ -462,5 +492,6 @@ export default function MessagesClient({ currentUserId }: { currentUserId: strin
         </div>
       )}
     </div>
+    </MessagesErrorBoundary>
   );
 }

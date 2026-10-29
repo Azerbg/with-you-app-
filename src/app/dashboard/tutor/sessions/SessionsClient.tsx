@@ -99,6 +99,8 @@ function NotePanel({
   studentName: string;
   onClose: () => void;
 }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -149,8 +151,8 @@ function NotePanel({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 flex-shrink-0">
           <div>
-            <p className="font-bold text-[#5C3D00] text-sm">Notes privées</p>
-            <p className="text-xs text-[#9B8A6B] mt-0.5">{studentName} — visible uniquement par vous</p>
+            <p className="font-bold text-[#5C3D00] text-sm">{t("Notes privées", "Private notes")}</p>
+            <p className="text-xs text-[#9B8A6B] mt-0.5">{studentName} — {t("visible uniquement par vous", "only visible to you")}</p>
           </div>
           <button
             onClick={onClose}
@@ -173,7 +175,7 @@ function NotePanel({
               ref={textareaRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder={`Vos notes sur ${studentName}...\n\nEx: Points à travailler, niveau réel, objectifs, comportement, progression...`}
+              placeholder={t(`Vos notes sur ${studentName}...\n\nEx: Points à travailler, niveau réel, objectifs, comportement, progression...`, `Your notes on ${studentName}...\n\nE.g. Points to work on, actual level, goals, behaviour, progress...`)}
               className="w-full h-64 sm:h-full min-h-[200px] resize-none border border-[#D9D0C3] rounded-xl px-4 py-3 text-sm text-[#2D1A00] bg-[#FDFAF6] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/20 transition placeholder:text-[#C4BAA8] leading-relaxed"
             />
           )}
@@ -183,8 +185,11 @@ function NotePanel({
         <div className="px-5 py-4 border-t border-black/5 flex items-center justify-between flex-shrink-0">
           <span className="text-xs text-[#9B8A6B]">
             {updatedAt
-              ? `Mis à jour le ${new Date(updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
-              : "Aucune note enregistrée"}
+              ? t(
+                  `Mis à jour le ${new Date(updatedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+                  `Updated on ${new Date(updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                )
+              : t("Aucune note enregistrée", "No notes saved")}
           </span>
           <button
             onClick={save}
@@ -196,11 +201,11 @@ function NotePanel({
             }`}
           >
             {saving ? (
-              <><div className="w-3.5 h-3.5 border-2 border-[#5C3D00] border-t-transparent rounded-full animate-spin" /> Sauvegarde…</>
+              <><div className="w-3.5 h-3.5 border-2 border-[#5C3D00] border-t-transparent rounded-full animate-spin" /> {t("Sauvegarde…", "Saving…")}</>
             ) : saved ? (
-              <>✓ Sauvegardé</>
+              <>✓ {t("Sauvegardé", "Saved")}</>
             ) : (
-              <>Sauvegarder</>
+              <>{t("Sauvegarder", "Save")}</>
             )}
           </button>
         </div>

@@ -15,8 +15,8 @@ export async function GET() {
       : { studentId: userId },
     orderBy: { lastMessageAt: "desc" },
     include: {
-      student: { select: { id: true, firstName: true, lastName: true, image: true } },
-      tutor:   { select: { id: true, firstName: true, lastName: true, image: true } },
+      student: { select: { id: true, firstName: true, lastName: true, image: true, email: true } },
+      tutor:   { select: { id: true, firstName: true, lastName: true, image: true, email: true } },
       messages: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -63,11 +63,14 @@ export async function GET() {
     );
   }
 
-  const result = threads.map(t => ({
-    ...t,
-    unreadCount: t._count.messages,
-    isLocked: lockedThreadIds.has(t.id),
-  }));
+  const result = threads
+    // Hide threads that were created but never have any messages yet
+    .filter(t => t.messages.length > 0 || t.lastMessageAt !== null)
+    .map(t => ({
+      ...t,
+      unreadCount: t._count.messages,
+      isLocked: lockedThreadIds.has(t.id),
+    }));
 
   return NextResponse.json(result);
 }

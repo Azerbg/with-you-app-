@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "@/context/LanguageContext";
+import { getDisplayName, getInitials } from "@/lib/userUtils";
 
 interface Review {
   id: string;
@@ -9,7 +11,7 @@ interface Review {
   tutorResponse: string | null;
   tutorRespondedAt: string | null;
   createdAt: string;
-  student: { firstName: string | null; lastName: string | null };
+  student: { firstName: string | null; lastName: string | null; email?: string | null };
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -25,19 +27,22 @@ function Stars({ rating }: { rating: number }) {
 }
 
 function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id: string, text: string) => void }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const studentName = [review.student.firstName, review.student.lastName?.[0] ? review.student.lastName[0] + "." : ""]
-    .filter(Boolean).join(" ");
-  const initials = [review.student.firstName?.[0], review.student.lastName?.[0]].filter(Boolean).join("").toUpperCase();
-  const date = new Date(review.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const studentName = getDisplayName(review.student, t("Élève", "Student"));
+  const initials    = getInitials(studentName);
+  const date = new Date(review.createdAt).toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
+    day: "numeric", month: "long", year: "numeric",
+  });
 
   async function handleSubmit() {
     if (!text.trim()) return;
-    if (text.trim().length > 300) { setError("Max 300 caractères"); return; }
+    if (text.trim().length > 300) { setError(t("Max 300 caractères", "Max 300 characters")); return; }
     setSaving(true);
     setError("");
     const res = await fetch(`/api/reviews/${review.id}/respond`, {
@@ -50,7 +55,7 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
       setOpen(false);
     } else {
       const d = await res.json().catch(() => ({}));
-      setError(d.error ?? "Erreur serveur");
+      setError(d.error ?? t("Erreur serveur", "Server error"));
     }
     setSaving(false);
   }
@@ -74,7 +79,9 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
           {/* Existing response */}
           {review.tutorResponse && (
             <div className="mt-3 pl-3 border-l-2 border-[#F5C400]">
-              <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-wide mb-1">Votre réponse</p>
+              <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-wide mb-1">
+                {t("Votre réponse", "Your reply")}
+              </p>
               <p className="text-xs text-[#5C3D00] leading-relaxed">{review.tutorResponse}</p>
             </div>
           )}
@@ -87,7 +94,7 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
                   onClick={() => setOpen(true)}
                   className="text-xs font-semibold text-[#5C3D00] border border-[#F5C400] px-3 py-1.5 rounded-xl hover:bg-[#FFF3B0] transition"
                 >
-                  Répondre à cet avis
+                  {t("Répondre à cet avis", "Reply to this review")}
                 </button>
               ) : (
                 <div className="space-y-2">
@@ -96,7 +103,7 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
                     onChange={e => setText(e.target.value)}
                     maxLength={300}
                     rows={3}
-                    placeholder="Votre réponse (max 300 caractères)…"
+                    placeholder={t("Votre réponse (max 300 caractères)…", "Your reply (max 300 characters)…")}
                     className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] focus:outline-none focus:border-[#F5C400] focus:ring-2 focus:ring-[#F5C400]/30 resize-none transition"
                   />
                   <div className="flex items-center justify-between">
@@ -106,11 +113,11 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
                     <div className="flex gap-2">
                       <button onClick={() => { setOpen(false); setText(""); }}
                         className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] px-3 py-1.5 transition">
-                        Annuler
+                        {t("Annuler", "Cancel")}
                       </button>
                       <button onClick={handleSubmit} disabled={saving || !text.trim()}
                         className="text-xs font-bold bg-[#F5C400] text-[#5C3D00] px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] disabled:opacity-50 transition">
-                        {saving ? "Envoi…" : "Publier"}
+                        {saving ? t("Envoi…", "Sending…") : t("Publier", "Publish")}
                       </button>
                     </div>
                   </div>
@@ -126,6 +133,8 @@ function ReviewCard({ review, onResponded }: { review: Review; onResponded: (id:
 }
 
 export default function TutorReviewsClient({ reviews: initial }: { reviews: Review[] }) {
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
   const [reviews, setReviews] = useState<Review[]>(initial);
 
   function handleResponded(id: string, responseText: string) {
@@ -142,10 +151,10 @@ export default function TutorReviewsClient({ reviews: initial }: { reviews: Revi
         <div className="max-w-3xl mx-auto space-y-4">
 
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-bold text-[#2D1A00]">Mes avis</h1>
+            <h1 className="text-2xl font-bold text-[#2D1A00]">{t("Mes avis", "My reviews")}</h1>
             {pending > 0 && (
               <span className="text-xs font-bold bg-[#FFF3B0] text-[#5C3D00] px-3 py-1 rounded-full border border-[#F5C400]">
-                {pending} sans réponse
+                {pending} {t("sans réponse", "without reply")}
               </span>
             )}
           </div>
@@ -153,8 +162,12 @@ export default function TutorReviewsClient({ reviews: initial }: { reviews: Revi
           {reviews.length === 0 ? (
             <div className="bg-white rounded-2xl border border-black/5 px-6 py-16 text-center">
               <p className="text-4xl mb-3">⭐</p>
-              <p className="text-sm font-semibold text-[#5C3D00]">Aucun avis pour l&apos;instant</p>
-              <p className="text-xs text-[#9B8A6B] mt-1">Les avis de vos étudiants apparaîtront ici</p>
+              <p className="text-sm font-semibold text-[#5C3D00]">
+                {t("Aucun avis pour l'instant", "No reviews yet")}
+              </p>
+              <p className="text-xs text-[#9B8A6B] mt-1">
+                {t("Les avis de vos étudiants apparaîtront ici", "Your students' reviews will appear here")}
+              </p>
             </div>
           ) : (
             reviews.map(r => (

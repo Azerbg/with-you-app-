@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import SessionsClient from "./SessionsClient";
 import { getTutorStats } from "@/lib/tutorStats";
+import { getDisplayName, getInitials } from "@/lib/userUtils";
 import { cookies } from "next/headers";
 
 export async function generateMetadata() {
@@ -75,25 +76,31 @@ export default async function TutorSessionsPage() {
     Promise.resolve(bookings),
   ]);
 
+  const now = new Date();
   const sessions = sessions_raw.map((b) => {
-    const name = b.student.firstName
-      ? `${b.student.firstName}${b.student.lastName ? " " + b.student.lastName : ""}`
-      : b.student.email.split("@")[0];
-    const studentInitials = name
-      .split(" ")
-      .map((w: string) => w[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
+    const name = getDisplayName(b.student);
+    const studentInitials = getInitials(name);
+
+    // Compute effective status: CONFIRMED sessions whose end time has passed → COMPLETED
+    const endAt = new Date(b.scheduledAt.getTime() + Math.min(240, b.durationMins) * 60_000);
+    const effectiveStatus =
+      b.status === "CONFIRMED" && endAt < now ? "COMPLETED" : b.status;
+
+    // Guard: never show an image that is the tutor's own user image
+    const rawStudentImage = (b.student as { image?: string | null }).image ?? null;
+    const studentImage = rawStudentImage && rawStudentImage !== user.image
+      ? rawStudentImage
+      : null;
+
     return {
       id: b.id,
       studentId: b.studentId,
       studentName: name,
       studentInitials,
-      studentImage: (b.student as { image?: string | null }).image ?? null,
+      studentImage,
       scheduledAt: b.scheduledAt.toISOString(),
       durationMins: b.durationMins,
-      status: b.status,
+      status: effectiveStatus,
       earnings: b.tutorPayoutAmount ?? null,
       currency,
       hasCanvas: !!(() => {

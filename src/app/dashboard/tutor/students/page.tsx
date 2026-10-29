@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import StudentsClient from "./StudentsClient";
 import { cookies } from "next/headers";
+import { getDisplayName } from "@/lib/userUtils";
 
 export async function generateMetadata() {
   const lang = (await cookies()).get("wy_lang")?.value === "en" ? "en" : "fr";
@@ -15,6 +16,9 @@ export default async function TutorStudentsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/auth/login");
   if (session.user.role !== "TUTOR" && session.user.role !== "ADMIN") redirect("/dashboard");
+
+  // Keep the tutor's own image for comparison (to avoid showing it for students)
+  const tutorImage = session.user.image ?? null;
 
   // Verify tutor is ACTIVE
   const app = await db.hrApplication.findUnique({
@@ -73,7 +77,8 @@ export default async function TutorStudentsPage() {
         firstName: s.firstName,
         lastName: s.lastName,
         email: s.email,
-        image: s.image,
+        // Guard: never show the tutor's own image as a student avatar
+      image: (s.image && s.image !== tutorImage) ? s.image : null,
         cefrLevel: s.studentProfile?.cefrLevel ?? null,
         targetLanguage: s.studentProfile?.targetLanguage ?? null,
         totalSessions: 0,
