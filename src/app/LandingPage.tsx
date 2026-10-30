@@ -105,6 +105,18 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           color: white;
           transform: scale(1.05);
         }
+        @keyframes cardIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .card-in-1 { animation: cardIn 0.5s ease 0.6s both; }
+        .card-in-2 { animation: cardIn 0.5s ease 0.8s both; }
+        .card-in-3 { animation: cardIn 0.5s ease 1.0s both; }
+        @media (prefers-reduced-motion: reduce) {
+          .a1,.a2,.a3,.a4,.a5,.a6,
+          .card-in-1,.card-in-2,.card-in-3,
+          .blob,.blob-2,.blob-3 { animation: none !important; }
+        }
       `}</style>
 
       {/* ── Navbar ── */}
@@ -219,96 +231,144 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       </div>
 
       {/* ── Hero ── */}
-      <section className="relative w-full flex flex-col md:grid md:grid-cols-2 overflow-hidden md:min-h-[calc(100vh-62px)]">
+      <section className="relative">
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] max-h-[720px] py-12 lg:py-0">
 
-        {/* Left — content */}
-        <div className="flex flex-col justify-center px-8 md:px-10 lg:px-20 py-12 md:py-20 relative z-10">
+          {/* Left — content */}
+          <div className="flex flex-col justify-center">
 
-          <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
-            {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
-          </div>
+            <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" aria-hidden="true" />
+              {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
+            </div>
 
-          <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
-            {t.hero.heading1}<br />
-            {t.hero.heading2}{" "}
-            <span className="shimmer">{t.hero.shimmer}</span>
-          </h1>
+            <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
+              {t.hero.heading1}<br />
+              {t.hero.heading2}{" "}
+              <span className="shimmer">{t.hero.shimmer}</span>
+            </h1>
 
-          <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-            {t.hero.sub}{" "}
-            <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
-          </p>
+            <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
+              {t.hero.sub}{" "}
+              <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
+            </p>
 
-          {/* Language chips — from DB */}
-          <div className="a4 flex flex-wrap gap-2 mb-8">
-            {languages.map((l) => {
-              const display = LANG_DISPLAY[l]?.[lang] ?? l;
-              return (
-                <Link
-                  key={l}
-                  href={`/find-tutors?lang=${encodeURIComponent(l)}`}
-                  className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
-                >
-                  {display}
-                </Link>
-              );
-            })}
-          </div>
+            {/* Language chips */}
+            <div className="a4 flex flex-wrap gap-2 mb-8">
+              {languages.map((l) => {
+                const display = LANG_DISPLAY[l]?.[lang] ?? l;
+                return (
+                  <Link
+                    key={l}
+                    href={`/find-tutors?lang=${encodeURIComponent(l)}`}
+                    className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
+                  >
+                    {display}
+                  </Link>
+                );
+              })}
+            </div>
 
-          {/* CTAs */}
-          <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
-            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
-              {t.hero.cta1}
-            </Link>
-            <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
-              {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
-            </Link>
-          </div>
+            {/* CTAs — full-width stacked on mobile, inline on sm+ */}
+            <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
+              <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
+                {t.hero.cta1}
+              </Link>
+              <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
+                {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
+              </Link>
+            </div>
 
-          {/* Trust row — real stats only */}
-          {hasStats && (
-            <div className="a6 flex items-center gap-5">
-              {tutorCount > 0 && (
-                <div className="flex -space-x-2">
-                  {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].slice(0, Math.min(tutorCount, 5)).map((c, i) => (
-                    <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
-                  ))}
-                </div>
-              )}
-              <div>
-                {hasRating && (
-                  <div className="flex items-center gap-1">
-                    {[1,2,3,4,5].map((s) => (
-                      <span key={s} className={s <= Math.round(avgRating!) ? "text-[#F5C400]" : "text-gray-300"}>★</span>
+            {/* Trust row */}
+            {hasStats && (
+              <div className="a6 flex items-center gap-5">
+                {tutorCount > 0 && (
+                  <div className="flex -space-x-2" aria-hidden="true">
+                    {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].slice(0, Math.min(tutorCount, 5)).map((c, i) => (
+                      <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
                     ))}
-                    <span className="text-sm font-bold text-[#5C3D00] ml-1">{avgRating!.toFixed(1)}</span>
                   </div>
                 )}
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {studentCount > 0
-                    ? lang === "fr" ? `${studentCount} apprenants actifs` : `${studentCount} active learners`
-                    : lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
+                <div>
+                  {hasRating && (
+                    <div className="flex items-center gap-1" aria-label={`Rated ${avgRating!.toFixed(1)} out of 5`}>
+                      {[1,2,3,4,5].map((s) => (
+                        <span key={s} aria-hidden="true" className={s <= Math.round(avgRating!) ? "text-[#F5C400]" : "text-gray-300"}>★</span>
+                      ))}
+                      <span className="text-sm font-bold text-[#5C3D00] ml-1">{avgRating!.toFixed(1)}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {studentCount >= 50
+                      ? lang === "fr" ? `${studentCount}+ apprenants` : `${studentCount}+ learners`
+                      : reviewCount >= 50
+                        ? lang === "fr" ? `${reviewCount}+ séances données` : `${reviewCount}+ sessions given`
+                        : lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right — image card with floating overlays */}
+          <div className="relative lg:pl-8">
+
+            {/* Rounded image card */}
+            <div className="relative h-[420px] lg:h-[560px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
+              <Image
+                src="/hero-tutor.jpg"
+                alt={lang === "fr" ? "Tuteur WithYou en session en direct" : "WithYou tutor in a live session"}
+                fill
+                priority
+                className="object-cover object-[center_20%]"
+                sizes="(min-width: 1024px) 50vw, 100vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" aria-hidden="true" />
+            </div>
+
+            {/* Floating: Live session pill — top-left */}
+            <div
+              className="card-in-1 absolute top-6 left-6 lg:left-14 flex items-center gap-2 bg-white rounded-full px-3.5 py-2 shadow-xl z-10"
+              aria-hidden="true"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              <span className="text-xs font-bold text-[#2D1A00]">
+                {lang === "fr" ? "En direct" : "Live session"}
+              </span>
+            </div>
+
+            {/* Floating: Tutor card — bottom-left, offset outside on lg */}
+            <div
+              className="card-in-2 absolute bottom-8 left-6 lg:-left-4 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 z-10"
+              aria-hidden="true"
+            >
+              <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
+                Y
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#2D1A00] leading-tight">Yasmine</p>
+                <p className="text-xs text-[#9B8A6B]">
+                  {lang === "fr" ? "Tutrice de français · ⭐ 4.9" : "French tutor · ⭐ 4.9"}
                 </p>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Right — full-bleed image (shown on all screen sizes) */}
-        <div className="relative h-64 md:h-auto">
-          <Image
-            src="/hero-tutor.jpg"
-            alt={lang === "fr" ? "Tuteur WithYou" : "WithYou tutor"}
-            fill
-            className="object-cover object-center"
-            priority
-            sizes="(max-width: 768px) 100vw, 50vw"
-          />
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#fdfaf4] to-transparent z-10 hidden md:block" />
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#fdfaf4]/60 to-transparent z-10" />
-        </div>
+            {/* Floating: Next session chip — right, offset outside on lg */}
+            <div
+              className="card-in-3 absolute top-1/2 -translate-y-1/2 right-6 lg:-right-4 bg-[#FFF3B0] border border-[#F5C400]/60 rounded-2xl shadow-xl px-4 py-3 z-10"
+              aria-hidden="true"
+            >
+              <p className="text-[10px] font-bold text-[#C49200] uppercase tracking-wide mb-0.5">
+                {lang === "fr" ? "Prochaine" : "Next session"}
+              </p>
+              <p className="text-sm font-bold text-[#5C3D00] whitespace-nowrap">
+                {lang === "fr" ? "Auj. 18:00" : "Today 18:00"}
+              </p>
+            </div>
 
+          </div>
+
+        </div>
       </section>
 
       {/* ── How it works ── */}
@@ -441,7 +501,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       )}
 
       {/* ── Final CTA ── */}
-      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px" }}>
+      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
 
         <div className="absolute inset-0">
           <Image
@@ -450,6 +510,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             fill
             className="object-cover object-center"
             sizes="100vw"
+            quality={85}
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/90 via-[#1A0D00]/75 to-[#1A0D00]/40" />
