@@ -119,14 +119,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-[#F0EAD8]">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-[#F5C400] rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-              <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span className="font-bold text-[#2D1A00] text-[15px] tracking-tight">WithYou</span>
-        </Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
       </div>
 
       {/* Avatar */}

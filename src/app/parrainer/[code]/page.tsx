@@ -38,9 +38,7 @@ export default async function ReferralLandingPage({ params }: Props) {
     <div className="min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, #fdfaf4 0%, #fffef9 40%, #f8f3e8 100%)" }}>
       {/* Header */}
       <header className="px-6 py-4">
-        <Link href="/" className="text-[#3d2900] font-bold text-xl tracking-tight">
-          With<span className="text-[#F5C400]">You</span>
-        </Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">

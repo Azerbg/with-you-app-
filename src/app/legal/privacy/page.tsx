@@ -12,9 +12,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-[#fdfaf4]">
       {/* Header */}
       <header className="bg-[#3d2900] px-6 py-4">
-        <Link href="/" className="text-white font-bold text-xl tracking-tight">
-          With<span className="text-[#F5C400]">You</span>
-        </Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-7 w-auto brightness-0 invert" /></Link>
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-12">

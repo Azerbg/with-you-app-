@@ -113,9 +113,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
           <div className="flex items-center gap-6 min-w-0">
             <Link href="/" className="flex-shrink-0">
-              <span className="text-[22px] font-bold tracking-tight text-[#2D1A00]">
-                With<span className="text-[#F5C400]">You</span>
-              </span>
+              <img src="/logo.svg" alt="WithYou" className="h-8 w-auto" />
             </Link>
             <div className="hidden md:block w-px h-5 bg-gray-200" />
             <nav className="hidden md:flex items-center gap-6 text-[13px] text-gray-500 font-medium">
@@ -162,9 +160,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-50 bg-[#fdfaf4] flex flex-col p-6">
           <div className="flex items-center justify-between mb-10">
-            <span className="text-[22px] font-bold text-[#2D1A00]">
-              With<span className="text-[#F5C400]">You</span>
-            </span>
+            <img src="/logo.svg" alt="WithYou" className="h-8 w-auto" />
             <button
               onClick={() => setMenuOpen(false)}
               className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-red-200 hover:text-red-500 transition-all"
@@ -500,9 +496,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       <footer className="border-t border-[#3d2900] bg-[#3d2900] px-8 py-10 mt-auto">
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
           <div>
-            <p className="text-white font-bold text-xl tracking-tight mb-4">
-              With<span className="text-[#F5C400]">You</span>
-            </p>
+            <img src="/logo.svg" alt="WithYou" className="h-7 w-auto brightness-0 invert mb-4" />
             <p className="text-xs text-white/50 leading-relaxed">{t.footer.tagline}</p>
           </div>
           {t.footer.cols.map((col, colIdx) => (

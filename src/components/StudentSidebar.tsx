@@ -134,7 +134,7 @@ export default function StudentSidebar({ email, name, cefrLevel, tier, initials,
     <>
       {/* Logo */}
       <div className="h-14 px-5 flex items-center justify-between flex-shrink-0">
-        <Link href="/" onClick={close} className="font-bold text-[#F5C400] text-base tracking-tight">WithYou</Link>
+        <Link href="/" onClick={close}><img src="/logo.svg" alt="WithYou" className="h-7 w-auto brightness-0 invert" /></Link>
         {/* Close button (mobile drawer only) */}
         <button onClick={close} aria-label="Close menu"
           className="md:hidden w-8 h-8 flex items-center justify-center text-white/50 hover:text-white transition">

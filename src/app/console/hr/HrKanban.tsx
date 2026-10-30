@@ -1073,7 +1073,7 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
       {/* Top bar */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-3 flex items-center justify-between gap-3 min-w-0 overflow-hidden">
         <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
-          <Link href="/" className="text-[#F5C400] font-bold text-lg bg-[#5C3D00] px-2.5 py-1 rounded-lg whitespace-nowrap flex-shrink-0">WithYou</Link>
+          <Link href="/" className="bg-[#5C3D00] px-2.5 py-1.5 rounded-lg flex-shrink-0 inline-flex items-center"><img src="/logo.svg" alt="WithYou" className="h-5 w-auto brightness-0 invert" /></Link>
           <span className="text-[#6B5E44] text-sm font-semibold whitespace-nowrap hidden lg:block">{t("Console RH", "HR Console")}</span>
           {/* View toggle */}
           <div className="flex items-center gap-1 bg-[#FAF8F0] rounded-full p-1 border border-[#6B5E44]/15 flex-shrink-0">

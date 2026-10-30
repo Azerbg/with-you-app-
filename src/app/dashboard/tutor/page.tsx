@@ -152,12 +152,7 @@ export default async function TutorDashboardPage() {
           {/* Top bar */}
           <div className="px-6 py-4 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-[#F5C400] rounded-xl flex items-center justify-center shadow-sm">
-                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-                  <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <span className="font-bold text-white text-[15px] tracking-tight drop-shadow">WithYou</span>
+              <img src="/logo.svg" alt="WithYou" className="h-7 w-auto brightness-0 invert" />
             </Link>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>

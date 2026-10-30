@@ -27,7 +27,7 @@ export default function AdminSidebar({ email }: Props) {
     <div className="w-56 flex-shrink-0 bg-[#1A0F00] flex flex-col h-full overflow-hidden">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-white/5">
-        <p className="text-[#F5C400] font-black text-lg tracking-tight">WithYou</p>
+        <img src="/logo.svg" alt="WithYou" className="h-6 w-auto brightness-0 invert" />
         <p className="text-[10px] text-white/30 font-semibold uppercase tracking-widest mt-0.5">Admin Panel</p>
       </div>
 

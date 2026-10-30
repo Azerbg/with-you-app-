@@ -589,11 +589,7 @@ export default function FindTutorsClient({
       {/* Nav */}
       <header className="sticky top-0 z-30 bg-[#fdfaf4]/95 backdrop-blur-md border-b border-[#F5C400]/15 shadow-[0_1px_12px_rgba(92,61,0,0.06)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[62px] flex items-center justify-between gap-4">
-          <Link href="/" className="flex-shrink-0">
-            <span className="text-[22px] font-bold tracking-tight text-[#2D1A00]">
-              With<span className="text-[#F5C400]">You</span>
-            </span>
-          </Link>
+          <Link href="/" className="flex-shrink-0"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
 
           <div className="flex items-center gap-2">
             <button

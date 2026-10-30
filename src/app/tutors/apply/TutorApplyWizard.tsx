@@ -1617,14 +1617,7 @@ export default function TutorApplyWizard() {
 
         {/* Logo */}
         <div>
-          <Link href="/" className="flex items-center gap-2.5 mb-12">
-            <div className="w-9 h-9 bg-[#F5C400] rounded-xl flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-                <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span className="font-bold text-white text-base tracking-tight">WithYou</span>
-          </Link>
+          <Link href="/" className="mb-12 inline-block"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto brightness-0 invert" /></Link>
 
           <div className="mb-10">
             <span className="inline-block text-xs font-bold text-[#F5C400] bg-[#F5C400]/10 border border-[#F5C400]/20 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">
@@ -1710,14 +1703,7 @@ export default function TutorApplyWizard() {
         {/* Top bar */}
         <div className="h-16 px-8 flex items-center justify-between border-b border-[#E8E0D4] bg-white">
           {/* Mobile logo */}
-          <Link href="/" className="lg:hidden flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#F5C400] rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-                <path d="M5 6l4.5 8 2.5-4.5L14.5 14 19 6" stroke="#5C3D00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span className="font-bold text-[#2D1A00] text-sm">WithYou</span>
-          </Link>
+          <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-7 w-auto" /></Link>
           <p className="hidden lg:block text-sm font-semibold text-[#6B5E44]">
             {fr ? "Candidature tuteur" : "Tutor application"}
           </p>
