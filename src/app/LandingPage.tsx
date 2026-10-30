@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
@@ -34,6 +34,48 @@ const LANG_DISPLAY: Record<string, { fr: string; en: string }> = {
   Japanese:   { fr: "Japonais",  en: "Japanese" },
   Korean:     { fr: "Coréen",    en: "Korean" },
 };
+
+const BANNER_IMAGES = ["/banner-1.jpg", "/banner-2.jpg", "/banner-3.jpg"];
+const BANNER_INTERVAL = 3000;
+
+function ImageBanner() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setCurrent(c => (c + 1) % BANNER_IMAGES.length), BANNER_INTERVAL);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="relative w-full h-[320px] md:h-[420px] overflow-hidden" aria-hidden="true">
+      {BANNER_IMAGES.map((src, i) => (
+        <div
+          key={src}
+          className="absolute inset-0 transition-opacity duration-700"
+          style={{ opacity: i === current ? 1 : 0 }}
+        >
+          <Image src={src} alt="" fill className="object-cover object-center" sizes="100vw" />
+        </div>
+      ))}
+
+      {/* Dark gradient overlays for depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#fdfaf4]/60 via-transparent to-[#FAF8F0]/60 pointer-events-none" />
+
+      {/* Dot indicators */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        {BANNER_IMAGES.map((_, i) => (
+          <button
+            key={i}
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => setCurrent(i)}
+            className={`w-2 h-2 rounded-full transition-all duration-300 ${i === current ? "bg-white scale-125" : "bg-white/40"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function LandingPage({ languages, tutorCount, studentCount, avgRating, reviewCount, reviews }: Props) {
   const { lang, setLang } = useLanguage();
@@ -112,6 +154,13 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         .card-in-1 { animation: cardIn 0.5s ease 0.6s both; }
         .card-in-2 { animation: cardIn 0.5s ease 0.8s both; }
         .card-in-3 { animation: cardIn 0.5s ease 1.0s both; }
+        @keyframes bannerFade {
+          0%   { opacity: 1; }
+          30%  { opacity: 1; }
+          40%  { opacity: 0; }
+          90%  { opacity: 0; }
+          100% { opacity: 1; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .a1,.a2,.a3,.a4,.a5,.a6,
           .card-in-1,.card-in-2,.card-in-3,
@@ -370,6 +419,9 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
         </div>
       </section>
+
+      {/* ── Photo banner ── */}
+      <ImageBanner />
 
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
