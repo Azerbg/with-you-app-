@@ -310,59 +310,19 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             )}
           </div>
 
-          {/* Right — rounded image card + floating overlays */}
+          {/* Right — rounded image card */}
           <div className="relative">
-
-            {/* Image card */}
             <div className="relative h-[420px] lg:h-[560px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
               <Image
                 src="/hero-tutor.webp"
                 alt={lang === "fr" ? "Tuteur WithYou en session en direct" : "WithYou tutor in a live session"}
                 fill
                 priority
-                className="object-cover object-[70%_30%]"
+                quality={90}
+                className="object-cover object-[50%_20%]"
                 sizes="(min-width: 1024px) 50vw, 100vw"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" aria-hidden="true" />
-
-              {/* Live pill — top-left, always inside card */}
-              <div className="card-in-1 absolute top-5 left-5 flex items-center gap-2 bg-white rounded-full px-3.5 py-2 shadow-xl z-10" aria-hidden="true">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-                <span className="text-xs font-bold text-[#2D1A00]">
-                  {lang === "fr" ? "En direct" : "Live session"}
-                </span>
-              </div>
             </div>
-
-            {/* Tutor card — bottom-left, offset -2rem outside on lg */}
-            <div
-              className="card-in-2 absolute bottom-8 left-5 lg:-left-8 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 z-10"
-              aria-hidden="true"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
-                Y
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#2D1A00] leading-tight">Yasmine</p>
-                <p className="text-xs text-[#9B8A6B]">
-                  {lang === "fr" ? "Tutrice de français · ⭐ 4.9" : "French tutor · ⭐ 4.9"}
-                </p>
-              </div>
-            </div>
-
-            {/* Next session chip — right, offset -1rem outside on lg */}
-            <div
-              className="card-in-3 absolute top-1/2 -translate-y-1/2 right-5 lg:-right-4 bg-[#FFF3B0] border border-[#F5C400]/60 rounded-2xl shadow-xl px-4 py-3 z-10"
-              aria-hidden="true"
-            >
-              <p className="text-[10px] font-bold text-[#C49200] uppercase tracking-wide mb-0.5">
-                {lang === "fr" ? "Prochaine" : "Next session"}
-              </p>
-              <p className="text-sm font-bold text-[#5C3D00] whitespace-nowrap">
-                {lang === "fr" ? "Auj. 18:00" : "Today 18:00"}
-              </p>
-            </div>
-
           </div>
 
         </div>
