@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
@@ -34,289 +34,6 @@ const LANG_DISPLAY: Record<string, { fr: string; en: string }> = {
   Japanese:   { fr: "Japonais",  en: "Japanese" },
   Korean:     { fr: "Coréen",    en: "Korean" },
 };
-
-// TODO: Replace with real verified tutor data from the DB.
-// Photos should be portrait ≥ 800×1000 px (WebP/AVIF).
-const TUTORS = [
-  { id: "t1", name: "Yasmine", photo: "/tutor-1.webp", languages: ["Français"],  specialty: "Conversation · DELF Prep",       rating: 4.9, reviewsCount: 48, sessionsCount: 320, quote: "I tailor every lesson to your real daily-life goals.", flag: "🇫🇷" },
-  { id: "t2", name: "Marcus",  photo: "/tutor-2.webp", languages: ["English"],   specialty: "Business English · IELTS",        rating: 4.8, reviewsCount: 63, sessionsCount: 410, quote: "Confidence comes from practice — let's build yours.", flag: "🇬🇧" },
-  { id: "t3", name: "Sofia",   photo: "/tutor-3.webp", languages: ["Spanish"],   specialty: "Beginner to B2 · Travel",         rating: 4.9, reviewsCount: 31, sessionsCount: 180, quote: "Learning a language is learning a new world.",        flag: "🇪🇸" },
-  { id: "t4", name: "Karim",   photo: "/tutor-1.webp", languages: ["Arabic"],    specialty: "Modern Standard · Dialect",       rating: 4.7, reviewsCount: 27, sessionsCount: 140, quote: "Arabic is poetic — I make it approachable.",          flag: "🇲🇦" }, // TODO: real photo
-  { id: "t5", name: "Lena",    photo: "/tutor-2.webp", languages: ["German"],    specialty: "Goethe · Business German",        rating: 4.8, reviewsCount: 19, sessionsCount: 95,  quote: "Structure and fun — the perfect German combo.",      flag: "🇩🇪" }, // TODO: real photo
-  { id: "t6", name: "Aiko",    photo: "/tutor-3.webp", languages: ["Japanese"],  specialty: "JLPT N5–N2 · Conversation",       rating: 5.0, reviewsCount: 14, sessionsCount: 72,  quote: "Every kanji tells a story — let me show you.",       flag: "🇯🇵" }, // TODO: real photo
-] as const;
-
-type TutorEntry = typeof TUTORS[number];
-
-function TutorCard({
-  tutor, index, visible, reducedMotion, lang,
-}: {
-  tutor: TutorEntry; index: number; visible: boolean; reducedMotion: boolean; lang: string;
-}) {
-  return (
-    <div
-      style={{
-        transitionDuration: "500ms",
-        transitionDelay: visible && !reducedMotion ? `${index * 80}ms` : "0ms",
-        opacity: visible || reducedMotion ? 1 : 0,
-        transform: visible || reducedMotion ? "translateY(0)" : "translateY(24px)",
-      }}
-      className="transition-all ease-out"
-    >
-      <div
-        className="group relative rounded-3xl overflow-hidden ring-1 ring-white/10 bg-[#2D1A00] hover:-translate-y-1 transition-transform duration-300 ease-out"
-        style={{ aspectRatio: "4/5" }}
-      >
-        {/* Image — scales on hover */}
-        <div className="absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-[1.04]">
-          <Image
-            src={tutor.photo}
-            alt={`Photo of ${tutor.name}, ${tutor.languages[0]} tutor`}
-            fill
-            className="object-cover object-top"
-            sizes="(min-width: 1024px) 25vw, 80vw"
-            quality={85}
-            loading="lazy"
-          />
-        </div>
-
-        {/* Bottom gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" aria-hidden="true" />
-
-        {/* Verified badge */}
-        <div className="absolute top-4 right-4 flex items-center gap-1 bg-[#F5C400] text-[#1A0D00] text-[10px] font-bold px-2.5 py-1 rounded-full" aria-hidden="true">
-          <svg className="w-2.5 h-2.5" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="1.5,5 4,7.5 8.5,2.5" />
-          </svg>
-          {lang === "fr" ? "Vérifié" : "Verified"}
-        </div>
-
-        {/* Content */}
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          {/* Flag + language chips */}
-          <div className="flex items-center gap-1.5 mb-2.5 flex-wrap" aria-hidden="true">
-            <span className="text-base leading-none">{tutor.flag}</span>
-            {tutor.languages.map(l => (
-              <span key={l} className="text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full">{l}</span>
-            ))}
-          </div>
-
-          <p className="text-xl font-bold text-white leading-tight mb-1">{tutor.name}</p>
-          <p className="text-xs text-white/65 mb-3">{tutor.specialty}</p>
-
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-            <span
-              className="font-bold text-[#F5C400]"
-              aria-label={`Rated ${tutor.rating} out of 5, ${tutor.reviewsCount} reviews`}
-            >
-              ★ {tutor.rating}
-            </span>
-            <span className="text-white/35">({tutor.reviewsCount})</span>
-            <span className="text-white/25">·</span>
-            <span className="text-white/55">{tutor.sessionsCount}+ {lang === "fr" ? "séances" : "sessions"}</span>
-          </div>
-
-          {/* Hover-reveal: quote + link */}
-          <div className="mt-3 max-h-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover:max-h-[80px] group-hover:opacity-100">
-            <p className="text-xs text-white/75 italic mb-2">"{tutor.quote}"</p>
-            <Link href="/find-tutors" className="text-xs font-bold text-[#F5C400] hover:text-[#FFDE59] transition-colors">
-              {lang === "fr" ? "Voir le profil →" : "View profile →"}
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TutorShowcase({
-  lang, tutorCount, avgRating, reviewCount,
-}: {
-  lang: string; tutorCount: number; avgRating: number | null; reviewCount: number;
-}) {
-  const tr = (fr: string, en: string) => lang === "en" ? en : fr;
-
-  const gridRef      = useRef<HTMLDivElement>(null);
-  const carouselRef  = useRef<HTMLDivElement>(null);
-  const [visible,       setVisible]       = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [active,        setActive]        = useState(0);
-  const [paused,        setPaused]        = useState(false);
-
-  useEffect(() => {
-    setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
-
-  // Fade-up trigger via IntersectionObserver
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.1 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // Scroll carousel to active card
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const cardW = el.scrollWidth / TUTORS.length;
-    el.scrollTo({ left: active * cardW, behavior: reducedMotion ? "instant" : "smooth" });
-  }, [active, reducedMotion]);
-
-  // Auto-advance every 5s
-  useEffect(() => {
-    if (paused || reducedMotion) return;
-    const id = setInterval(() => setActive(c => (c + 1) % TUTORS.length), 5000);
-    return () => clearInterval(id);
-  }, [paused, reducedMotion]);
-
-  // Pause when tab is hidden
-  useEffect(() => {
-    const fn = () => setPaused(document.hidden);
-    document.addEventListener("visibilitychange", fn);
-    return () => document.removeEventListener("visibilitychange", fn);
-  }, []);
-
-  // Sync dots on manual swipe
-  const onCarouselScroll = () => {
-    const el = carouselRef.current;
-    if (!el) return;
-    setActive(Math.round(el.scrollLeft / (el.scrollWidth / TUTORS.length)));
-  };
-
-  const showTrust = tutorCount >= 5 || (avgRating !== null && avgRating > 0) || reviewCount >= 10;
-
-  return (
-    <section className="bg-[#1A0D00] py-16 md:py-24" aria-label={tr("Tuteurs en vedette", "Featured tutors")}>
-      <div className="max-w-7xl mx-auto px-6">
-
-        {/* Header */}
-        <div className="text-center mb-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#F5C400] mb-3">
-            {tr("Apprenez avec les meilleurs", "Learn with the best")}
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white leading-snug">
-            {lang === "fr" ? (
-              <>Des tuteurs passionnés,<br /><span className="text-[#F5C400]">des résultats réels</span></>
-            ) : (
-              <>Passionate tutors,<br /><span className="text-[#F5C400]">real results</span></>
-            )}
-          </h2>
-        </div>
-
-        {/* Trust row */}
-        {showTrust && (
-          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mb-12 text-sm">
-            {tutorCount >= 5 && (
-              <span className="text-white/60"><span className="text-white font-bold">{tutorCount}+</span> {tr("tuteurs vérifiés", "verified tutors")}</span>
-            )}
-            {avgRating !== null && avgRating > 0 && (
-              <><span className="text-white/20 hidden md:inline" aria-hidden="true">·</span>
-              <span className="text-white/60"><span className="text-[#F5C400] font-bold">★ {avgRating.toFixed(1)}</span> {tr("de moyenne", "average rating")}</span></>
-            )}
-            {reviewCount >= 10 && (
-              <><span className="text-white/20 hidden md:inline" aria-hidden="true">·</span>
-              <span className="text-white/60"><span className="text-white font-bold">15</span> {tr("langues", "languages")}</span></>
-            )}
-          </div>
-        )}
-
-        {/* Desktop grid (lg+) */}
-        <div ref={gridRef} className="hidden lg:grid grid-cols-4 gap-6">
-          {TUTORS.map((tutor, i) => (
-            <TutorCard key={tutor.id} tutor={tutor} index={i} visible={visible} reducedMotion={reducedMotion} lang={lang} />
-          ))}
-        </div>
-
-        {/* Mobile/tablet carousel */}
-        <div
-          className="lg:hidden"
-          role="region"
-          aria-roledescription="carousel"
-          aria-label={tr("Tuteurs en vedette", "Featured tutors")}
-        >
-          <div
-            ref={carouselRef}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-6 px-6 pb-2"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-            onScroll={onCarouselScroll}
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-            onTouchStart={() => setPaused(true)}
-            onTouchEnd={() => setTimeout(() => setPaused(false), 1200)}
-            onFocus={() => setPaused(true)}
-            onBlur={() => setPaused(false)}
-          >
-            {TUTORS.map((tutor, i) => (
-              <div
-                key={tutor.id}
-                className="flex-shrink-0 w-[80%] snap-start"
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${i + 1} / ${TUTORS.length}`}
-              >
-                <TutorCard tutor={tutor} index={i} visible reducedMotion={reducedMotion} lang={lang} />
-              </div>
-            ))}
-          </div>
-
-          {/* Carousel controls */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <button
-              onClick={() => setActive(a => Math.max(0, a - 1))}
-              disabled={active === 0}
-              aria-label={tr("Tuteur précédent", "Previous tutor")}
-              className="w-9 h-9 rounded-full border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition disabled:opacity-30 text-lg leading-none"
-            >‹</button>
-
-            <div className="flex gap-1.5" role="tablist" aria-label={tr("Navigation", "Navigation")}>
-              {TUTORS.map((_, i) => (
-                <button
-                  key={i}
-                  role="tab"
-                  aria-selected={i === active}
-                  aria-label={`${tr("Tuteur", "Tutor")} ${i + 1}`}
-                  onClick={() => setActive(i)}
-                  className={`rounded-full transition-all duration-300 ${i === active ? "w-5 h-2 bg-[#F5C400]" : "w-2 h-2 bg-white/30 hover:bg-white/50"}`}
-                />
-              ))}
-            </div>
-
-            <button
-              onClick={() => setActive(a => Math.min(TUTORS.length - 1, a + 1))}
-              disabled={active === TUTORS.length - 1}
-              aria-label={tr("Tuteur suivant", "Next tutor")}
-              className="w-9 h-9 rounded-full border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition disabled:opacity-30 text-lg leading-none"
-            >›</button>
-
-            {!reducedMotion && (
-              <button
-                onClick={() => setPaused(p => !p)}
-                aria-label={paused ? tr("Reprendre", "Resume") : tr("Pause", "Pause")}
-                className="w-9 h-9 rounded-full border border-white/20 text-white/60 hover:border-white/50 hover:text-white transition text-[11px]"
-              >{paused ? "▶" : "⏸"}</button>
-            )}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="text-center mt-12">
-          <Link
-            href="/find-tutors"
-            className="inline-flex items-center gap-2 border-2 border-[#F5C400]/40 text-[#F5C400] px-8 py-3.5 rounded-full font-bold text-sm hover:border-[#F5C400] hover:bg-[#F5C400]/10 transition-all duration-200"
-          >
-            {tr("Voir tous les tuteurs →", "Browse all tutors →")}
-          </Link>
-        </div>
-
-      </div>
-    </section>
-  );
-}
 
 export default function LandingPage({ languages, tutorCount, studentCount, avgRating, reviewCount, reviews }: Props) {
   const { lang, setLang } = useLanguage();
@@ -387,18 +104,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           background: #5C3D00;
           color: white;
           transform: scale(1.05);
-        }
-        @keyframes cardIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .card-in-1 { animation: cardIn 0.5s ease 0.6s both; }
-        .card-in-2 { animation: cardIn 0.5s ease 0.8s both; }
-        .card-in-3 { animation: cardIn 0.5s ease 1.0s both; }
-        @media (prefers-reduced-motion: reduce) {
-          .a1,.a2,.a3,.a4,.a5,.a6,
-          .card-in-1,.card-in-2,.card-in-3,
-          .blob,.blob-2,.blob-3 { animation: none !important; }
         }
       `}</style>
 
@@ -514,144 +219,96 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       </div>
 
       {/* ── Hero ── */}
-      <section className="relative">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] max-h-[720px] py-12 lg:py-0">
+      <section className="relative w-full flex flex-col md:grid md:grid-cols-2 overflow-hidden md:min-h-[calc(100vh-62px)]">
 
-          {/* Left — content */}
-          <div className="flex flex-col justify-center">
+        {/* Left — content */}
+        <div className="flex flex-col justify-center px-8 md:px-10 lg:px-20 py-12 md:py-20 relative z-10">
 
-            <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" aria-hidden="true" />
-              {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
-            </div>
-
-            <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
-              {t.hero.heading1}<br />
-              {t.hero.heading2}{" "}
-              <span className="shimmer">{t.hero.shimmer}</span>
-            </h1>
-
-            <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-              {t.hero.sub}{" "}
-              <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
-            </p>
-
-            {/* Language chips */}
-            <div className="a4 flex flex-wrap gap-2 mb-8">
-              {languages.map((l) => {
-                const display = LANG_DISPLAY[l]?.[lang] ?? l;
-                return (
-                  <Link
-                    key={l}
-                    href={`/find-tutors?lang=${encodeURIComponent(l)}`}
-                    className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
-                  >
-                    {display}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* CTAs — full-width stacked on mobile, inline on sm+ */}
-            <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
-              <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
-                {t.hero.cta1}
-              </Link>
-              <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
-                {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
-              </Link>
-            </div>
-
-            {/* Trust row */}
-            {hasStats && (
-              <div className="a6 flex items-center gap-5">
-                {tutorCount > 0 && (
-                  <div className="flex -space-x-2" aria-hidden="true">
-                    {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].slice(0, Math.min(tutorCount, 5)).map((c, i) => (
-                      <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
-                    ))}
-                  </div>
-                )}
-                <div>
-                  {hasRating && (
-                    <div className="flex items-center gap-1" aria-label={`Rated ${avgRating!.toFixed(1)} out of 5`}>
-                      {[1,2,3,4,5].map((s) => (
-                        <span key={s} aria-hidden="true" className={s <= Math.round(avgRating!) ? "text-[#F5C400]" : "text-gray-300"}>★</span>
-                      ))}
-                      <span className="text-sm font-bold text-[#5C3D00] ml-1">{avgRating!.toFixed(1)}</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {studentCount >= 50
-                      ? lang === "fr" ? `${studentCount}+ apprenants` : `${studentCount}+ learners`
-                      : reviewCount >= 50
-                        ? lang === "fr" ? `${reviewCount}+ séances données` : `${reviewCount}+ sessions given`
-                        : lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
-                  </p>
-                </div>
-              </div>
-            )}
+          <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
+            {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
           </div>
 
-          {/* Right — image card with floating overlays */}
-          <div className="relative lg:pl-8">
+          <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
+            {t.hero.heading1}<br />
+            {t.hero.heading2}{" "}
+            <span className="shimmer">{t.hero.shimmer}</span>
+          </h1>
 
-            {/* Rounded image card */}
-            <div className="relative h-[420px] lg:h-[560px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
-              <Image
-                src="/hero-tutor.jpg"
-                alt={lang === "fr" ? "Tuteur WithYou en session en direct" : "WithYou tutor in a live session"}
-                fill
-                priority
-                className="object-cover object-[center_20%]"
-                sizes="(min-width: 1024px) 50vw, 100vw"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" aria-hidden="true" />
-            </div>
+          <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
+            {t.hero.sub}{" "}
+            <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
+          </p>
 
-            {/* Floating: Live session pill — top-left */}
-            <div
-              className="card-in-1 absolute top-6 left-6 lg:left-14 flex items-center gap-2 bg-white rounded-full px-3.5 py-2 shadow-xl z-10"
-              aria-hidden="true"
-            >
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-              <span className="text-xs font-bold text-[#2D1A00]">
-                {lang === "fr" ? "En direct" : "Live session"}
-              </span>
-            </div>
+          {/* Language chips — from DB */}
+          <div className="a4 flex flex-wrap gap-2 mb-8">
+            {languages.map((l) => {
+              const display = LANG_DISPLAY[l]?.[lang] ?? l;
+              return (
+                <Link
+                  key={l}
+                  href={`/find-tutors?lang=${encodeURIComponent(l)}`}
+                  className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
+                >
+                  {display}
+                </Link>
+              );
+            })}
+          </div>
 
-            {/* Floating: Tutor card — bottom-left, offset outside on lg */}
-            <div
-              className="card-in-2 absolute bottom-8 left-6 lg:-left-4 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3 z-10"
-              aria-hidden="true"
-            >
-              <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
-                Y
-              </div>
+          {/* CTAs */}
+          <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
+            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
+              {t.hero.cta1}
+            </Link>
+            <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
+              {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
+            </Link>
+          </div>
+
+          {/* Trust row — real stats only */}
+          {hasStats && (
+            <div className="a6 flex items-center gap-5">
+              {tutorCount > 0 && (
+                <div className="flex -space-x-2">
+                  {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].slice(0, Math.min(tutorCount, 5)).map((c, i) => (
+                    <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
+                  ))}
+                </div>
+              )}
               <div>
-                <p className="text-sm font-bold text-[#2D1A00] leading-tight">Yasmine</p>
-                <p className="text-xs text-[#9B8A6B]">
-                  {lang === "fr" ? "Tutrice de français · ⭐ 4.9" : "French tutor · ⭐ 4.9"}
+                {hasRating && (
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s} className={s <= Math.round(avgRating!) ? "text-[#F5C400]" : "text-gray-300"}>★</span>
+                    ))}
+                    <span className="text-sm font-bold text-[#5C3D00] ml-1">{avgRating!.toFixed(1)}</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {studentCount > 0
+                    ? lang === "fr" ? `${studentCount} apprenants actifs` : `${studentCount} active learners`
+                    : lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
                 </p>
               </div>
             </div>
-
-            {/* Floating: Next session chip — right, offset outside on lg */}
-            <div
-              className="card-in-3 absolute top-1/2 -translate-y-1/2 right-6 lg:-right-4 bg-[#FFF3B0] border border-[#F5C400]/60 rounded-2xl shadow-xl px-4 py-3 z-10"
-              aria-hidden="true"
-            >
-              <p className="text-[10px] font-bold text-[#C49200] uppercase tracking-wide mb-0.5">
-                {lang === "fr" ? "Prochaine" : "Next session"}
-              </p>
-              <p className="text-sm font-bold text-[#5C3D00] whitespace-nowrap">
-                {lang === "fr" ? "Auj. 18:00" : "Today 18:00"}
-              </p>
-            </div>
-
-          </div>
-
+          )}
         </div>
+
+        {/* Right — full-bleed image */}
+        <div className="relative h-64 md:h-auto">
+          <Image
+            src="/hero-tutor.jpg"
+            alt={lang === "fr" ? "Tuteur WithYou" : "WithYou tutor"}
+            fill
+            className="object-cover object-center"
+            priority
+            sizes="(max-width: 768px) 100vw, 50vw"
+          />
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#fdfaf4] to-transparent z-10 hidden md:block" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#fdfaf4]/60 to-transparent z-10" />
+        </div>
+
       </section>
 
       {/* ── How it works ── */}
@@ -728,9 +385,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         </div>
       </section>
 
-      {/* ── Tutor showcase ── */}
-      <TutorShowcase lang={lang} tutorCount={tutorCount} avgRating={avgRating} reviewCount={reviewCount} />
-
       {/* ── Testimonials — only if real reviews exist ── */}
       {reviews.length > 0 && (
         <section className="py-24 px-8 bg-[#2D1A00]">
@@ -787,7 +441,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       )}
 
       {/* ── Final CTA ── */}
-      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
+      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px" }}>
 
         <div className="absolute inset-0">
           <Image
@@ -796,7 +450,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             fill
             className="object-cover object-center"
             sizes="100vw"
-            quality={85}
           />
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/90 via-[#1A0D00]/75 to-[#1A0D00]/40" />
