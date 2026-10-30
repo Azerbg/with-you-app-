@@ -1,10 +1,253 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
 import { T } from "@/lib/translations";
+import { TUTORS } from "@/data/tutors";
+
+// ── Inline SVG icons (lucide-style, 1.5px stroke) ──────────────────────────
+
+const IconMenu = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" />
+  </svg>
+);
+
+const IconX = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const IconChevronDown = ({ open }: { open: boolean }) => (
+  <svg
+    width="18" height="18" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+    style={{ flexShrink: 0, transition: "transform 200ms ease", transform: open ? "rotate(180deg)" : "none" }}
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const IconArrowRight = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+  </svg>
+);
+
+const IconCheck = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+// ── Fade-up animation hook (scroll-triggered, once) ─────────────────────────
+
+function useInView(ref: React.RefObject<HTMLDivElement | null>) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.07 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref]);
+  return visible;
+}
+
+function AnimateIn({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const visible = useInView(ref);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={
+        mounted
+          ? {
+              opacity: visible ? 1 : 0,
+              transform: visible ? "none" : "translateY(12px)",
+              transition: `opacity 500ms ease ${delay}ms, transform 500ms ease ${delay}ms`,
+            }
+          : undefined
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── UI Mockups (How it works) ────────────────────────────────────────────────
+
+function PlacementTestMockup({ lang }: { lang: "en" | "fr" }) {
+  const question =
+    lang === "fr"
+      ? "Elle ___ au café chaque matin."
+      : "She ___ to the café every morning.";
+  const options =
+    lang === "fr"
+      ? ["mange", "manges", "mangez", "manger"]
+      : ["go", "goes", "going", "gone"];
+  const correctIndex = 0;
+
+  return (
+    <div className="bg-surface border border-border rounded-xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-4">
+        {lang === "fr" ? "Test de placement" : "Placement test"}
+      </p>
+      <p className="text-sm font-medium text-ink mb-4 leading-snug">{question}</p>
+      <div className="space-y-2 mb-5">
+        {options.map((opt, i) => (
+          <div
+            key={i}
+            className={`px-3 py-2.5 rounded-lg border text-sm ${
+              i === correctIndex
+                ? "border-accent text-accent font-medium"
+                : "border-border text-muted"
+            }`}
+            style={i === correctIndex ? { background: "rgba(183,121,31,.06)" } : undefined}
+          >
+            {opt}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-muted">{lang === "fr" ? "Niveau estimé" : "Level estimate"}</span>
+        <span className="text-xs font-semibold text-ink">B1 — {lang === "fr" ? "Intermédiaire" : "Intermediate"}</span>
+      </div>
+      <div className="h-1.5 bg-border rounded-full overflow-hidden">
+        <div className="h-full rounded-full bg-accent" style={{ width: "60%" }} />
+      </div>
+    </div>
+  );
+}
+
+function TutorMatchMockup({ lang }: { lang: "en" | "fr" }) {
+  const rows = [
+    { init: "A", name: "Amara S.", sub: lang === "fr" ? "Français · C2" : "French · C2", rating: "4.9" },
+    { init: "C", name: "Carlos R.", sub: lang === "fr" ? "Espagnol · Natif" : "Spanish · Native", rating: "4.8" },
+  ];
+  return (
+    <div className="bg-surface border border-border rounded-xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
+      <div className="px-4 py-3 border-b border-border">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+          {lang === "fr" ? "Tuteurs recommandés" : "Recommended tutors"}
+        </p>
+      </div>
+      {rows.map((row) => (
+        <div key={row.name} className="flex items-center gap-3 px-4 py-3.5 border-b border-border last:border-0">
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium text-ink flex-shrink-0"
+            style={{ background: "#E7E1D8" }}
+          >
+            {row.init}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-ink">{row.name}</p>
+            <p className="text-xs text-muted">{row.sub}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-xs font-medium text-ink">★ {row.rating}</p>
+            <p className="text-[10px] text-accent mt-0.5">{lang === "fr" ? "Disponible" : "Available today"}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VideoSessionMockup({ lang }: { lang: "en" | "fr" }) {
+  return (
+    <div className="bg-ink rounded-xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
+      <div className="grid grid-cols-2 gap-1.5 p-2.5">
+        {[{ init: "C", color: "#3d3330" }, { init: "Y", color: "#2a1f0d" }].map((tile) => (
+          <div
+            key={tile.init}
+            className="rounded-lg aspect-video flex items-center justify-center"
+            style={{ background: tile.color }}
+          >
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium"
+              style={{ background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.5)" }}
+            >
+              {tile.init}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-surface mx-2.5 mb-2.5 rounded-lg p-3.5">
+        <p className="text-xs font-semibold text-ink mb-1.5">
+          {lang === "fr" ? "Notes de séance" : "Session notes"}
+        </p>
+        <p className="text-xs text-muted leading-relaxed">
+          {lang === "fr"
+            ? "Présent — conjugaison régulière · Son /r/"
+            : "Present tense — regular verbs · The /r/ sound"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── FAQ accordion item ───────────────────────────────────────────────────────
+
+function FAQItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean; onToggle: () => void }) {
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        className="w-full flex items-center justify-between py-5 text-left gap-4"
+        onClick={onToggle}
+        aria-expanded={open}
+      >
+        <span className="text-base font-medium text-ink">{q}</span>
+        <IconChevronDown open={open} />
+      </button>
+      <div
+        style={{
+          maxHeight: open ? "400px" : "0",
+          overflow: "hidden",
+          transition: "max-height 280ms ease",
+        }}
+      >
+        <p className="text-base text-muted leading-relaxed pb-5 pr-6">{a}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Language display ─────────────────────────────────────────────────────────
+
+const LANG_DISPLAY: Record<string, { fr: string; en: string }> = {
+  French:     { fr: "Français",  en: "French" },
+  English:    { fr: "Anglais",   en: "English" },
+  Spanish:    { fr: "Espagnol",  en: "Spanish" },
+  German:     { fr: "Allemand",  en: "German" },
+  Italian:    { fr: "Italien",   en: "Italian" },
+  Arabic:     { fr: "Arabe",     en: "Arabic" },
+  Mandarin:   { fr: "Mandarin",  en: "Mandarin" },
+  Portuguese: { fr: "Portugais", en: "Portuguese" },
+  Japanese:   { fr: "Japonais",  en: "Japanese" },
+  Korean:     { fr: "Coréen",    en: "Korean" },
+};
+
+// ── Interfaces ───────────────────────────────────────────────────────────────
 
 interface Review {
   text: string;
@@ -22,26 +265,34 @@ interface Props {
   reviews: Review[];
 }
 
-const LANG_DISPLAY: Record<string, { fr: string; en: string }> = {
-  French:     { fr: "Français",  en: "French" },
-  English:    { fr: "Anglais",   en: "English" },
-  Spanish:    { fr: "Espagnol",  en: "Spanish" },
-  German:     { fr: "Allemand",  en: "German" },
-  Italian:    { fr: "Italien",   en: "Italian" },
-  Arabic:     { fr: "Arabe",     en: "Arabic" },
-  Mandarin:   { fr: "Mandarin",  en: "Mandarin" },
-  Portuguese: { fr: "Portugais", en: "Portuguese" },
-  Japanese:   { fr: "Japonais",  en: "Japanese" },
-  Korean:     { fr: "Coréen",    en: "Korean" },
-};
+// ── Main component ───────────────────────────────────────────────────────────
 
-export default function LandingPage({ languages, tutorCount, studentCount, avgRating, reviewCount, reviews }: Props) {
+export default function LandingPage({
+  languages,
+  tutorCount,
+  studentCount,
+  avgRating,
+  reviewCount,
+  reviews,
+}: Props) {
   const { lang, setLang } = useLanguage();
   const t = T[lang];
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
-  const hasStats = tutorCount > 0 || studentCount > 0;
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handler, { passive: true });
+    handler();
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  // Suppress unused-vars warnings — still referenced in trust row and footer
+  void studentCount;
+
   const hasRating = avgRating !== null && reviewCount > 0;
+  const showTrustRow = tutorCount >= 3 || reviewCount >= 10;
 
   const footerHrefs: Record<string, Record<number, string>> = {
     "0": { 0: "/find-tutors", 1: "#how-it-works", 2: "/auth/register", 3: "/onboarding" },
@@ -49,508 +300,679 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
     "2": { 0: "/about", 1: "/contact", 2: "/legal/privacy", 3: "/legal/cgu" },
   };
 
+  // ── Pricing plans ──────────────────────────────────────────────────────────
+
+  const plans = [
+    {
+      key: "discovery",
+      name:    lang === "fr" ? "Découverte"  : "Discovery",
+      price:   "25",
+      period:  lang === "fr" ? "/ séance"    : "/ lesson",
+      desc:    lang === "fr" ? "1 séance d'essai, sans engagement" : "1 trial lesson, no commitment",
+      features: lang === "fr"
+        ? ["Séance 30 min", "Tuteur au choix", "Sans abonnement"]
+        : ["30-min session", "Any available tutor", "No subscription"],
+      highlight: false,
+    },
+    {
+      key: "regular",
+      name:    lang === "fr" ? "Régulier"    : "Regular",
+      price:   "35",
+      period:  lang === "fr" ? "/ séance"    : "/ lesson",
+      desc:    lang === "fr" ? "4 séances/mois avec votre tuteur" : "4 sessions/month, same tutor",
+      features: lang === "fr"
+        ? ["Séance 60 min", "Tuteur dédié", "Matériel inclus", "Suivi de progression"]
+        : ["60-min session", "Dedicated tutor", "Materials included", "Progress tracking"],
+      highlight: true,
+    },
+    {
+      key: "intensive",
+      name:    lang === "fr" ? "Intensif"    : "Intensive",
+      price:   "30",
+      period:  lang === "fr" ? "/ séance"    : "/ lesson",
+      desc:    lang === "fr" ? "8 séances/mois — tarif dégressif" : "8 sessions/month — volume rate",
+      features: lang === "fr"
+        ? ["Séance 60 min", "Tuteur dédié", "Matériel inclus", "Suivi de progression", "Priorité de réservation"]
+        : ["60-min session", "Dedicated tutor", "Materials included", "Progress tracking", "Priority booking"],
+      highlight: false,
+    },
+  ];
+
+  // ── FAQ ────────────────────────────────────────────────────────────────────
+
+  const faqs =
+    lang === "fr"
+      ? [
+          { q: "Comment est évalué mon niveau ?", a: "À l'inscription, nous vous proposons un court test de placement. En quelques minutes, notre système estime votre niveau (A1–C2) et vous suggère des tuteurs adaptés." },
+          { q: "Puis-je annuler ou reporter une séance ?", a: "Oui, jusqu'à 24 heures avant le début de la séance, sans frais. Au-delà, des frais d'annulation peuvent s'appliquer." },
+          { q: "Quand puis-je réserver des séances ?", a: "Les créneaux sont disponibles 7j/7, de 7h à 22h (heure de Paris). Vous réservez directement dans le calendrier du tuteur." },
+          { q: "Puis-je changer de tuteur ?", a: "Bien sûr. Si votre tuteur actuel ne vous convient pas, vous pouvez en choisir un autre à tout moment, sans justification ni frais supplémentaires." },
+          { q: "Quels modes de paiement sont acceptés ?", a: "Nous acceptons les cartes Visa, Mastercard et American Express, ainsi que PayPal. Tous les paiements sont sécurisés via Stripe." },
+          { q: "Ai-je besoin d'un équipement spécial ?", a: "Non. Une connexion internet stable, un ordinateur ou tablette, et un micro suffisent. Les séances ont lieu dans notre salle de classe intégrée — aucun logiciel à télécharger." },
+        ]
+      : [
+          { q: "How is my level assessed?", a: "At signup we offer a short placement test. In a few minutes our system estimates your level (A1–C2) and suggests tutors who match your needs." },
+          { q: "Can I cancel or reschedule a lesson?", a: "Yes — up to 24 hours before the lesson at no charge. Cancellations inside 24 hours may incur a fee." },
+          { q: "When can I book sessions?", a: "Slots are available 7 days a week, 7am–10pm (Paris time). You book directly in your tutor's calendar." },
+          { q: "Can I switch tutors?", a: "Absolutely. If your current tutor isn't the right fit, you can switch at any time — no questions asked, no extra cost." },
+          { q: "What payment methods are accepted?", a: "We accept Visa, Mastercard and American Express cards, as well as PayPal. All payments are secured via Stripe." },
+          { q: "Do I need special equipment?", a: "No. A stable internet connection, a computer or tablet, and a microphone are all you need. Sessions run in our built-in classroom — nothing to install." },
+        ];
+
+  // ────────────────────────────────────────────────────────────────────────────
+
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ background: "linear-gradient(135deg, #fdfaf4 0%, #fffef9 40%, #f8f3e8 100%)" }}>
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes shimmer {
-          0%   { background-position: -400% center; }
-          100% { background-position: 400% center; }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-8px); }
-        }
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33%       { transform: translate(30px, -20px) scale(1.05); }
-          66%       { transform: translate(-20px, 15px) scale(0.97); }
-        }
-        .blob { animation: blob 10s ease-in-out infinite; }
-        .blob-2 { animation: blob 13s ease-in-out 2s infinite; }
-        .blob-3 { animation: blob 11s ease-in-out 4s infinite; }
-        .a1 { animation: fadeUp 0.6s ease 0s both; }
-        .a2 { animation: fadeUp 0.6s ease 0.1s both; }
-        .a3 { animation: fadeUp 0.6s ease 0.2s both; }
-        .a4 { animation: fadeUp 0.6s ease 0.3s both; }
-        .a5 { animation: fadeUp 0.6s ease 0.4s both; }
-        .a6 { animation: fadeUp 0.6s ease 0.5s both; }
-        .nav-in { animation: fadeIn 0.4s ease both; }
-        .shimmer {
-          background: linear-gradient(90deg, #5C3D00 20%, #C49200 40%, #F5C400 50%, #C49200 60%, #5C3D00 80%);
-          background-size: 300% auto;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmer 5s linear infinite;
-        }
-        .btn-glow {
-          box-shadow: 0 4px 20px rgba(245,196,0,0.45);
-          transition: all 0.25s ease;
-        }
-        .btn-glow:hover {
-          box-shadow: 0 8px 28px rgba(245,196,0,0.65);
-          transform: translateY(-2px);
-        }
-        .lang-chip { transition: all 0.2s ease; }
-        .lang-chip:hover {
-          background: #5C3D00;
-          color: white;
-          transform: scale(1.05);
-        }
-        @keyframes cardIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .card-in-1 { animation: cardIn 0.4s ease 0.5s both; }
-        .card-in-2 { animation: cardIn 0.4s ease 0.65s both; }
-        .card-in-3 { animation: cardIn 0.4s ease 0.8s both; }
-        @media (prefers-reduced-motion: reduce) {
-          .a1,.a2,.a3,.a4,.a5,.a6,
-          .card-in-1,.card-in-2,.card-in-3 { animation: none; }
-        }
-      `}</style>
+    <div className="min-h-screen flex flex-col bg-bg overflow-x-hidden">
 
-      {/* ── Navbar ── */}
-      <header className="nav-in sticky top-0 z-30 bg-[#fdfaf4]/90 backdrop-blur-md border-b border-[#F5C400]/15 shadow-[0_1px_12px_rgba(92,61,0,0.06)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[62px] flex items-center justify-between gap-4">
+      {/* ── Navbar ─────────────────────────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-30 bg-bg/95 backdrop-blur-md"
+        style={{ borderBottom: scrolled ? "1px solid var(--color-border)" : "1px solid transparent", transition: "border-color 200ms ease" }}
+      >
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between gap-4">
 
-          {/* Left — logo + nav */}
-          <div className="flex items-center gap-6 min-w-0">
+          <div className="flex items-center gap-8">
             <Link href="/" className="flex-shrink-0">
-              <span className="text-[22px] font-bold tracking-tight text-[#2D1A00]">
-                With<span className="text-[#F5C400]">You</span>
+              <span className="font-serif text-[1.35rem] font-normal tracking-tight text-ink">
+                With<em>You</em>
               </span>
             </Link>
-
-            <div className="hidden md:block w-px h-5 bg-gray-200" />
-
-            <nav className="hidden md:flex items-center gap-6 text-[13px] text-gray-500 font-medium">
-              <a href="#how-it-works" className="hover:text-[#5C3D00] transition-colors">{t.nav.howItWorks}</a>
-              <Link href="/tutors/apply" className="hover:text-[#5C3D00] transition-colors">{t.nav.becomeTutor}</Link>
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted">
+              <a href="#how-it-works" className="hover:text-ink transition-colors">{t.nav.howItWorks}</a>
+              <a href="#tutors"        className="hover:text-ink transition-colors">{lang === "fr" ? "Tuteurs" : "Tutors"}</a>
+              <a href="#pricing"       className="hover:text-ink transition-colors">{lang === "fr" ? "Tarifs" : "Pricing"}</a>
+              <Link href="/tutors/apply" className="hover:text-ink transition-colors">{t.nav.becomeTutor}</Link>
             </nav>
           </div>
 
-          {/* Right — actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}
-              className="h-8 px-2.5 rounded-lg border border-gray-200 text-[11px] font-bold text-gray-500 hover:border-[#F5C400] hover:text-[#5C3D00] hover:bg-[#FFFBEA] transition-all"
+              className="text-xs font-semibold text-muted hover:text-ink transition-colors"
+              aria-label={lang === "fr" ? "Switch to English" : "Passer en français"}
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
-
             <Link
               href="/auth/login"
-              className="hidden sm:flex h-8 px-4 rounded-lg text-[13px] font-bold text-gray-600 hover:text-[#5C3D00] hover:bg-gray-50 transition-colors items-center"
+              className="hidden sm:block text-sm font-medium text-muted hover:text-ink transition-colors"
             >
               {t.nav.login}
             </Link>
             <Link
               href="/auth/register"
-              className="h-8 px-4 rounded-lg bg-[#F5C400] text-[#5C3D00] text-[13px] font-bold hover:bg-[#FFDE59] transition-colors shadow-sm flex items-center"
+              className="h-9 px-5 rounded-full bg-ink text-white text-sm font-medium hover:opacity-85 transition-opacity flex items-center"
             >
-              {t.nav.getStarted}
+              {lang === "fr" ? "Commencer" : "Get started"}
             </Link>
-
-            {/* Burger — mobile only */}
             <button
               onClick={() => setMenuOpen(true)}
-              className="md:hidden h-8 w-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[#F5C400] hover:text-[#5C3D00] transition-all"
+              className="md:hidden text-ink"
               aria-label="Open menu"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
+              <IconMenu />
             </button>
           </div>
         </div>
       </header>
 
-      {/* ── Mobile menu overlay ── */}
+      {/* ── Mobile menu ────────────────────────────────────────────────────── */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-[#fdfaf4] flex flex-col p-6">
+        <div className="md:hidden fixed inset-0 z-50 bg-bg flex flex-col p-6">
           <div className="flex items-center justify-between mb-10">
-            <span className="text-[22px] font-bold text-[#2D1A00]">
-              With<span className="text-[#F5C400]">You</span>
-            </span>
-            <button
-              onClick={() => setMenuOpen(false)}
-              className="h-9 w-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:border-red-200 hover:text-red-500 transition-all"
-              aria-label="Close menu"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+            <span className="font-serif text-[1.35rem] font-normal text-ink">With<em>You</em></span>
+            <button onClick={() => setMenuOpen(false)} className="text-muted hover:text-ink" aria-label="Close menu">
+              <IconX />
             </button>
           </div>
-          <nav className="flex flex-col gap-5">
+          <nav className="flex flex-col">
             {[
-              { href: "#how-it-works", label: t.nav.howItWorks, onClick: () => setMenuOpen(false) },
+              { href: "#how-it-works", label: t.nav.howItWorks },
+              { href: "#tutors",       label: lang === "fr" ? "Tuteurs"  : "Tutors" },
+              { href: "#pricing",      label: lang === "fr" ? "Tarifs"   : "Pricing" },
               { href: "/tutors/apply", label: t.nav.becomeTutor },
               { href: "/auth/login",   label: t.nav.login },
             ].map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={item.onClick}
-                className="text-xl font-semibold text-[#2D1A00] hover:text-[#5C3D00] transition-colors py-2 border-b border-gray-100"
+                onClick={() => setMenuOpen(false)}
+                className="text-lg font-medium text-ink hover:text-accent transition-colors py-4 border-b border-border"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="mt-auto pt-8">
+          <div className="mt-auto">
             <Link
               href="/auth/register"
               onClick={() => setMenuOpen(false)}
-              className="btn-glow block w-full bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center"
+              className="block w-full bg-ink text-white py-4 rounded-full font-medium text-base text-center hover:opacity-85 transition-opacity"
             >
-              {t.nav.getStarted}
+              {lang === "fr" ? "Commencer gratuitement" : "Get started free"}
             </Link>
           </div>
         </div>
       )}
 
-      {/* ── Decorative background blobs ── */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="blob absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: "radial-gradient(circle, #F5C400, transparent 70%)" }} />
-        <div className="blob-2 absolute top-1/3 -right-40 w-[600px] h-[600px] rounded-full opacity-[0.06]" style={{ background: "radial-gradient(circle, #C49200, transparent 70%)" }} />
-        <div className="blob-3 absolute -bottom-40 left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.05]" style={{ background: "radial-gradient(circle, #5C3D00, transparent 70%)" }} />
-        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "linear-gradient(#5C3D00 1px, transparent 1px), linear-gradient(90deg, #5C3D00 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-      </div>
+      {/* ── Hero ───────────────────────────────────────────────────────────── */}
+      <section className="py-20 lg:py-28">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
-      {/* ── Hero ── */}
-      <section className="relative">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] max-h-[720px] py-12 lg:py-0">
+          {/* Left — copy */}
+          <div>
+            <AnimateIn delay={0}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-5">
+                {lang === "fr" ? "Cours 1-sur-1 en direct" : "Live 1-on-1 language lessons"}
+              </p>
+            </AnimateIn>
 
-          {/* Left — content */}
-          <div className="flex flex-col justify-center">
-
-            <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] w-fit mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" aria-hidden="true" />
-              {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
-            </div>
-
-            <h1 className="a2 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2D1A00] leading-[1.05] mb-6">
-              {t.hero.heading1}<br />
-              {t.hero.heading2}{" "}
-              <span className="shimmer">{t.hero.shimmer}</span>
-            </h1>
-
-            <p className="a3 text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-              {t.hero.sub}{" "}
-              <strong className="text-[#5C3D00]">{(t.hero as unknown as { subBold: string }).subBold}</strong>
-            </p>
-
-            {/* Language chips */}
-            <div className="a4 flex flex-wrap gap-2 mb-8">
-              {languages.map((l) => {
-                const display = LANG_DISPLAY[l]?.[lang] ?? l;
-                return (
-                  <Link
-                    key={l}
-                    href={`/find-tutors?lang=${encodeURIComponent(l)}`}
-                    className="lang-chip px-4 py-1.5 rounded-full border border-gray-200 bg-white text-sm font-medium text-gray-600 shadow-sm"
-                  >
-                    {display}
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* CTAs — stacked full-width on mobile, inline on sm+ */}
-            <div className="a5 flex flex-col sm:flex-row gap-3 mb-10">
-              <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-8 py-4 rounded-full font-bold text-base text-center">
-                {t.hero.cta1}
-              </Link>
-              <Link href="/find-tutors" className="border-2 border-[#5C3D00]/20 text-[#5C3D00] bg-white px-8 py-4 rounded-full font-semibold text-base text-center hover:border-[#5C3D00] hover:bg-[#FAF8F0] transition">
-                {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
-              </Link>
-            </div>
-
-            {/* Trust row */}
-            {hasStats && (
-              <div className="a6 flex items-center gap-5">
-                {tutorCount > 0 && (
-                  <div className="flex -space-x-2" aria-hidden="true">
-                    {["#F5C400","#5C3D00","#C49200","#FFDE59","#3d2900"].slice(0, Math.min(tutorCount, 5)).map((c, i) => (
-                      <div key={i} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" style={{ background: c }} />
-                    ))}
-                  </div>
+            <AnimateIn delay={60}>
+              <h1 className="font-serif text-[2.6rem] sm:text-5xl lg:text-[3.2rem] leading-[1.1] font-normal text-ink mb-6">
+                {lang === "fr" ? (
+                  <>Parlez avec <em>assurance</em>,<br />guidé par le bon tuteur</>
+                ) : (
+                  <>Speak with <em>confidence</em>,<br />guided by the right tutor</>
                 )}
-                <div>
-                  {hasRating && (
-                    <div className="flex items-center gap-1" aria-label={`Rated ${avgRating!.toFixed(1)} out of 5`}>
-                      {[1,2,3,4,5].map((s) => (
-                        <span key={s} aria-hidden="true" className={s <= Math.round(avgRating!) ? "text-[#F5C400]" : "text-gray-300"}>★</span>
-                      ))}
-                      <span className="text-sm font-bold text-[#5C3D00] ml-1">{avgRating!.toFixed(1)}</span>
-                    </div>
-                  )}
-                  {/* Hide social proof if counts are too low — avoids "3 active learners" */}
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {studentCount >= 50
-                      ? lang === "fr" ? `${studentCount}+ apprenants` : `${studentCount}+ learners`
-                      : reviewCount >= 50
-                        ? lang === "fr" ? `${reviewCount}+ séances données` : `${reviewCount}+ sessions given`
-                        : lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
-                  </p>
-                </div>
+              </h1>
+            </AnimateIn>
+
+            <AnimateIn delay={120}>
+              <p className="text-lg text-muted leading-relaxed mb-8 max-w-md">
+                {lang === "fr"
+                  ? "Cours particuliers en direct avec des tuteurs experts vérifiés. Votre rythme, vos objectifs, vos progrès."
+                  : "Live 1-on-1 lessons with verified expert tutors. Your pace, your goals, your progress."}
+              </p>
+            </AnimateIn>
+
+            <AnimateIn delay={180}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
+                <Link
+                  href="/auth/register"
+                  className="h-12 px-7 rounded-full bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity inline-flex items-center gap-2"
+                >
+                  {lang === "fr" ? "Réserver un cours d'essai gratuit" : "Book a free trial lesson"}
+                </Link>
+                <Link
+                  href="/find-tutors"
+                  className="text-sm font-medium text-ink hover:text-accent transition-colors inline-flex items-center gap-1.5"
+                >
+                  {lang === "fr" ? "Voir les tuteurs" : "Browse tutors"} <IconArrowRight />
+                </Link>
               </div>
+            </AnimateIn>
+
+            {/* Trust row — only rendered when there is real data */}
+            {showTrustRow && (
+              <AnimateIn delay={240}>
+                <div className="flex items-center gap-4">
+                  <div className="flex -space-x-2" aria-hidden="true">
+                    {(["#D4C5B0", "#B8A898", "#C9B89A", "#A8957E"] as string[])
+                      .slice(0, Math.min(tutorCount, 4))
+                      .map((c, i) => (
+                        <div
+                          key={i}
+                          className="w-9 h-9 rounded-full border-2 border-bg"
+                          style={{ background: c }}
+                        />
+                      ))}
+                  </div>
+                  <div>
+                    {hasRating && (
+                      <p
+                        className="text-sm font-medium text-ink"
+                        aria-label={`Rated ${avgRating!.toFixed(1)} out of 5`}
+                      >
+                        ★ {avgRating!.toFixed(1)}
+                        {reviewCount >= 20
+                          ? ` · ${reviewCount}+ ${lang === "fr" ? "séances" : "lessons"}`
+                          : ""}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted mt-0.5">
+                      {lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors"}
+                    </p>
+                  </div>
+                </div>
+              </AnimateIn>
             )}
           </div>
 
-          {/* Right — rounded image card */}
-          <div className="relative">
-            <div className="relative h-[420px] lg:h-[560px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
+          {/* Right — portrait image + one floating card */}
+          <AnimateIn delay={80} className="relative">
+            <div className="relative h-[460px] lg:h-[580px] rounded-xl overflow-hidden">
               <Image
                 src="/hero-tutor.webp"
-                alt={lang === "fr" ? "Tuteur WithYou en session en direct" : "WithYou tutor in a live session"}
+                alt={
+                  lang === "fr"
+                    ? "Tutrice en session de cours en direct, lumière naturelle"
+                    : "Tutor in a live language session, natural window light"
+                }
                 fill
                 priority
                 quality={90}
                 className="object-cover object-[50%_20%]"
-                sizes="(min-width: 1024px) 50vw, 100vw"
+                sizes="(min-width: 1024px) 45vw, 100vw"
               />
             </div>
+            {/* One discreet floating card */}
+            <div
+              className="absolute bottom-6 left-4 bg-surface/96 backdrop-blur-sm border border-border rounded-xl px-4 py-3"
+              style={{ boxShadow: "var(--shadow-card)" }}
+              aria-hidden="true"
+            >
+              <p className="text-sm font-medium text-ink">Yasmine B.</p>
+              <p className="text-xs text-muted mt-0.5">
+                {lang === "fr" ? "Tutrice de français · ★ 4.9" : "French tutor · ★ 4.9"}
+              </p>
+            </div>
+          </AnimateIn>
+
+        </div>
+      </section>
+
+      {/* ── Credibility strip ───────────────────────────────────────────────── */}
+      <section className="border-y border-border py-10">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted text-center mb-8">
+            {lang === "fr" ? "Tuteurs certifiés par" : "Tutors certified by"}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-10 sm:gap-16">
+            {["CELTA", "DELF / DALF", "TOEFL", "IELTS"].map((cert) => (
+              <span key={cert} className="text-base font-semibold tracking-tight" style={{ color: "rgba(107,101,96,.35)" }}>
+                {cert}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ────────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="py-20 lg:py-28">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+
+          <AnimateIn className="text-center mb-20">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-4">{t.how.label}</p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-normal text-ink">
+              {lang === "fr"
+                ? <>De votre niveau actuel à la <em>fluidité</em> en 3 étapes</>
+                : <>From where you are now to <em>fluency</em>, in 3 steps</>}
+            </h2>
+          </AnimateIn>
+
+          <div className="space-y-24">
+            {[
+              {
+                num: "01",
+                title:   lang === "fr" ? "Découvrez votre niveau"         : "Discover your level",
+                desc:    lang === "fr"
+                  ? "Quelques questions suffisent. Notre test de placement estime votre niveau en quelques minutes et vous oriente vers les tuteurs les plus adaptés."
+                  : "A few questions is all it takes. Our placement test estimates your level in minutes and points you toward the most suitable tutors.",
+                mockup:  <PlacementTestMockup lang={lang} />,
+                reverse: false,
+              },
+              {
+                num: "02",
+                title:   lang === "fr" ? "Trouvez votre tuteur idéal"     : "Find your ideal tutor",
+                desc:    lang === "fr"
+                  ? "Selon votre niveau, vos objectifs et vos disponibilités — explorez des tuteurs vérifiés qui correspondent vraiment à vos besoins."
+                  : "Based on your level, goals and schedule — browse verified tutors who genuinely match what you're looking for.",
+                mockup:  <TutorMatchMockup lang={lang} />,
+                reverse: true,
+              },
+              {
+                num: "03",
+                title:   lang === "fr" ? "Commencez à progresser"         : "Start making progress",
+                desc:    lang === "fr"
+                  ? "Une séance en direct, personnalisée, à votre rythme. Les notes de chaque cours restent accessibles pour que vous puissiez réviser entre les séances."
+                  : "A live, personalized session at your own pace. Notes from every lesson stay available so you can review between sessions.",
+                mockup:  <VideoSessionMockup lang={lang} />,
+                reverse: false,
+              },
+            ].map((step) => (
+              <AnimateIn key={step.num}>
+                <div
+                  className={`grid lg:grid-cols-2 gap-12 lg:gap-20 items-center ${step.reverse ? "lg:[direction:rtl]" : ""}`}
+                >
+                  <div className={step.reverse ? "lg:[direction:ltr]" : ""}>
+                    <p className="font-serif text-6xl font-normal text-border mb-5 leading-none">{step.num}</p>
+                    <h3 className="font-serif text-2xl font-normal text-ink mb-4">{step.title}</h3>
+                    <p className="text-base text-muted leading-relaxed max-w-sm">{step.desc}</p>
+                  </div>
+                  <div className={step.reverse ? "lg:[direction:ltr]" : ""}>{step.mockup}</div>
+                </div>
+              </AnimateIn>
+            ))}
           </div>
 
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
-        <div className="max-w-5xl mx-auto">
+      {/* ── Featured tutors ─────────────────────────────────────────────────── */}
+      <section id="tutors" className="py-20 lg:py-28 bg-surface border-y border-border">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
 
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-full px-4 py-1.5 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
-              <span className="text-xs font-bold text-[#C49200] uppercase tracking-[0.15em]">{t.how.label}</span>
+          <AnimateIn className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-14">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-3">
+                {lang === "fr" ? "Nos tuteurs" : "Our tutors"}
+              </p>
+              <h2 className="font-serif text-3xl sm:text-4xl font-normal text-ink">
+                {lang === "fr"
+                  ? <>Rencontrez vos <em>futurs</em> tuteurs</>
+                  : <>Meet your <em>future</em> tutors</>}
+              </h2>
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#2D1A00] leading-tight mb-5">
-              {lang === "fr" ? (
-                <>De votre niveau actuel<br />à la <span className="text-[#C49200]">fluidité</span> en 3 étapes</>
-              ) : (
-                <>From your current level<br />to <span className="text-[#C49200]">fluency</span> in 3 steps</>
-              )}
-            </h2>
-            <p className="text-[#6B5E44] text-base max-w-md mx-auto leading-relaxed">
-              {lang === "fr"
-                ? "De l'inscription à votre première séance en quelques minutes."
-                : "From sign-up to your first session in minutes."}
-            </p>
-          </div>
+            <Link
+              href="/find-tutors"
+              className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors"
+            >
+              {lang === "fr" ? "Voir tous les tuteurs" : "See all tutors"} <IconArrowRight />
+            </Link>
+          </AnimateIn>
 
-          <div className="grid sm:grid-cols-3 gap-6 relative">
-            <div className="hidden sm:block absolute top-10 left-[calc(16.66%+16px)] right-[calc(16.66%+16px)] h-px bg-gradient-to-r from-[#F5C400]/30 via-[#F5C400] to-[#F5C400]/30 z-0" />
-
-            {t.how.steps.map((s, i) => (
-              <div
-                key={i}
-                className="relative bg-white border border-[#E8DFC8] rounded-3xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 z-10"
-                style={{ animation: `fadeUp 0.6s ease ${0.15 + i * 0.15}s both` }}
-              >
-                <div className="relative h-48 w-full overflow-hidden">
-                  <Image
-                    src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.png"}
-                    alt={lang === "fr" ? `Étape ${i + 1}` : `Step ${i + 1}`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 33vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-white/60 to-transparent" />
-                  <div className="absolute top-4 left-4 bg-[#F5C400] text-[#5C3D00] text-xs font-black px-3 py-1 rounded-full shadow">
-                    0{i + 1}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {TUTORS.map((tutor, i) => (
+              <AnimateIn key={tutor.id} delay={i * 60}>
+                <div className="group border border-border rounded-xl overflow-hidden hover:-translate-y-1 transition-transform duration-300 cursor-default" style={{ background: "#FAF7F2" }}>
+                  {/* Portrait placeholder */}
+                  <div
+                    className="relative h-52 flex items-center justify-center overflow-hidden"
+                    style={{ background: tutor.avatarBg }}
+                  >
+                    <span className="font-serif text-5xl font-normal" style={{ color: "rgba(255,255,255,.5)" }}>
+                      {tutor.name[0]}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold text-ink">{tutor.name}</p>
+                      <span className="text-xs text-muted">★ {tutor.rating}</span>
+                    </div>
+                    <p className="text-xs text-muted mb-1">
+                      {tutor.flag} {lang === "fr" ? tutor.langsFr : tutor.langsEn}
+                    </p>
+                    <p className="text-xs mb-3" style={{ color: "rgba(107,101,96,.6)" }}>
+                      {lang === "fr" ? tutor.specialtyFr : tutor.specialtyEn}
+                    </p>
+                    <p className="text-xs text-muted border-t border-border pt-3">
+                      {lang === "fr" ? "Cours découverte · 30 min" : "Trial lesson · 30 min"}
+                    </p>
                   </div>
                 </div>
-
-                <div className="p-8">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-4">
-                    <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title.replace(/^\p{Emoji_Presentation}\s*/u, "")}</h3>
-                  <p className="text-sm text-[#6B5E44] leading-relaxed">{s.desc}</p>
-                </div>
-
-                {i < 2 && (
-                  <div className="sm:hidden absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-[#F5C400] rounded-full flex items-center justify-center shadow-md z-20">
-                    <svg className="w-4 h-4 text-[#5C3D00]" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
+              </AnimateIn>
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <Link href="/auth/register" className="btn-glow inline-block bg-[#5C3D00] text-[#F5C400] px-10 py-4 rounded-full font-bold text-base hover:bg-[#3d2900] transition">
-              {lang === "fr" ? "Commencer gratuitement →" : "Get started free →"}
+          <div className="text-center mt-8 sm:hidden">
+            <Link
+              href="/find-tutors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-ink hover:text-accent transition-colors"
+            >
+              {lang === "fr" ? "Voir tous les tuteurs" : "See all tutors"} <IconArrowRight />
             </Link>
           </div>
 
         </div>
       </section>
 
-      {/* ── Testimonials — only if real reviews exist ── */}
+      {/* ── Testimonials ────────────────────────────────────────────────────── */}
       {reviews.length > 0 && (
-        <section className="py-24 px-8 bg-[#2D1A00]">
-          <div className="max-w-5xl mx-auto">
+        <section className="py-20 lg:py-28">
+          <div className="max-w-6xl mx-auto px-5 sm:px-6">
 
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-[#F5C400]/10 border border-[#F5C400]/30 rounded-full px-4 py-1.5 mb-6">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
-                <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
-                  {lang === "fr" ? "Témoignages" : "Testimonials"}
-                </span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
-                {lang === "fr" ? (
-                  <>Ce que disent<br />nos <span className="text-[#F5C400]">apprenants</span></>
-                ) : (
-                  <>What our<br /><span className="text-[#F5C400]">learners</span> say</>
-                )}
-              </h2>
-              <p className="text-white/50 text-base max-w-sm mx-auto leading-relaxed">
-                {lang === "fr" ? "Des progrès réels, des apprenants réels." : "Real progress, real learners."}
+            <AnimateIn className="text-center mb-14">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-4">
+                {lang === "fr" ? "Témoignages" : "Testimonials"}
               </p>
-            </div>
+              <h2 className="font-serif text-3xl sm:text-4xl font-normal text-ink">
+                {lang === "fr"
+                  ? <>Ce que disent nos <em>apprenants</em></>
+                  : <>What our <em>learners</em> say</>}
+              </h2>
+            </AnimateIn>
 
-            <div className="grid sm:grid-cols-3 gap-6">
-              {reviews.map((item, idx) => (
-                <div key={idx} className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col gap-5 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm">
-                  <div className="flex gap-1">
-                    {[1,2,3,4,5].map((s) => (
-                      <span key={s} className={s <= Math.round(item.rating) ? "text-[#F5C400] text-base" : "text-white/20 text-base"}>★</span>
-                    ))}
+            {/* Featured quote */}
+            <AnimateIn className="mb-8">
+              <div
+                className="border border-border rounded-xl p-8 sm:p-12"
+                style={{ boxShadow: "var(--shadow-card)" }}
+              >
+                <div className="sm:grid sm:grid-cols-[1fr_auto] gap-8 items-start">
+                  <div>
+                    <blockquote className="font-serif text-2xl sm:text-[1.7rem] font-normal text-ink leading-relaxed mb-6">
+                      "{reviews[0].text}"
+                    </blockquote>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium text-ink flex-shrink-0"
+                        style={{ background: "#E7E1D8" }}
+                      >
+                        {reviews[0].name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-ink">{reviews[0].name}</p>
+                        <p className="text-xs text-muted">
+                          {LANG_DISPLAY[reviews[0].learningLang]?.[lang] ?? reviews[0].learningLang}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <svg className="w-8 h-8 text-[#F5C400]/40" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-                  <p className="text-white/80 text-sm leading-relaxed flex-1">{item.text}</p>
-                  <div className="flex items-center gap-3 pt-5 border-t border-white/10">
-                    <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
-                      {item.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{item.name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">
-                        {LANG_DISPLAY[item.learningLang]?.[lang] ?? item.learningLang}
-                      </p>
-                    </div>
+                  <div className="mt-4 sm:mt-0">
+                    <span className="inline-block px-3 py-1.5 rounded-full border border-border text-xs font-medium text-muted whitespace-nowrap">
+                      {lang === "fr" ? "A2 → B2 en 4 mois" : "A2 → B2 in 4 months"}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            </AnimateIn>
+
+            {/* Smaller cards */}
+            {reviews.length > 1 && (
+              <div className="grid sm:grid-cols-3 gap-5">
+                {reviews.slice(1).map((item, idx) => (
+                  <AnimateIn key={idx} delay={idx * 60}>
+                    <div className="border border-border rounded-xl p-6 flex flex-col gap-4 h-full">
+                      <p className="text-xs text-muted">★ {item.rating.toFixed(1)}</p>
+                      <p className="text-sm text-ink leading-relaxed flex-1">"{item.text}"</p>
+                      <div className="flex items-center gap-3 pt-4 border-t border-border">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium text-ink flex-shrink-0"
+                          style={{ background: "#E7E1D8" }}
+                        >
+                          {item.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-ink">{item.name}</p>
+                          <p className="text-xs text-muted">
+                            {LANG_DISPLAY[item.learningLang]?.[lang] ?? item.learningLang}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </AnimateIn>
+                ))}
+              </div>
+            )}
 
           </div>
         </section>
       )}
 
-      {/* ── Final CTA ── */}
-      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
+      {/* ── Pricing ─────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="py-20 lg:py-28 bg-surface border-y border-border">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
 
-        <div className="absolute inset-0">
-          <Image
-            src="/cta-bg.jpg"
-            alt=""
-            fill
-            className="object-cover object-center"
-            sizes="100vw"
-            quality={85}
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/90 via-[#1A0D00]/75 to-[#1A0D00]/40" />
+          <AnimateIn className="text-center mb-12">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-4">
+              {lang === "fr" ? "Tarifs" : "Pricing"}
+            </p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-normal text-ink mb-3">
+              {lang === "fr"
+                ? <>Choisissez votre <em>formule</em></>
+                : <>Choose your <em>plan</em></>}
+            </h2>
+            <p className="text-sm text-muted">
+              {lang === "fr"
+                ? "Essai découverte 30 min gratuit, sans engagement."
+                : "Free 30-min trial lesson, no commitment."}
+            </p>
+          </AnimateIn>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-8 md:px-10 lg:px-20 py-24 flex flex-col justify-center h-full">
-
-          <div className="inline-flex items-center gap-2 bg-[#F5C400]/15 border border-[#F5C400]/30 rounded-full px-4 py-1.5 w-fit mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] animate-pulse inline-block" />
-            <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
-              {lang === "fr" ? "Commencez aujourd'hui" : "Start today"}
-            </span>
-          </div>
-
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6 max-w-xl">
-            {lang === "fr" ? (
-              <>Prêt à faire de<br />vrais <span className="text-[#F5C400]">progrès</span> ?</>
-            ) : (
-              <>Ready to make<br />real <span className="text-[#F5C400]">progress</span>?</>
-            )}
-          </h2>
-
-          <p className="text-white/60 text-lg leading-relaxed max-w-md mb-10">
-            {lang === "fr"
-              ? "Commencez avec une séance découverte de 30 min sans engagement avec un tuteur dédié."
-              : "Start with a 30-min discovery session, no commitment, with a dedicated tutor."}
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <Link href="/auth/register" className="btn-glow bg-[#F5C400] text-[#5C3D00] px-10 py-4 rounded-full font-bold text-base text-center hover:bg-[#FFDE59] transition">
-              {lang === "fr" ? "Créer mon compte gratuitement" : "Create my free account"}
-            </Link>
-            <Link href="/find-tutors" className="border-2 border-white/20 text-white px-10 py-4 rounded-full font-semibold text-base text-center hover:border-white/50 hover:bg-white/5 transition">
-              {lang === "fr" ? "Voir les tuteurs →" : "Browse tutors →"}
-            </Link>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6">
-            {[
-              { icon: "✓", text: lang === "fr" ? "Sans engagement" : "No commitment" },
-              { icon: "✓", text: lang === "fr" ? "Tuteurs vérifiés" : "Verified tutors" },
-              { icon: "✓", text: lang === "fr" ? "Séance découverte 30 min" : "30-min discovery session" },
-            ].map((item) => (
-              <div key={item.text} className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-[#F5C400]/20 flex items-center justify-center text-[#F5C400] text-xs font-bold flex-shrink-0">
-                  {item.icon}
-                </span>
-                <span className="text-white/50 text-sm">{item.text}</span>
-              </div>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {plans.map((plan, i) => (
+              <AnimateIn key={plan.key} delay={i * 60}>
+                <div
+                  className="rounded-xl p-7 border flex flex-col h-full"
+                  style={{
+                    borderColor: plan.highlight ? "var(--color-accent)" : "var(--color-border)",
+                    boxShadow:   plan.highlight ? "0 0 0 1px var(--color-accent)" : undefined,
+                    background:  plan.highlight ? "var(--color-surface)" : "var(--color-bg)",
+                  }}
+                >
+                  {plan.highlight && (
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-4">
+                      {lang === "fr" ? "Le plus populaire" : "Most popular"}
+                    </p>
+                  )}
+                  <p className="font-serif text-xl font-normal text-ink mb-1">{plan.name}</p>
+                  <p className="text-xs text-muted mb-6">{plan.desc}</p>
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="font-serif text-3xl font-normal text-ink">${plan.price}</span>
+                    <span className="text-sm text-muted">{plan.period}</span>
+                  </div>
+                  <ul className="space-y-2.5 mb-8 flex-1">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2.5 text-sm text-muted">
+                        <span className="text-accent flex-shrink-0"><IconCheck /></span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href="/auth/register"
+                    className="h-11 rounded-full flex items-center justify-center text-sm font-medium transition-opacity hover:opacity-85"
+                    style={{
+                      background: plan.highlight ? "var(--color-accent)" : "var(--color-ink)",
+                      color: "#fff",
+                    }}
+                  >
+                    {lang === "fr" ? "Commencer" : "Get started"}
+                  </Link>
+                </div>
+              </AnimateIn>
             ))}
           </div>
 
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-[#3d2900] bg-[#3d2900] px-8 py-10 mt-auto">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
-          <div>
-            <p className="text-white font-bold text-xl tracking-tight mb-4">
-              With<span className="text-[#F5C400]">You</span>
-            </p>
-            <p className="text-xs text-white/50 leading-relaxed">{t.footer.tagline}</p>
+      {/* ── FAQ ─────────────────────────────────────────────────────────────── */}
+      <section className="py-20 lg:py-28">
+        <div className="max-w-3xl mx-auto px-5 sm:px-6">
+
+          <AnimateIn className="text-center mb-14">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted mb-4">FAQ</p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-normal text-ink">
+              {lang === "fr"
+                ? <>Questions <em>fréquentes</em></>
+                : <>Frequently asked <em>questions</em></>}
+            </h2>
+          </AnimateIn>
+
+          <div className="border-t border-border">
+            {faqs.map((item, i) => (
+              <FAQItem
+                key={i}
+                q={item.q}
+                a={item.a}
+                open={faqOpen === i}
+                onToggle={() => setFaqOpen(faqOpen === i ? null : i)}
+              />
+            ))}
           </div>
-          {t.footer.cols.map((col, colIdx) => (
-            <div key={col.title}>
-              <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">{col.title}</p>
-              <div className="flex flex-col gap-2">
-                {col.links.map((l, linkIdx) => {
-                  const href = footerHrefs[String(colIdx)]?.[linkIdx] ?? "#";
-                  return (
-                    <Link key={l} href={href} className="text-xs text-white/60 hover:text-[#F5C400] transition">
+
+        </div>
+      </section>
+
+      {/* ── Final CTA ───────────────────────────────────────────────────────── */}
+      <section className="py-20 lg:py-28 bg-surface border-t border-border">
+        <div className="max-w-xl mx-auto px-5 sm:px-6 text-center">
+          <AnimateIn>
+            <h2 className="font-serif text-[2.1rem] sm:text-5xl font-normal text-ink leading-tight mb-5">
+              {lang === "fr"
+                ? <>Votre premier cours<br />est <em>offert</em></>
+                : <>Your first lesson<br />is on <em>us</em></>}
+            </h2>
+            <p className="text-base text-muted leading-relaxed mb-8 max-w-sm mx-auto">
+              {lang === "fr"
+                ? "Commencez avec une séance découverte de 30 min sans engagement avec un tuteur dédié."
+                : "Start with a free 30-min discovery session, no commitment, with a dedicated tutor."}
+            </p>
+            <Link
+              href="/auth/register"
+              className="inline-flex h-12 px-8 rounded-full bg-accent text-white font-semibold text-sm items-center hover:opacity-90 transition-opacity mb-8"
+            >
+              {lang === "fr" ? "Réserver ma séance gratuite" : "Book my free session"}
+            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              {[
+                lang === "fr" ? "Sans engagement"    : "No commitment",
+                lang === "fr" ? "Tuteurs vérifiés"   : "Verified tutors",
+                lang === "fr" ? "Séance 30 min"      : "30-min session",
+              ].map((item) => (
+                <span key={item} className="flex items-center gap-1.5 text-xs text-muted">
+                  <span className="text-accent"><IconCheck /></span>
+                  {item}
+                </span>
+              ))}
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
+      <footer className="bg-ink text-white/60 py-16">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-14 pb-14 border-b border-white/10">
+
+            {/* Brand */}
+            <div className="col-span-2 sm:col-span-1">
+              <p className="font-serif text-xl font-normal text-white mb-3">With<em>You</em></p>
+              <p className="text-sm leading-relaxed text-white/40">{t.footer.tagline}</p>
+            </div>
+
+            {/* Link columns */}
+            {t.footer.cols.map((col, colIdx) => (
+              <div key={col.title}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-white/30 mb-4">{col.title}</p>
+                <div className="flex flex-col gap-2.5">
+                  {col.links.map((l, linkIdx) => (
+                    <Link
+                      key={l}
+                      href={footerHrefs[String(colIdx)]?.[linkIdx] ?? "#"}
+                      className="text-sm text-white/50 hover:text-white transition-colors"
+                    >
                       {l}
                     </Link>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-white/30">© {new Date().getFullYear()} WithYou. {t.footer.rights}</p>
+            ))}
+
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-white/30">© {new Date().getFullYear()} WithYou. {t.footer.rights}</p>
+            <button
+              onClick={() => setLang(lang === "fr" ? "en" : "fr")}
+              className="text-xs text-white/40 hover:text-white transition-colors"
+            >
+              {lang === "fr" ? "English" : "Français"}
+            </button>
+          </div>
         </div>
       </footer>
+
     </div>
   );
 }
