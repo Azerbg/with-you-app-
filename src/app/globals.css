@@ -1,45 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── Design tokens ── */
-  --color-bg:      #FAF7F2;
-  --color-surface: #FFFFFF;
-  --color-ink:     #1C1917;
-  --color-muted:   #6B6560;
-  --color-border:  #E7E1D8;
-  --color-accent:  #B7791F;
+  /* ── Brand Colors ── */
+  --color-yellow:       #F5C400;
+  --color-yellow-light: #FFDE59;
+  --color-yellow-pale:  #FFF3B0;
+  --color-golden:       #C49200;
+  --color-brown:        #5C3D00;
+  --color-gray-text:    #6B5E44;
+  --color-warm-white:   #FFFDF4;
+  --color-off-white:    #FAF8F0;
 
   /* ── Typography ── */
-  --font-sans:  'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Outfit', sans-serif;
 }
 
 :root {
-  --shadow-card: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  --background: #FAF8F0;
+  --foreground: #5C3D00;
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: transparent;
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
 }
 
-@keyframes lp-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Respect user motion preference */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
+/* Focus ring override — use yellow */
 *:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
+  outline: 2px solid #F5C400;
+  outline-offset: 2px;
 }
