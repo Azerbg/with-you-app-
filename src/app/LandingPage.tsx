@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
@@ -21,6 +21,95 @@ interface Props {
   reviewCount: number;
   reviews: Review[];
 }
+
+// ── Slideshow banner ────────────────────────────────────────────────────────
+
+function SlideShow({ lang }: { lang: "en" | "fr" }) {
+  const [current, setCurrent] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const slides = lang === "fr" ? [
+    { img: "/images/marquee/b1.webp", quote: "J'ai progressé de A2 à B2 en seulement 4 mois.", name: "Sofia M.", role: "Apprenante en français" },
+    { img: "/images/marquee/b2.webp", quote: "Mon tuteur s'adapte exactement à mes besoins et à mon rythme.", name: "Marc T.", role: "Apprenant en anglais" },
+    { img: "/images/marquee/b3.webp", quote: "Flexible, efficace — je progresse sans quitter chez moi.", name: "Lina K.", role: "Apprenante en espagnol" },
+    { img: "/images/marquee/b4.webp", quote: "La première séance gratuite m'a convaincu immédiatement.", name: "Adam R.", role: "Apprenant en allemand" },
+  ] : [
+    { img: "/images/marquee/b1.webp", quote: "I went from A2 to B2 in just 4 months.", name: "Sofia M.", role: "French learner" },
+    { img: "/images/marquee/b2.webp", quote: "My tutor adapts exactly to my needs and pace.", name: "Marc T.", role: "English learner" },
+    { img: "/images/marquee/b3.webp", quote: "Flexible and effective — I make real progress from home.", name: "Lina K.", role: "Spanish learner" },
+    { img: "/images/marquee/b4.webp", quote: "The free trial session convinced me right away.", name: "Adam R.", role: "German learner" },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setCurrent(c => (c + 1) % slides.length);
+        setVisible(true);
+      }, 400);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [slides.length]);
+
+  const slide = slides[current];
+
+  return (
+    <div className="relative w-full h-[420px] sm:h-[480px] overflow-hidden">
+      {/* Background images — all rendered, only current visible */}
+      {slides.map((s, i) => (
+        <div
+          key={i}
+          className="absolute inset-0"
+          style={{ opacity: i === current ? 1 : 0, transition: "opacity 700ms ease" }}
+        >
+          <img src={s.img} alt="" className="w-full h-full object-cover" />
+        </div>
+      ))}
+
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/80 via-[#1A0D00]/50 to-transparent" />
+
+      {/* Text content */}
+      <div
+        className="absolute inset-0 z-10 flex items-center px-8 sm:px-14 lg:px-20"
+        style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(10px)", transition: "opacity 400ms ease, transform 400ms ease" }}
+      >
+        <div className="max-w-xl">
+          <svg className="w-10 h-10 text-[#F5C400]/50 mb-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+          </svg>
+          <p className="text-2xl sm:text-3xl font-bold text-white leading-snug mb-5">
+            {slide.quote}
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="h-px w-8 bg-[#F5C400]" />
+            <span className="text-sm font-semibold text-white/80">{slide.name}</span>
+            <span className="text-xs text-white/40">{slide.role}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Dots */}
+      <div className="absolute bottom-6 left-8 sm:left-14 lg:left-20 flex items-center gap-2 z-10">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => { setVisible(false); setTimeout(() => { setCurrent(i); setVisible(true); }, 400); }}
+            aria-label={`Slide ${i + 1}`}
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: i === current ? "24px" : "8px",
+              height: "8px",
+              background: i === current ? "#F5C400" : "rgba(255,255,255,0.35)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 const LANG_DISPLAY: Record<string, { fr: string; en: string }> = {
   French:     { fr: "Français",  en: "French" },
@@ -101,16 +190,9 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           color: white;
           transform: scale(1.05);
         }
-        @keyframes marquee {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .marquee-track { animation: marquee 28s linear infinite; }
-        .marquee-track:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) {
           .a1,.a2,.a3,.a4,.a5,.a6,.blob,.blob-2,.blob-3 { animation: none; }
           .shimmer { animation: none; background: #5C3D00; -webkit-text-fill-color: #5C3D00; }
-          .marquee-track { animation: none; }
         }
       `}</style>
 
@@ -312,49 +394,8 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         </div>
       </section>
 
-      {/* ── Marquee strip ── */}
-      {(() => {
-        const items = lang === "fr" ? [
-          { photo: "/images/marquee/m1.webp", name: "Sofia", text: "J'ai progressé de A2 à B2 en seulement 4 mois !" },
-          { photo: "/images/marquee/m2.webp", name: "Marc",  text: "Mon tuteur s'adapte parfaitement à mon rythme." },
-          { photo: "/images/marquee/m3.webp", name: "Lina",  text: "Flexible, efficace — j'apprends quand je veux." },
-          { photo: "/images/marquee/m4.webp", name: "Adam",  text: "La première séance gratuite m'a convaincu tout de suite." },
-          { photo: "/images/marquee/m1.webp", name: "Nour",  text: "En 3 séances j'étais déjà plus à l'aise à l'oral." },
-          { photo: "/images/marquee/m2.webp", name: "Karim", text: "Les notes de cours après chaque séance, c'est génial." },
-          { photo: "/images/marquee/m3.webp", name: "Rita",  text: "Je recommande WithYou à tous mes collègues." },
-          { photo: "/images/marquee/m4.webp", name: "Farid", text: "Enfin une plateforme qui comprend mes objectifs." },
-        ] : [
-          { photo: "/images/marquee/m1.webp", name: "Sofia", text: "I went from A2 to B2 in just 4 months!" },
-          { photo: "/images/marquee/m2.webp", name: "Marc",  text: "My tutor adapts perfectly to my learning style." },
-          { photo: "/images/marquee/m3.webp", name: "Lina",  text: "Flexible, effective — I learn whenever I want." },
-          { photo: "/images/marquee/m4.webp", name: "Adam",  text: "The free trial session convinced me right away." },
-          { photo: "/images/marquee/m1.webp", name: "Nour",  text: "After 3 sessions I was already more confident speaking." },
-          { photo: "/images/marquee/m2.webp", name: "Karim", text: "Getting session notes after every lesson is brilliant." },
-          { photo: "/images/marquee/m3.webp", name: "Rita",  text: "I recommend WithYou to all my friends." },
-          { photo: "/images/marquee/m4.webp", name: "Farid", text: "Finally a platform that actually gets my goals." },
-        ];
-        const doubled = [...items, ...items];
-        return (
-          <div className="overflow-hidden border-y border-[#F5C400]/20 bg-[#fdfaf4] py-4" aria-hidden="true">
-            <div className="marquee-track flex gap-5" style={{ width: "max-content" }}>
-              {doubled.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 bg-white border border-[#E8DFC8] rounded-full pl-1.5 pr-5 py-1.5 shadow-sm flex-shrink-0"
-                >
-                  <img
-                    src={item.photo}
-                    alt={item.name}
-                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                  />
-                  <span className="text-sm font-medium text-[#3d2900] whitespace-nowrap">{item.text}</span>
-                  <span className="text-[#F5C400] text-sm flex-shrink-0">★</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {/* ── Slideshow banner ── */}
+      <SlideShow lang={lang} />
 
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
