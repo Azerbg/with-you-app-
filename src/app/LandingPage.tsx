@@ -433,15 +433,15 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
         <div className="absolute inset-0">
           <Image
-            src="/cta-bg.jpg"
+            src="/cta-bg.webp"
             alt=""
             fill
             className="object-cover object-center"
             sizes="100vw"
-            quality={85}
+            quality={90}
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/90 via-[#1A0D00]/75 to-[#1A0D00]/40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/85 via-[#1A0D00]/60 to-[#1A0D00]/20" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-8 md:px-10 lg:px-20 py-24 flex flex-col justify-center h-full">
 
