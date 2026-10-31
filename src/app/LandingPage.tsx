@@ -474,15 +474,13 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         </div>
       </section>
 
-      {/* ── Slideshow banner — floating card ── */}
-      <div className="bg-[#FAF8F0] px-4 sm:px-8 lg:px-16 py-10">
-        <div className="rounded-[28px] overflow-hidden shadow-[0_20px_60px_-15px_rgba(42,20,0,0.25)]">
-          <SlideShow lang={lang} />
-        </div>
-      </div>
+      {/* ── Slideshow banner ── */}
+      <div className="h-px bg-gradient-to-r from-transparent via-[#F5C400]/60 to-transparent" />
+      <SlideShow lang={lang} />
+      <div className="h-px bg-gradient-to-r from-transparent via-[#F5C400]/60 to-transparent" />
 
       {/* ── How it works ── */}
-      <section id="how-it-works" className="py-16 px-8 bg-[#FAF8F0]">
+      <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
         <div className="max-w-5xl mx-auto">
 
           <div className="text-center mb-16">
