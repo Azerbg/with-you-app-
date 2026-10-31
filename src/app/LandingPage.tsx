@@ -328,16 +328,16 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-6 relative">
-            <div className="hidden sm:block absolute top-10 left-[calc(16.66%+16px)] right-[calc(16.66%+16px)] h-px bg-gradient-to-r from-[#F5C400]/30 via-[#F5C400] to-[#F5C400]/30 z-0" />
+          <div className="grid sm:grid-cols-3 gap-8 relative">
+            <div className="hidden sm:block absolute top-12 left-[calc(16.66%+20px)] right-[calc(16.66%+20px)] h-px bg-gradient-to-r from-[#F5C400]/30 via-[#F5C400] to-[#F5C400]/30 z-0" />
 
             {t.how.steps.map((s, i) => (
               <div
                 key={i}
-                className="relative bg-white border border-[#E8DFC8] rounded-3xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 z-10"
+                className="relative bg-white border border-[#E8DFC8] rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 z-10"
                 style={{ animation: `fadeUp 0.6s ease ${0.15 + i * 0.15}s both` }}
               >
-                <div className="relative h-48 w-full overflow-hidden">
+                <div className="relative h-64 w-full overflow-hidden">
                   <Image
                     src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.png"}
                     alt={lang === "fr" ? `Étape ${i + 1}` : `Step ${i + 1}`}
@@ -345,17 +345,17 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, 33vw"
                   />
-                  <div className="absolute top-4 left-4 bg-[#F5C400] text-[#5C3D00] text-xs font-black px-3 py-1 rounded-full shadow">
+                  <div className="absolute top-4 left-4 bg-[#F5C400] text-[#5C3D00] text-xs font-black px-3 py-1.5 rounded-full shadow-md">
                     0{i + 1}
                   </div>
                 </div>
 
                 <div className="p-8">
-                  <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[#F5C400] flex items-center justify-center shadow-[0_4px_12px_rgba(245,196,0,0.35)] mb-5">
                     <span className="text-xl">{["🎯","🤝","🚀"][i]}</span>
                   </div>
-                  <h3 className="text-lg font-bold text-[#2D1A00] mb-3">{s.title.replace(/^\p{Emoji_Presentation}\s*/u, "")}</h3>
-                  <p className="text-sm text-[#6B5E44] leading-relaxed">{s.desc}</p>
+                  <h3 className="text-xl font-bold text-[#2D1A00] mb-3">{s.title.replace(/^\p{Emoji_Presentation}\s*/u, "")}</h3>
+                  <p className="text-base text-[#6B5E44] leading-relaxed">{s.desc}</p>
                 </div>
 
                 {i < 2 && (
