@@ -345,7 +345,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
                     className="object-cover"
                     sizes="(max-width: 640px) 100vw, 33vw"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-white/60 to-transparent" />
                   <div className="absolute top-4 left-4 bg-[#F5C400] text-[#5C3D00] text-xs font-black px-3 py-1 rounded-full shadow">
                     0{i + 1}
                   </div>
