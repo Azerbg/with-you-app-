@@ -54,11 +54,6 @@ function SlideShow({ lang }: { lang: "en" | "fr" }) {
 
   return (
     <div className="relative w-full h-[420px] sm:h-[480px] overflow-hidden">
-      {/* Fade from hero (cream) at the top */}
-      <div className="absolute top-0 inset-x-0 h-28 bg-gradient-to-b from-[#fdfaf4] to-transparent z-20 pointer-events-none" />
-      {/* Fade to "how it works" (#FAF8F0) at the bottom */}
-      <div className="absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-[#FAF8F0] to-transparent z-20 pointer-events-none" />
-
       {/* Background images — all rendered, only current visible */}
       {slides.map((s, i) => (
         <div
@@ -75,7 +70,7 @@ function SlideShow({ lang }: { lang: "en" | "fr" }) {
 
       {/* Text content */}
       <div
-        className="absolute inset-x-0 top-28 bottom-28 z-10 flex items-center px-8 sm:px-14 lg:px-20"
+        className="absolute inset-0 z-10 flex items-center px-8 sm:px-14 lg:px-20"
         style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(10px)", transition: "opacity 400ms ease, transform 400ms ease" }}
       >
         <div className="max-w-xl">
@@ -94,7 +89,7 @@ function SlideShow({ lang }: { lang: "en" | "fr" }) {
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-32 left-8 sm:left-14 lg:left-20 flex items-center gap-2 z-30">
+      <div className="absolute bottom-6 left-8 sm:left-14 lg:left-20 flex items-center gap-2 z-10">
         {slides.map((_, i) => (
           <button
             key={i}
@@ -479,8 +474,12 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         </div>
       </section>
 
-      {/* ── Slideshow banner ── */}
-      <SlideShow lang={lang} />
+      {/* ── Slideshow banner — floating card ── */}
+      <div className="bg-[#FAF8F0] px-4 sm:px-8 lg:px-16 py-10">
+        <div className="rounded-[28px] overflow-hidden shadow-[0_20px_60px_-15px_rgba(42,20,0,0.25)]">
+          <SlideShow lang={lang} />
+        </div>
+      </div>
 
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-16 px-8 bg-[#FAF8F0]">
