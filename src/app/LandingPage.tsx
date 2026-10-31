@@ -101,9 +101,16 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
           color: white;
           transform: scale(1.05);
         }
+        @keyframes marquee {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee-track { animation: marquee 28s linear infinite; }
+        .marquee-track:hover { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) {
           .a1,.a2,.a3,.a4,.a5,.a6,.blob,.blob-2,.blob-3 { animation: none; }
           .shimmer { animation: none; background: #5C3D00; -webkit-text-fill-color: #5C3D00; }
+          .marquee-track { animation: none; }
         }
       `}</style>
 
@@ -304,6 +311,50 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
         </div>
       </section>
+
+      {/* ── Marquee strip ── */}
+      {(() => {
+        const items = lang === "fr" ? [
+          { photo: "/images/marquee/m1.webp", name: "Sofia", text: "J'ai progressé de A2 à B2 en seulement 4 mois !" },
+          { photo: "/images/marquee/m2.webp", name: "Marc",  text: "Mon tuteur s'adapte parfaitement à mon rythme." },
+          { photo: "/images/marquee/m3.webp", name: "Lina",  text: "Flexible, efficace — j'apprends quand je veux." },
+          { photo: "/images/marquee/m4.webp", name: "Adam",  text: "La première séance gratuite m'a convaincu tout de suite." },
+          { photo: "/images/marquee/m1.webp", name: "Nour",  text: "En 3 séances j'étais déjà plus à l'aise à l'oral." },
+          { photo: "/images/marquee/m2.webp", name: "Karim", text: "Les notes de cours après chaque séance, c'est génial." },
+          { photo: "/images/marquee/m3.webp", name: "Rita",  text: "Je recommande WithYou à tous mes collègues." },
+          { photo: "/images/marquee/m4.webp", name: "Farid", text: "Enfin une plateforme qui comprend mes objectifs." },
+        ] : [
+          { photo: "/images/marquee/m1.webp", name: "Sofia", text: "I went from A2 to B2 in just 4 months!" },
+          { photo: "/images/marquee/m2.webp", name: "Marc",  text: "My tutor adapts perfectly to my learning style." },
+          { photo: "/images/marquee/m3.webp", name: "Lina",  text: "Flexible, effective — I learn whenever I want." },
+          { photo: "/images/marquee/m4.webp", name: "Adam",  text: "The free trial session convinced me right away." },
+          { photo: "/images/marquee/m1.webp", name: "Nour",  text: "After 3 sessions I was already more confident speaking." },
+          { photo: "/images/marquee/m2.webp", name: "Karim", text: "Getting session notes after every lesson is brilliant." },
+          { photo: "/images/marquee/m3.webp", name: "Rita",  text: "I recommend WithYou to all my friends." },
+          { photo: "/images/marquee/m4.webp", name: "Farid", text: "Finally a platform that actually gets my goals." },
+        ];
+        const doubled = [...items, ...items];
+        return (
+          <div className="overflow-hidden border-y border-[#F5C400]/20 bg-[#fdfaf4] py-4" aria-hidden="true">
+            <div className="marquee-track flex gap-5" style={{ width: "max-content" }}>
+              {doubled.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 bg-white border border-[#E8DFC8] rounded-full pl-1.5 pr-5 py-1.5 shadow-sm flex-shrink-0"
+                >
+                  <img
+                    src={item.photo}
+                    alt={item.name}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                  />
+                  <span className="text-sm font-medium text-[#3d2900] whitespace-nowrap">{item.text}</span>
+                  <span className="text-[#F5C400] text-sm flex-shrink-0">★</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
