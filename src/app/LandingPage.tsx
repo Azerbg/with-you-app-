@@ -30,15 +30,13 @@ function SlideShow({ lang }: { lang: "en" | "fr" }) {
 
   // pos = CSS object-position pour cadrer le sujet principal de chaque photo
   const slides = lang === "fr" ? [
-    { img: "/images/marquee/b1.webp", pos: "50% 30%", quote: "J'ai progressé de A2 à B2 en seulement 4 mois.", name: "Sofia M.", role: "Apprenante en français" },
-    { img: "/images/marquee/b2.webp", pos: "50% 50%", quote: "Mon tuteur s'adapte exactement à mes besoins et à mon rythme.", name: "Marc T.", role: "Apprenant en anglais" },
-    { img: "/images/marquee/b3.webp", pos: "50% 32%", quote: "Flexible, efficace — je progresse sans quitter chez moi.", name: "Lina K.", role: "Apprenante en espagnol" },
-    { img: "/images/marquee/b4.webp", pos: "50% 45%", quote: "La première séance gratuite m'a convaincu immédiatement.", name: "Adam R.", role: "Apprenant en allemand" },
+    { img: "/images/marquee/b1.webp", pos: "60% 45%", quote: "Je progresse à mon rythme, depuis chez moi.", name: "Lina K.", role: "Apprenante en espagnol" },
+    { img: "/images/marquee/b2.webp", pos: "55% 35%", quote: "J'ai progressé de A2 à B2 en seulement 4 mois.", name: "Sofia M.", role: "Apprenante en français" },
+    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "La première séance gratuite m'a convaincu immédiatement.", name: "Adam R.", role: "Apprenant en allemand" },
   ] : [
-    { img: "/images/marquee/b1.webp", pos: "50% 30%", quote: "I went from A2 to B2 in just 4 months.", name: "Sofia M.", role: "French learner" },
-    { img: "/images/marquee/b2.webp", pos: "50% 50%", quote: "My tutor adapts exactly to my needs and pace.", name: "Marc T.", role: "English learner" },
-    { img: "/images/marquee/b3.webp", pos: "50% 32%", quote: "Flexible and effective — I make real progress from home.", name: "Lina K.", role: "Spanish learner" },
-    { img: "/images/marquee/b4.webp", pos: "50% 45%", quote: "The free trial session convinced me right away.", name: "Adam R.", role: "German learner" },
+    { img: "/images/marquee/b1.webp", pos: "60% 45%", quote: "I make real progress, from the comfort of home.", name: "Lina K.", role: "Spanish learner" },
+    { img: "/images/marquee/b2.webp", pos: "55% 35%", quote: "I went from A2 to B2 in just 4 months.", name: "Sofia M.", role: "French learner" },
+    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "The free trial session convinced me right away.", name: "Adam R.", role: "German learner" },
   ];
 
   useEffect(() => {
