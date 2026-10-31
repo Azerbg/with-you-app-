@@ -297,7 +297,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
       {/* ── Hero ── */}
       <section className="relative">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] py-12 lg:py-8">
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1fr_2fr] gap-12 items-center min-h-[calc(100vh-62px)] py-12 lg:py-8">
 
           {/* Left — content */}
           <div className="flex flex-col justify-center">
