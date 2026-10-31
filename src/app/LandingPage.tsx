@@ -511,7 +511,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
               >
                 <div className="relative h-64 w-full overflow-hidden">
                   <Image
-                    src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.png"}
+                    src={i === 0 ? "/step-1.jpg" : i === 1 ? "/step-2.png" : "/step-3.webp"}
                     alt={lang === "fr" ? `Étape ${i + 1}` : `Step ${i + 1}`}
                     fill
                     className="object-cover"
