@@ -297,7 +297,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
       {/* ── Hero ── */}
       <section className="relative">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] max-h-[720px] py-12 lg:py-0">
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-62px)] py-12 lg:py-8">
 
           {/* Left — content */}
           <div className="flex flex-col justify-center">
@@ -377,14 +377,14 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
           {/* Right — rounded image card */}
           <div className="relative">
-            <div className="relative h-[420px] lg:h-[560px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
+            <div className="relative h-[500px] lg:h-[700px] rounded-[32px] overflow-hidden shadow-2xl ring-1 ring-black/5">
               <Image
                 src="/hero-tutor.webp"
                 alt={lang === "fr" ? "Tuteur WithYou en session en direct" : "WithYou tutor in a live session"}
                 fill
                 priority
                 quality={90}
-                className="object-cover object-[50%_20%]"
+                className="object-cover object-[60%_15%]"
                 sizes="(min-width: 1024px) 50vw, 100vw"
               />
             </div>
