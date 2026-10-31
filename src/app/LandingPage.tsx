@@ -429,14 +429,14 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
       )}
 
       {/* ── Final CTA ── */}
-      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "500px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
+      <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "420px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
 
         <div className="absolute inset-0">
           <Image
             src="/cta-bg.webp"
             alt=""
             fill
-            className="object-cover object-center"
+            className="object-cover object-[center_35%]"
             sizes="100vw"
             quality={90}
           />
