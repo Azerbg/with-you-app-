@@ -610,12 +610,12 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             src="/cta-bg.webp"
             alt=""
             fill
-            className="object-cover object-[center_35%]"
+            className="object-cover object-[55%_40%]"
             sizes="100vw"
             quality={90}
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/85 via-[#1A0D00]/60 to-[#1A0D00]/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1A0D00]/80 via-[#1A0D00]/50 to-[#1A0D00]/10" />
 
         <div className="relative z-10 max-w-5xl mx-auto px-8 md:px-10 lg:px-20 py-24 flex flex-col justify-center h-full">
 
