@@ -131,7 +131,7 @@ function RegisterPageInner() {
 
           <div className="relative z-10">
             <Link href="/" className="inline-block mb-12">
-              <img src="/logo.svg" alt="WithYou" className="h-9 w-auto brightness-0 invert" />
+              <img src="/logo.svg" alt="WithYou" className="h-10 w-auto brightness-0 invert" />
             </Link>
 
             <h2 className="text-white font-bold text-3xl leading-snug mb-3">
@@ -177,7 +177,7 @@ function RegisterPageInner() {
 
           {/* Top bar */}
           <div className="flex items-center justify-between mb-8">
-            <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
+            <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
             <div className="lg:hidden flex-1" />
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}

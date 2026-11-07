@@ -1617,7 +1617,7 @@ export default function TutorApplyWizard() {
 
         {/* Logo */}
         <div>
-          <Link href="/" className="mb-12 inline-block"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto brightness-0 invert" /></Link>
+          <Link href="/" className="mb-12 inline-block"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto brightness-0 invert" /></Link>
 
           <div className="mb-10">
             <span className="inline-block text-xs font-bold text-[#F5C400] bg-[#F5C400]/10 border border-[#F5C400]/20 px-3 py-1 rounded-full mb-4 uppercase tracking-widest">
@@ -1703,7 +1703,7 @@ export default function TutorApplyWizard() {
         {/* Top bar */}
         <div className="h-16 px-8 flex items-center justify-between border-b border-[#E8E0D4] bg-white">
           {/* Mobile logo */}
-          <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-7 w-auto" /></Link>
+          <Link href="/" className="lg:hidden"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
           <p className="hidden lg:block text-sm font-semibold text-[#6B5E44]">
             {fr ? "Candidature tuteur" : "Tutor application"}
           </p>

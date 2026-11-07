@@ -153,7 +153,7 @@ export default function CompleteProfileWizard({
       <div className="w-full max-w-lg bg-white/70 backdrop-blur-xl rounded-2xl shadow-[0_8px_32px_rgba(92,61,0,0.12)] p-8 border border-[#F5C400]/30">
 
         <div className="flex items-center justify-between mb-1">
-          <Link href="/dashboard/tutor"><img src="/logo.svg" alt="WithYou" className="h-9 w-auto" /></Link>
+          <Link href="/dashboard/tutor"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
           <Link href="/dashboard/tutor" className="text-xs text-[#6B5E44] hover:text-[#5C3D00]">← Retour</Link>
         </div>
 

@@ -154,7 +154,7 @@ export default async function TutorProfilePage({ params }: Props) {
 
       {/* Nav */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-8 w-auto" /></Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
         <Link href="/find-tutors" className="text-sm text-[#6B5E44] hover:text-[#5C3D00] transition flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
