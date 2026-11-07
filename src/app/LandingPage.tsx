@@ -474,11 +474,6 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
         </div>
       </section>
 
-      {/* ── Slideshow banner ── */}
-      <div className="h-px bg-gradient-to-r from-transparent via-[#F5C400]/60 to-transparent" />
-      <SlideShow lang={lang} />
-      <div className="h-px bg-gradient-to-r from-transparent via-[#F5C400]/60 to-transparent" />
-
       {/* ── How it works ── */}
       <section id="how-it-works" className="py-24 px-8 bg-[#FAF8F0]">
         <div className="max-w-5xl mx-auto">
