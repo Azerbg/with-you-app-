@@ -819,7 +819,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
       <div className="flex items-center justify-between px-6 py-3 bg-[#0A0703] border-b border-white/5 flex-shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="WithYou" className="h-10 w-auto opacity-70 flex-shrink-0"
+          <img src="/logo.svg" alt="WithYou" className="h-12 w-auto opacity-70 flex-shrink-0"
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
           {isSandbox ? (
             <div className="flex items-center gap-2 bg-amber-900/30 border border-amber-700/40 px-3 py-1 rounded-full flex-shrink-0">

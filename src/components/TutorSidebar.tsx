@@ -119,7 +119,7 @@ export default function TutorSidebar({ fullName, initials, photo, profileComplet
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-[#F0EAD8]">
-        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
+        <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-12 w-auto" /></Link>
       </div>
 
       {/* Avatar */}

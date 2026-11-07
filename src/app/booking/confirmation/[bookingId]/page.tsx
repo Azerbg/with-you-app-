@@ -66,7 +66,7 @@ export default async function BookingConfirmationPage({ params }: Props) {
       {/* Nav */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4">
         <Link href="/">
-          <img src="/logo.svg" alt="WithYou" className="h-10 w-auto" />
+          <img src="/logo.svg" alt="WithYou" className="h-12 w-auto" />
         </Link>
       </div>
 

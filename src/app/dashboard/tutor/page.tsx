@@ -152,7 +152,7 @@ export default async function TutorDashboardPage() {
           {/* Top bar */}
           <div className="px-6 py-4 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
-              <img src="/logo.svg" alt="WithYou" className="h-10 w-auto brightness-0 invert" />
+              <img src="/logo.svg" alt="WithYou" className="h-12 w-auto brightness-0 invert" />
             </Link>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-xs">{initials}</div>
@@ -256,7 +256,7 @@ export default async function TutorDashboardPage() {
       {/* Top bar */}
       <div className="bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-10 w-auto" /></Link>
+          <Link href="/"><img src="/logo.svg" alt="WithYou" className="h-12 w-auto" /></Link>
           <span className="text-[#6B5E44] text-sm font-semibold">Espace Tuteur</span>
         </div>
         <div className="flex items-center gap-3">
