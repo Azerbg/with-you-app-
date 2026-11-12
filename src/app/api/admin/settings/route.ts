@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-const ALLOWED_KEYS = ["usdToTnd"] as const;
+const ALLOWED_KEYS = ["usdToTnd", "platformPaypalEmail", "platformAccountHolder", "platformAccountNote"] as const;
 
 export async function GET() {
   const session = await auth();

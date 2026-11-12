@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
-import { sendPayPalPayout } from "@/lib/paypal";
 import { Currency } from "@prisma/client";
 
 // POST /api/stripe/payouts — triggered by Vercel Cron every Friday or by ADMIN
@@ -58,10 +57,25 @@ export async function POST(req: NextRequest) {
   for (const [tutorId, bookings] of byTutor.entries()) {
     const tutor = bookings[0].tutor;
     const connectId = tutor.stripeConnectAccountId;
-    const paypalEmail = tutor.tutorPaymentMethod?.type === "PAYPAL" ? tutor.tutorPaymentMethod.email : null;
 
-    if (!connectId && !paypalEmail) {
-      results.push({ tutorId, amount: 0, currency: "TND", method: "none", error: "No payout method (no Stripe Connect, no PayPal)" });
+    if (!connectId) {
+      // No Stripe Connect — create a PENDING payout record for manual processing
+      const pending = await db.payout.create({
+        data: {
+          tutorId,
+          amount: totalAmount,
+          currency: currencyPref,
+          sessionCount: bookings.length,
+          status: "PENDING",
+          periodStart,
+          periodEnd,
+        },
+      });
+      await db.booking.updateMany({
+        where: { id: { in: bookings.map((b) => b.id) } },
+        data: { stripeTransferId: `MANUAL_${pending.id}` },
+      });
+      results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "manual", error: "No Stripe Connect — manual payout required" });
       continue;
     }
 
@@ -147,71 +161,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── PayPal payout (fallback when no Stripe Connect) ──
-    else if (paypalEmail) {
-      const bookingIds = bookings.map((b) => b.id).join("-").slice(0, 40);
-      try {
-        const payout = await sendPayPalPayout({
-          recipientEmail: paypalEmail,
-          amountUsd:      totalAmount,
-          note:           `WithYou payout — ${bookings.length} séance(s)`,
-          senderItemId:   bookingIds,
-        });
-
-        // Store the PayPal batch ID in stripeTransferId field (prefixed)
-        const paypalRef = `PAYPAL_${payout.batchId}`;
-        await db.booking.updateMany({
-          where: { id: { in: bookings.map((b) => b.id) } },
-          data: { stripeTransferId: paypalRef },
-        });
-
-        await db.payout.create({
-          data: {
-            tutorId,
-            amount: totalAmount,
-            currency: currencyPref,
-            stripeTransferId: paypalRef,
-            sessionCount: bookings.length,
-            status: "PAID",
-            periodStart,
-            periodEnd,
-            initiatedAt: now,
-            completedAt: now,
-          },
-        });
-
-        await db.notification.create({
-          data: {
-            userId: tutorId,
-            type: "PAYOUT_PROCESSED",
-            title: "Virement traité",
-            body: `Votre virement PayPal de ${totalAmount.toFixed(2)} ${currencyPref} pour ${bookings.length} séance(s) a été envoyé.`,
-            link: `/dashboard/tutor/earnings`,
-          },
-        });
-
-        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "paypal", transferId: payout.batchId });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        const failedPayout = await db.payout.create({
-          data: {
-            tutorId,
-            amount: totalAmount,
-            currency: currencyPref,
-            sessionCount: bookings.length,
-            status: "FAILED",
-            periodStart,
-            periodEnd,
-            failureReason: message,
-          },
-        });
-        await db.booking.updateMany({
-          where: { id: { in: bookings.map((b) => b.id) } },
-          data: { stripeTransferId: `FAILED_${failedPayout.id}` },
-        });
-        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "paypal", error: message });
-      }
-    }
   }
 
   return NextResponse.json({ processed: results.length, results });
