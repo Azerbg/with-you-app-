@@ -82,7 +82,7 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
         ? [db.user.update({ where: { id: studentId }, data: { platformCreditBalance: { decrement: creditAppliedTnd } } })]
         : []),
     ]);
-    await sendConfirmationEmail({ booking, studentId, tutorId });
+    await sendConfirmationEmail({ booking: { ...booking, studentPriceUsd: booking.studentPriceUsd ?? undefined }, studentId, tutorId });
     return;
   }
 
@@ -124,7 +124,7 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
       : []),
   ]);
 
-  await sendConfirmationEmail({ booking, studentId, tutorId });
+  await sendConfirmationEmail({ booking: { ...booking, studentPriceUsd: booking.studentPriceUsd ?? undefined }, studentId, tutorId });
 }
 
 async function sendConfirmationEmail({

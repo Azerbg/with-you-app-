@@ -88,7 +88,11 @@ export async function POST(req: NextRequest) {
           where: { id: pendingBooking.id },
           data:  { status: "CONFIRMED", paypalCaptureId: captureId },
         });
-        await notifyBookingConfirmed({ booking, studentId, tutorId });
+        await notifyBookingConfirmed({
+          booking: { ...booking, studentPriceUsd: booking.studentPriceUsd ?? undefined },
+          studentId,
+          tutorId,
+        });
       } catch (err) {
         console.error("[paypal/webhook] PENDING→CONFIRMED failed:", err instanceof Error ? err.message : err);
       }
@@ -138,7 +142,11 @@ export async function POST(req: NextRequest) {
             paypalCaptureId:  captureId,
           },
         });
-        await notifyBookingConfirmed({ booking, studentId, tutorId });
+        await notifyBookingConfirmed({
+          booking: { ...booking, studentPriceUsd: booking.studentPriceUsd ?? undefined },
+          studentId,
+          tutorId,
+        });
       } catch (err) {
         console.error("[paypal/webhook] fallback booking create failed:", err instanceof Error ? err.message : err);
       }
