@@ -72,8 +72,12 @@ export async function POST(req: NextRequest) {
   const amountUsd = (sessionType === "DISCOVERY" ? DISCOVERY_SESSION_CENTS : STANDARD_SESSION_CENTS) / 100;
   const customId = `${session.user.id}|${tutorId}|${slotDate.toISOString()}|${sessionType}`;
 
+  // Read admin's PayPal receiving account
+  const payeeSetting = await db.setting.findUnique({ where: { key: "platformPaypalEmail" } }).catch(() => null);
+  const payeeEmail = payeeSetting?.value || undefined;
+
   try {
-    const orderId = await createPayPalOrder({ amountUsd, customId });
+    const orderId = await createPayPalOrder({ amountUsd, customId, payeeEmail });
 
     // ── Hold the slot: create PENDING booking ────────────────────────────────
     const rawDuration = sessionType === "SINGLE" ? 50 : 30;

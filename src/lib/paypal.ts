@@ -38,25 +38,30 @@ async function getAccessToken(): Promise<string> {
  * @returns PayPal orderId
  */
 export async function createPayPalOrder(params: {
-  amountUsd: number;
-  customId: string;
+  amountUsd:   number;
+  customId:    string;
+  payeeEmail?: string; // admin's receiving PayPal account
 }): Promise<string> {
   const token = await getAccessToken();
+
+  const purchaseUnit: Record<string, unknown> = {
+    amount:    { currency_code: "USD", value: params.amountUsd.toFixed(2) },
+    custom_id: params.customId,
+  };
+  if (params.payeeEmail) {
+    purchaseUnit.payee = { email_address: params.payeeEmail };
+  }
 
   const res = await fetch(`${PAYPAL_BASE}/v2/checkout/orders`, {
     method:  "POST",
     headers: {
       Authorization:      `Bearer ${token}`,
       "Content-Type":     "application/json",
-      // Idempotency key (max 40 chars, safe chars only)
       "PayPal-Request-Id": `wy-${Date.now()}`,
     },
     body: JSON.stringify({
       intent: "CAPTURE",
-      purchase_units: [{
-        amount:    { currency_code: "USD", value: params.amountUsd.toFixed(2) },
-        custom_id: params.customId,
-      }],
+      purchase_units: [purchaseUnit],
     }),
   });
 

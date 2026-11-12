@@ -52,6 +52,7 @@ export default async function AdminOverviewPage() {
     monthBookings, monthRevenue,
     recentUsers, recentBookings,
     pendingPayouts, todaySessions, hrAwaiting,
+    paypalAccountSetting,
   ] = await Promise.all([
     db.user.count({ where: { role: "STUDENT" } }),
     db.user.count({ where: { role: "TUTOR", hrApplication: { status: "ACTIVE" } } }),
@@ -76,9 +77,11 @@ export default async function AdminOverviewPage() {
     db.booking.count({ where: { status: "COMPLETED", tutorPaidAt: null } }),
     db.booking.count({ where: { scheduledAt: { gte: todayStart, lte: todayEnd }, status: { in: ["CONFIRMED", "COMPLETED"] } } }),
     db.hrApplication.count({ where: { status: { in: ["NEW", "STAGE1_REVIEW", "VIDEO_SUBMITTED", "INTERVIEW_COMPLETE"] } } }),
+    db.setting.findUnique({ where: { key: "platformPaypalEmail" } }),
   ]);
 
   const revenue = monthRevenue._sum.studentPriceUsd ?? 0;
+  const paypalEmail = paypalAccountSetting?.value ?? null;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -103,6 +106,51 @@ export default async function AdminOverviewPage() {
           <StatCard label={lang === "fr" ? "Candidats RH en attente" : "HR candidates awaiting"} value={hrAwaiting} sub={lang === "fr" ? "à traiter" : "to action"} />
           <StatCard label={lang === "fr" ? "Litiges ouverts" : "Open disputes"} value={openDisputes} />
           <StatCard label={lang === "fr" ? "Virements en attente" : "Pending payouts"} value={pendingPayouts} />
+        </div>
+
+        {/* PayPal receiving account card */}
+        <div className="mb-6">
+          <a href="/dashboard/admin/finance" className="block">
+            <div className={`rounded-2xl border p-5 shadow-sm flex items-center gap-4 transition hover:shadow-md ${paypalEmail ? "bg-[#003087] border-[#003087]" : "bg-white border-orange-200"}`}>
+              {/* PayPal logo */}
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${paypalEmail ? "bg-white/15" : "bg-orange-50"}`}>
+                <svg viewBox="0 0 24 24" className={`w-6 h-6 ${paypalEmail ? "fill-white" : "fill-orange-400"}`}>
+                  <path d="M20.067 8.478c.492.315.844.825.983 1.39.09.372.09.752.045 1.126-.494 3.542-3.07 4.763-6.084 4.763h-.394c-.37 0-.681.272-.736.638l-.608 3.858a.74.74 0 01-.73.638H9.812a.428.428 0 01-.422-.494l1.254-7.942C11.206 8.766 14.11 8 16.74 8c1.26 0 2.49.158 3.327.478z"/>
+                  <path d="M4.154 5.549C4.823 4.588 6.038 4 7.498 4h5.863c3.258 0 4.898 1.516 4.738 4.207-.003.056-.008.113-.013.169C17.632 11.52 15.37 13 12.456 13H10.75a.737.737 0 00-.727.624l-.79 5.012a.556.556 0 01-.548.472H6.15a.428.428 0 01-.422-.494L7.49 6.248a1.822 1.822 0 00-.418-.094C6.274 6.063 5.137 6.287 4.154 5.549z"/>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                {paypalEmail ? (
+                  <>
+                    <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-0.5">
+                      {lang === "fr" ? "Compte de réception PayPal" : "PayPal receiving account"}
+                    </p>
+                    <p className="text-base font-bold text-white truncate">{paypalEmail}</p>
+                    <p className="text-xs text-white/60 mt-0.5">
+                      {lang === "fr" ? "Les paiements étudiants arrivent ici" : "Student payments arrive here"}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-orange-600 uppercase tracking-widest mb-0.5">
+                      {lang === "fr" ? "Compte PayPal non configuré" : "PayPal account not configured"}
+                    </p>
+                    <p className="text-sm font-bold text-orange-800">
+                      {lang === "fr" ? "Configurer votre compte de réception →" : "Set up your receiving account →"}
+                    </p>
+                    <p className="text-xs text-orange-500 mt-0.5">
+                      {lang === "fr" ? "Les paiements ne seront pas correctement routés" : "Payments won't be properly routed"}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${paypalEmail ? "bg-white/20" : "bg-orange-100"}`}>
+                <svg viewBox="0 0 20 20" fill="currentColor" className={`w-4 h-4 ${paypalEmail ? "text-white" : "text-orange-500"}`}>
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </a>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
