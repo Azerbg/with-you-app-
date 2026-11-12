@@ -57,6 +57,13 @@ export async function POST(req: NextRequest) {
   for (const [tutorId, bookings] of byTutor.entries()) {
     const tutor = bookings[0].tutor;
     const connectId = tutor.stripeConnectAccountId;
+    const currencyPref = (tutor.tutorCompensation?.currencyPref ?? "TND") as Currency;
+    const totalAmount = bookings.reduce((sum, b) => sum + (b.tutorPayoutAmount ?? 0), 0);
+
+    // Period = actual range of session dates (not a fixed 7-day window)
+    const sessionTimes = bookings.map(b => b.scheduledAt.getTime());
+    const periodStart = new Date(Math.min(...sessionTimes));
+    const periodEnd   = new Date(Math.max(...sessionTimes));
 
     if (!connectId) {
       // No Stripe Connect — create a PENDING payout record for manual processing
@@ -78,14 +85,6 @@ export async function POST(req: NextRequest) {
       results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "manual", error: "No Stripe Connect — manual payout required" });
       continue;
     }
-
-    const currencyPref = (tutor.tutorCompensation?.currencyPref ?? "TND") as Currency;
-    const totalAmount = bookings.reduce((sum, b) => sum + (b.tutorPayoutAmount ?? 0), 0);
-
-    // Period = actual range of session dates (not a fixed 7-day window)
-    const sessionTimes = bookings.map(b => b.scheduledAt.getTime());
-    const periodStart = new Date(Math.min(...sessionTimes));
-    const periodEnd   = new Date(Math.max(...sessionTimes));
 
     const amountUsdCents = Math.round(totalAmount * 100);
     if (amountUsdCents < 100) {
