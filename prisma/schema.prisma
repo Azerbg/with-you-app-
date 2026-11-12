@@ -93,11 +93,13 @@ enum PendingChangeStatus {
 }
 
 enum BookingStatus {
-  PENDING    // Slot held, awaiting payment
-  CONFIRMED  // Payment captured — session is locked in
+  PENDING    // Slot held, payment initiated — released after 60 min if no payment
+  PAID       // Payment captured by provider — session not yet fully confirmed
+  CONFIRMED  // Payment verified + session locked in
   COMPLETED  // Session ended successfully
-  CANCELLED  // Cancelled by student or tutor
+  CANCELLED  // Cancelled before or after payment (slot released)
   NO_SHOW    // One party did not attend
+  REFUNDED   // Payment refunded (after CONFIRMED or COMPLETED)
 }
 
 enum SessionType {

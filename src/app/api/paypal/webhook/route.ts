@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { verifyPayPalWebhook, refundPayPalCapture } from "@/lib/paypal";
 import { sendBookingConfirmationEmail } from "@/lib/email";
+import { DISCOVERY_SESSION_USD, STANDARD_SESSION_USD } from "@/lib/pricing";
 
 // PayPal requires the raw body for signature verification — disable body parsing.
 export const runtime = "nodejs";
@@ -70,6 +71,14 @@ export async function POST(req: NextRequest) {
 
     const [studentId, tutorId, scheduledAt, sessionType] = parts;
     const slotDate = new Date(scheduledAt);
+
+    // ── Security: verify captured amount matches expected price ───────────────
+    const expectedUsd = sessionType === "SINGLE" ? STANDARD_SESSION_USD : DISCOVERY_SESSION_USD;
+    if (amountUsd < expectedUsd - 0.02) {
+      console.error(`[paypal/webhook] Amount mismatch: captured $${amountUsd}, expected $${expectedUsd} — refunding`);
+      try { await refundPayPalCapture(captureId); } catch { /* best effort */ }
+      return NextResponse.json({ received: true });
+    }
 
     // Check slot conflict
     const conflict = await db.booking.findFirst({

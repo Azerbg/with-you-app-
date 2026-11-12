@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { capturePayPalOrder, refundPayPalCapture } from "@/lib/paypal";
 import { sendBookingConfirmationEmail } from "@/lib/email";
+import { DISCOVERY_SESSION_USD, STANDARD_SESSION_USD } from "@/lib/pricing";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid order metadata" }, { status: 400 });
   }
   const [studentId, tutorId, scheduledAt, sessionType] = parts;
+
+  // Security: verify captured amount matches expected price
+  const expectedUsd = sessionType === "SINGLE" ? STANDARD_SESSION_USD : DISCOVERY_SESSION_USD;
+  if (captured.amountUsd < expectedUsd - 0.02) {
+    console.error(`[paypal/capture-order] Amount mismatch: captured $${captured.amountUsd}, expected $${expectedUsd} — refunding`);
+    try { await refundPayPalCapture(captured.captureId); } catch { /* best effort */ }
+    return NextResponse.json({ error: "Payment amount mismatch" }, { status: 402 });
+  }
 
   // Security: captured payment must belong to this student
   if (studentId !== session.user.id) {
