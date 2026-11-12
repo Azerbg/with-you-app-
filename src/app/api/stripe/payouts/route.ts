@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           id: true,
           stripeConnectAccountId: true,
           tutorCompensation: { select: { currencyPref: true } },
-          tutorPaymentMethod: { select: { type: true, email: true } },
+          paymentMethod: { select: { type: true, email: true } },
         },
       },
     },
