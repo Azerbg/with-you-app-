@@ -239,23 +239,42 @@ async function notifyBookingConfirmed({
   studentId,
   tutorId,
 }: {
-  booking: { id: string; scheduledAt: Date; durationMins: number };
+  booking: { id: string; scheduledAt: Date; durationMins: number; studentPriceUsd?: number };
   studentId: string;
   tutorId: string;
 }) {
   const [student, tutorUser] = await Promise.all([
-    db.user.findUnique({ where: { id: studentId }, select: { email: true } }),
-    db.user.findUnique({ where: { id: tutorId },   select: { email: true, hrApplication: { select: { fullName: true } } } }),
+    db.user.findUnique({ where: { id: studentId }, select: { email: true, firstName: true, lastName: true } }),
+    db.user.findUnique({ where: { id: tutorId },   select: { email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } }),
   ]);
-  if (student?.email && tutorUser) {
+  if (student?.email) {
+    const studentName = [student.firstName, student.lastName].filter(Boolean).join(" ") || student.email;
+    const tutorName   = tutorUser?.hrApplication?.fullName ?? [tutorUser?.firstName, tutorUser?.lastName].filter(Boolean).join(" ") ?? "—";
     sendBookingConfirmationEmail({
       studentEmail: student.email,
-      tutorEmail:   tutorUser.email,
+      tutorEmail:   tutorUser?.email,
       scheduledAt:  booking.scheduledAt,
       durationMins: booking.durationMins,
       bookingId:    booking.id,
       meetingUrl:   null,
+      studentName,
+      tutorName,
+      amountUsd:    booking.studentPriceUsd,
+      provider:     "paypal",
     }).catch(console.error);
+
+    // Admin in-app notification
+    const amountLabel = booking.studentPriceUsd != null ? ` · $${booking.studentPriceUsd.toFixed(2)}` : "";
+    db.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } })
+      .then(admin => admin && db.notification.create({
+        data: {
+          userId: admin.id,
+          type:   "PAYMENT_RECEIVED",
+          title:  `Paiement reçu${amountLabel} (PayPal)`,
+          body:   `${studentName} a payé une séance avec ${tutorName}`,
+          link:   `/dashboard/admin/bookings/${booking.id}`,
+        },
+      })).catch(() => {});
   }
   revalidatePath("/dashboard/student");
   revalidatePath("/dashboard/student/sessions");

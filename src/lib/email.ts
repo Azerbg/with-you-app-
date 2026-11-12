@@ -74,11 +74,16 @@ export async function sendTutorApplicationConfirmation(email: string, fullName: 
 
 export async function sendBookingConfirmationEmail(params: {
   studentEmail: string;
-  tutorEmail: string;
-  scheduledAt: Date;
+  tutorEmail:   string | null | undefined;
+  scheduledAt:  Date;
   durationMins: number;
-  bookingId: string;
-  meetingUrl: string | null;
+  bookingId:    string;
+  meetingUrl:   string | null;
+  // optional — used for admin notification
+  studentName?: string;
+  tutorName?:   string;
+  amountUsd?:   number;
+  provider?:    string;
 }) {
   const { studentEmail, tutorEmail, scheduledAt, durationMins, bookingId, meetingUrl } = params;
 
@@ -96,7 +101,9 @@ export async function sendBookingConfirmationEmail(params: {
     ? `<p>Lien de la séance : <a href="${meetingUrl}">${meetingUrl}</a></p>`
     : `<p>Le lien de la séance vous sera envoyé prochainement.</p>`;
 
-  await Promise.all([
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+
+  const emails: Promise<void>[] = [
     sendEmail(studentEmail, "WithYou — Réservation confirmée !", `
       <div style="font-family:sans-serif;max-width:560px;margin:auto">
         <h2 style="color:#5C3D00">Réservation confirmée !</h2>
@@ -111,7 +118,10 @@ export async function sendBookingConfirmationEmail(params: {
         <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
       </div>
     `),
-    sendEmail(tutorEmail, "WithYou — Nouvelle réservation confirmée", `
+  ];
+
+  if (tutorEmail) {
+    emails.push(sendEmail(tutorEmail, "WithYou — Nouvelle réservation confirmée", `
       <div style="font-family:sans-serif;max-width:560px;margin:auto">
         <h2 style="color:#5C3D00">Nouvelle séance réservée</h2>
         <p>Une séance de <strong>${durationMins} minutes</strong> a été réservée :</p>
@@ -122,8 +132,55 @@ export async function sendBookingConfirmationEmail(params: {
         ${meetingBlock}
         <p style="color:#6b7280;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
       </div>
-    `),
-  ]);
+    `));
+  }
+
+  if (adminEmail) {
+    const providerLabel = params.provider === "paypal" ? "PayPal" : params.provider === "stripe" ? "Stripe" : "—";
+    const amountLabel   = params.amountUsd != null ? `$${params.amountUsd.toFixed(2)}` : "—";
+    const adminUrl      = `${BASE_URL}/dashboard/admin/bookings/${bookingId}`;
+
+    emails.push(sendEmail(adminEmail, `💳 Nouveau paiement reçu — ${amountLabel} (${providerLabel})`, `
+      <div style="font-family:sans-serif;max-width:560px;margin:auto">
+        <div style="background:#003087;padding:20px 32px;border-radius:16px 16px 0 0">
+          <span style="font-size:22px;font-weight:900;color:#fff">WithYou</span>
+          <span style="font-size:14px;color:#fff;opacity:0.7;margin-left:12px">Paiement reçu</span>
+        </div>
+        <div style="background:#fff;padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
+          <div style="background:#F0FDF4;border:1px solid #86EFAC;border-radius:12px;padding:16px 20px;margin-bottom:24px">
+            <p style="margin:0;font-size:28px;font-weight:900;color:#15803D">${amountLabel}</p>
+            <p style="margin:4px 0 0;color:#166534;font-size:14px">reçu via <strong>${providerLabel}</strong></p>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <tr style="border-bottom:1px solid #F2EFE9">
+              <td style="padding:8px 0;color:#9B8A6B;font-weight:600">Étudiant</td>
+              <td style="padding:8px 0;color:#2D1A00;text-align:right">${params.studentName ?? studentEmail}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #F2EFE9">
+              <td style="padding:8px 0;color:#9B8A6B;font-weight:600">Tuteur</td>
+              <td style="padding:8px 0;color:#2D1A00;text-align:right">${params.tutorName ?? (tutorEmail ?? "—")}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #F2EFE9">
+              <td style="padding:8px 0;color:#9B8A6B;font-weight:600">Date séance</td>
+              <td style="padding:8px 0;color:#2D1A00;text-align:right">${tunisTime}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#9B8A6B;font-weight:600">Durée</td>
+              <td style="padding:8px 0;color:#2D1A00;text-align:right">${durationMins} min</td>
+            </tr>
+          </table>
+          <div style="margin-top:24px">
+            <a href="${adminUrl}" style="display:inline-block;background:#5C3D00;color:#F5C400;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px">
+              Voir la réservation →
+            </a>
+          </div>
+          <p style="color:#9B8A6B;font-size:11px;margin-top:20px">WithYou Admin · ${new Date().toISOString()}</p>
+        </div>
+      </div>
+    `));
+  }
+
+  await Promise.all(emails);
 }
 
 export async function sendRejectionEmail(
