@@ -169,22 +169,23 @@ interface Props {
   setupCancelled?:  boolean;
   paypalComplete?:  boolean;
   paypalCancelled?: boolean;
+  vaultSetupToken?: string; // present on mobile PayPal redirect return
   paymentHistory?:  PaymentHistoryItem[];
 }
 
-export default function PaymentSetupClient({ setupComplete, setupCancelled = false, paypalComplete = false, paypalCancelled = false, paymentHistory = [] }: Props) {
+export default function PaymentSetupClient({ setupComplete, setupCancelled = false, paypalComplete = false, paypalCancelled = false, vaultSetupToken, paymentHistory = [] }: Props) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "en" ? en : fr;
 
-  const [methods,       setMethods]       = useState<PaymentMethod[]>([]);
+  const [methods,        setMethods]       = useState<PaymentMethod[]>([]);
   const [loadingMethods, setLoadingMethods] = useState(true);
   const [removing,       setRemoving]      = useState<string | null>(null);
   const [settingDefault, setSettingDefault] = useState<string | null>(null);
-  const [addingCard,    setAddingCard]    = useState(false);
-  const [showAddModal,  setShowAddModal]  = useState(false);
-  const [banner,        setBanner]        = useState<{ type: "success" | "error" | "cancel"; msg: string } | null>(
-    paypalComplete  ? { type: "success", msg: t("Compte PayPal enregistré !", "PayPal account saved!") } :
+  const [addingCard,     setAddingCard]    = useState(false);
+  const [showAddModal,   setShowAddModal]  = useState(false);
+  const [banner,         setBanner]        = useState<{ type: "success" | "error" | "cancel"; msg: string } | null>(
     paypalCancelled ? { type: "cancel",  msg: t("Connexion PayPal annulée.", "PayPal setup was cancelled.") } :
+    paypalComplete  ? { type: "success", msg: t("Compte PayPal enregistré !", "PayPal account saved!") } :
     setupComplete   ? { type: "success", msg: t("Carte enregistrée avec succès !", "Card saved successfully!") } :
     setupCancelled  ? { type: "cancel",  msg: t("Ajout annulé.", "Setup was cancelled.") } :
     null
@@ -192,10 +193,34 @@ export default function PaymentSetupClient({ setupComplete, setupCancelled = fal
 
   useEffect(() => {
     fetchMethods();
-    if (setupComplete || setupCancelled || paypalComplete || paypalCancelled) {
+    if (setupComplete || setupCancelled || paypalComplete || paypalCancelled || vaultSetupToken) {
       window.history.replaceState({}, "", "/dashboard/student/billing");
     }
-  }, [setupComplete, setupCancelled, paypalComplete, paypalCancelled]);
+  }, [setupComplete, setupCancelled, paypalComplete, paypalCancelled, vaultSetupToken]);
+
+  // Fix 2: mobile PayPal redirect — exchange setup token returned in URL for a payment token
+  useEffect(() => {
+    if (!vaultSetupToken) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/paypal/payment-token", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ setupTokenId: vaultSetupToken }),
+        });
+        if (res.ok) {
+          await fetchMethods();
+          setBanner({ type: "success", msg: t("Compte PayPal enregistré !", "PayPal account saved!") });
+        } else {
+          const d = await res.json().catch(() => ({})) as { error?: string };
+          setBanner({ type: "error", msg: d.error ?? t("Impossible d'enregistrer le compte PayPal.", "Could not save your PayPal account.") });
+        }
+      } catch {
+        setBanner({ type: "error", msg: t("Erreur réseau. Réessayez.", "Network error. Please try again.") });
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vaultSetupToken]);
 
   async function fetchMethods() {
     setLoadingMethods(true);

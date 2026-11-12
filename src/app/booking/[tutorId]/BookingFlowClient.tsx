@@ -357,12 +357,14 @@ export default function BookingFlowClient({
   const [saveCard, setSaveCard] = useState(false);
   const [paypalError, setPaypalError] = useState<string | null>(null);
   const [paypalProcessing, setPaypalProcessing] = useState(false);
+  const [paypalClientId, setPaypalClientId] = useState<string>("");
 
-  // ── Warn when PayPal client ID is not configured ──
+  // ── Fetch PayPal client ID from server ──
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID) {
-      console.warn("[PayPal] NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set — PayPal buttons will not render");
-    }
+    fetch("/api/config/paypal")
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: { clientId: string }) => setPaypalClientId(d.clientId))
+      .catch(() => {});
   }, []);
 
   // ── Load saved cards once ──
@@ -513,12 +515,13 @@ export default function BookingFlowClient({
     ? `${formatDateLabel(selectedSlot.slice(0, 10), lang, displayTz)} ${t("à", "at")} ${formatSlotTime(selectedSlot, lang, displayTz)}`
     : null;
 
-  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const paypalOptions = useMemo(() => ({ clientId: paypalClientId, currency: "USD", intent: "capture" }), []);
+  const paypalOptions = useMemo(
+    () => ({ clientId: paypalClientId || "placeholder", currency: "USD", intent: "capture" }),
+    [paypalClientId],
+  );
 
   return (
-    <PayPalScriptProvider options={paypalOptions} deferLoading={!paypalClientId}>
+    <PayPalScriptProvider key={paypalClientId || "defer"} options={paypalOptions} deferLoading={!paypalClientId}>
     <div className="min-h-screen bg-[#FAF8F0]">
 
       {/* Progress steps */}
@@ -747,23 +750,52 @@ export default function BookingFlowClient({
               </div>
             </div>
 
-            <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5">
+            <div className="bg-white border border-[#C4BAA8] rounded-2xl p-5 space-y-5">
+
+              {/* ── PayPal — primary option ── */}
+              {paypalClientId ? (
+                <div>
+                  {paypalError && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{paypalError}</p>
+                  )}
+                  <PayPalButtons
+                    style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
+                    createOrder={handlePayPalCreateOrder}
+                    onApprove={handlePayPalApprove}
+                    onError={(err) => { console.error("[PayPal]", err); setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed")); }}
+                    disabled={paypalProcessing}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-3">
+                  <div className="w-5 h-5 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* ── Divider ── */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#E8E0D4]" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-3 bg-white text-xs text-[#9B8A6B]">
+                    {t("ou payer par carte", "or pay by card")}
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Stripe — card payment ── */}
+              {payError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{payError}</div>
+              )}
               {loadingIntent || loadingCards ? (
-                <div className="flex items-center justify-center py-10">
+                <div className="flex items-center justify-center py-6">
                   <div className="w-6 h-6 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : intentError ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-                  {intentError}
-                </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{intentError}</div>
               ) : clientSecret ? (
-                <div className="space-y-4">
-                  {payError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
-                      {payError}
-                    </div>
-                  )}
-
+                <>
                   {showSavedCardUI ? (
                     <div className="space-y-3">
                       <div className="border border-[#E0D8CC] rounded-xl p-4 flex items-center gap-3">
@@ -797,23 +829,6 @@ export default function BookingFlowClient({
                       <button onClick={() => setUseNewCard(true)} className="w-full text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition py-1">
                         {t("Utiliser une autre carte", "Use a different card")}
                       </button>
-                      {paypalClientId && (
-                        <div className="pt-3 border-t border-[#E8E0D4]">
-                          <p className="text-xs text-center text-[#9B8A6B] mb-3">
-                            {t("ou payer avec PayPal", "or pay with PayPal")}
-                          </p>
-                          {paypalError && (
-                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{paypalError}</p>
-                          )}
-                          <PayPalButtons
-                            style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
-                            createOrder={handlePayPalCreateOrder}
-                            onApprove={handlePayPalApprove}
-                            onError={(err) => { console.error("[PayPal]", err); setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed")); }}
-                            disabled={paypalProcessing}
-                          />
-                        </div>
-                      )}
                     </div>
                   ) : stripePromise ? (
                     <>
@@ -851,31 +866,14 @@ export default function BookingFlowClient({
                           />
                         </Elements>
                       )}
-                      {paypalClientId && (
-                        <div className="pt-4 border-t border-[#E8E0D4]">
-                          <p className="text-xs text-center text-[#9B8A6B] mb-3">
-                            {t("ou payer avec PayPal", "or pay with PayPal")}
-                          </p>
-                          {paypalError && (
-                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 mb-3">{paypalError}</p>
-                          )}
-                          <PayPalButtons
-                            style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay", height: 48 }}
-                            createOrder={handlePayPalCreateOrder}
-                            onApprove={handlePayPalApprove}
-                            onError={(err) => { console.error("[PayPal]", err); setPaypalError(t("Paiement PayPal échoué", "PayPal payment failed")); }}
-                            disabled={paypalProcessing}
-                          />
-                        </div>
-                      )}
                     </>
                   ) : null}
-                </div>
+                </>
               ) : null}
             </div>
 
             <p className="text-[11px] text-[#9B8A6B] text-center mt-2">
-              {t("Paiement sécurisé par Stripe — vos données ne sont jamais stockées", "Secured by Stripe — your card details are never stored")}
+              {t("Paiement sécurisé par PayPal & Stripe — vos données ne sont jamais stockées", "Secured by PayPal & Stripe — your card details are never stored")}
             </p>
           </div>
         )}

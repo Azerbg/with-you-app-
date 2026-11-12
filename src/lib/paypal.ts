@@ -324,6 +324,60 @@ export async function chargeVaultedPayPal(params: {
   };
 }
 
+// ─── PayPal Payouts API (tutor payouts) ───────────────────────────────────────
+
+export interface PayPalPayoutResult {
+  batchId:  string;
+  status:   string;
+}
+
+/**
+ * Send a payout to a tutor's PayPal email via the PayPal Payouts API.
+ * Requires the "Payouts" permission to be enabled on your PayPal Business account.
+ */
+export async function sendPayPalPayout(params: {
+  recipientEmail: string;
+  amountUsd:      number;
+  note:           string;
+  senderItemId:   string; // unique ID for idempotency (e.g. bookingIds joined)
+}): Promise<PayPalPayoutResult> {
+  const token = await getAccessToken();
+
+  const res = await fetch(`${PAYPAL_BASE}/v1/payments/payouts`, {
+    method:  "POST",
+    headers: {
+      Authorization:      `Bearer ${token}`,
+      "Content-Type":     "application/json",
+      "PayPal-Request-Id": `wy-payout-${params.senderItemId}`,
+    },
+    body: JSON.stringify({
+      sender_batch_header: {
+        sender_batch_id: `wy-${params.senderItemId}`,
+        email_subject:   "WithYou — Virement tuteur",
+        email_message:   "Votre virement WithYou a été envoyé.",
+      },
+      items: [{
+        recipient_type: "EMAIL",
+        amount:         { value: params.amountUsd.toFixed(2), currency: "USD" },
+        note:           params.note,
+        sender_item_id: params.senderItemId,
+        receiver:       params.recipientEmail,
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { debug_id?: string; message?: string };
+    throw new Error(`PayPal payout failed [${err.debug_id ?? "?"}]: ${err.message ?? JSON.stringify(err)}`);
+  }
+
+  const data = await res.json() as { batch_header: { payout_batch_id: string; batch_status: string } };
+  return {
+    batchId: data.batch_header.payout_batch_id,
+    status:  data.batch_header.batch_status,
+  };
+}
+
 /** Verify a PayPal webhook signature via the PayPal verification API. */
 export async function verifyPayPalWebhook(params: {
   headers: Record<string, string>;

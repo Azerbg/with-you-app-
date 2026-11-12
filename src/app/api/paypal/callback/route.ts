@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${BASE_URL}/api/paypal/callback`;
 
   const paypalApiBase =
-    process.env.PAYPAL_MODE === "sandbox"
+    process.env.PAYPAL_ENV !== "live"
       ? "https://api-m.sandbox.paypal.com"
       : "https://api-m.paypal.com";
 

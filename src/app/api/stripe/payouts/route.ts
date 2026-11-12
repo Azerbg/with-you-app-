@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
+import { sendPayPalPayout } from "@/lib/paypal";
 import { Currency } from "@prisma/client";
 
 // POST /api/stripe/payouts — triggered by Vercel Cron every Friday or by ADMIN
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
           id: true,
           stripeConnectAccountId: true,
           tutorCompensation: { select: { currencyPref: true } },
+          tutorPaymentMethod: { select: { type: true, email: true } },
         },
       },
     },
@@ -51,13 +53,15 @@ export async function POST(req: NextRequest) {
     byTutor.get(tid)!.push(b);
   }
 
-  const results: { tutorId: string; amount: number; currency: string; transferId?: string; error?: string }[] = [];
+  const results: { tutorId: string; amount: number; currency: string; method: string; transferId?: string; error?: string }[] = [];
 
   for (const [tutorId, bookings] of byTutor.entries()) {
     const tutor = bookings[0].tutor;
     const connectId = tutor.stripeConnectAccountId;
-    if (!connectId) {
-      results.push({ tutorId, amount: 0, currency: "TND", error: "No Stripe Connect account" });
+    const paypalEmail = tutor.tutorPaymentMethod?.type === "PAYPAL" ? tutor.tutorPaymentMethod.email : null;
+
+    if (!connectId && !paypalEmail) {
+      results.push({ tutorId, amount: 0, currency: "TND", method: "none", error: "No payout method (no Stripe Connect, no PayPal)" });
       continue;
     }
 
@@ -69,81 +73,144 @@ export async function POST(req: NextRequest) {
     const periodStart = new Date(Math.min(...sessionTimes));
     const periodEnd   = new Date(Math.max(...sessionTimes));
 
-    // Convert to USD cents for Stripe (phase 1 simplification)
     const amountUsdCents = Math.round(totalAmount * 100);
     if (amountUsdCents < 100) {
-      results.push({ tutorId, amount: totalAmount, currency: currencyPref, error: "Below minimum payout ($1 USD)" });
+      results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "none", error: "Below minimum payout ($1 USD)" });
       continue;
     }
 
-    try {
-      const transfer = await stripe.transfers.create({
-        amount: amountUsdCents,
-        currency: "usd",
-        destination: connectId,
-        description: `WithYou payout — ${bookings.length} séance(s)`,
-        metadata: {
-          tutorId,
-          bookingIds: bookings.map((b) => b.id).join(","),
-          sessionCount: String(bookings.length),
-        },
-      });
+    // ── Stripe Connect payout ──
+    if (connectId) {
+      try {
+        const transfer = await stripe.transfers.create({
+          amount: amountUsdCents,
+          currency: "usd",
+          destination: connectId,
+          description: `WithYou payout — ${bookings.length} séance(s)`,
+          metadata: {
+            tutorId,
+            bookingIds: bookings.map((b) => b.id).join(","),
+            sessionCount: String(bookings.length),
+          },
+        });
 
-      await db.booking.updateMany({
-        where: { id: { in: bookings.map((b) => b.id) } },
-        data: { stripeTransferId: transfer.id },
-      });
+        await db.booking.updateMany({
+          where: { id: { in: bookings.map((b) => b.id) } },
+          data: { stripeTransferId: transfer.id },
+        });
 
-      await db.payout.create({
-        data: {
-          tutorId,
-          amount: totalAmount,
-          currency: currencyPref,
-          stripeTransferId: transfer.id,
-          sessionCount: bookings.length,
-          status: "PAID",
-          periodStart,
-          periodEnd,
-          initiatedAt: now,
-          completedAt: now,
-        },
-      });
+        await db.payout.create({
+          data: {
+            tutorId,
+            amount: totalAmount,
+            currency: currencyPref,
+            stripeTransferId: transfer.id,
+            sessionCount: bookings.length,
+            status: "PAID",
+            periodStart,
+            periodEnd,
+            initiatedAt: now,
+            completedAt: now,
+          },
+        });
 
-      await db.notification.create({
-        data: {
-          userId: tutorId,
-          type: "PAYOUT_PROCESSED",
-          title: "Virement traité",
-          body: `Votre virement de ${totalAmount.toFixed(2)} ${currencyPref} pour ${bookings.length} séance(s) a été envoyé.`,
-          link: `/dashboard/tutor/earnings`,
-        },
-      });
+        await db.notification.create({
+          data: {
+            userId: tutorId,
+            type: "PAYOUT_PROCESSED",
+            title: "Virement traité",
+            body: `Votre virement de ${totalAmount.toFixed(2)} ${currencyPref} pour ${bookings.length} séance(s) a été envoyé.`,
+            link: `/dashboard/tutor/earnings`,
+          },
+        });
 
-      results.push({ tutorId, amount: totalAmount, currency: currencyPref, transferId: transfer.id });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "stripe", transferId: transfer.id });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        const failedPayout = await db.payout.create({
+          data: {
+            tutorId,
+            amount: totalAmount,
+            currency: currencyPref,
+            sessionCount: bookings.length,
+            status: "FAILED",
+            periodStart,
+            periodEnd,
+            failureReason: message,
+          },
+        });
+        await db.booking.updateMany({
+          where: { id: { in: bookings.map((b) => b.id) } },
+          data: { stripeTransferId: `FAILED_${failedPayout.id}` },
+        });
+        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "stripe", error: message });
+      }
+    }
 
-      const failedPayout = await db.payout.create({
-        data: {
-          tutorId,
-          amount: totalAmount,
-          currency: currencyPref,
-          sessionCount: bookings.length,
-          status: "FAILED",
-          periodStart,
-          periodEnd,
-          failureReason: message,
-        },
-      });
+    // ── PayPal payout (fallback when no Stripe Connect) ──
+    else if (paypalEmail) {
+      const bookingIds = bookings.map((b) => b.id).join("-").slice(0, 40);
+      try {
+        const payout = await sendPayPalPayout({
+          recipientEmail: paypalEmail,
+          amountUsd:      totalAmount,
+          note:           `WithYou payout — ${bookings.length} séance(s)`,
+          senderItemId:   bookingIds,
+        });
 
-      // Mark bookings so they aren't re-counted on the next cron run.
-      // An admin can reset stripeTransferId to null to trigger a retry.
-      await db.booking.updateMany({
-        where: { id: { in: bookings.map((b) => b.id) } },
-        data: { stripeTransferId: `FAILED_${failedPayout.id}` },
-      });
+        // Store the PayPal batch ID in stripeTransferId field (prefixed)
+        const paypalRef = `PAYPAL_${payout.batchId}`;
+        await db.booking.updateMany({
+          where: { id: { in: bookings.map((b) => b.id) } },
+          data: { stripeTransferId: paypalRef },
+        });
 
-      results.push({ tutorId, amount: totalAmount, currency: currencyPref, error: message });
+        await db.payout.create({
+          data: {
+            tutorId,
+            amount: totalAmount,
+            currency: currencyPref,
+            stripeTransferId: paypalRef,
+            sessionCount: bookings.length,
+            status: "PAID",
+            periodStart,
+            periodEnd,
+            initiatedAt: now,
+            completedAt: now,
+          },
+        });
+
+        await db.notification.create({
+          data: {
+            userId: tutorId,
+            type: "PAYOUT_PROCESSED",
+            title: "Virement traité",
+            body: `Votre virement PayPal de ${totalAmount.toFixed(2)} ${currencyPref} pour ${bookings.length} séance(s) a été envoyé.`,
+            link: `/dashboard/tutor/earnings`,
+          },
+        });
+
+        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "paypal", transferId: payout.batchId });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        const failedPayout = await db.payout.create({
+          data: {
+            tutorId,
+            amount: totalAmount,
+            currency: currencyPref,
+            sessionCount: bookings.length,
+            status: "FAILED",
+            periodStart,
+            periodEnd,
+            failureReason: message,
+          },
+        });
+        await db.booking.updateMany({
+          where: { id: { in: bookings.map((b) => b.id) } },
+          data: { stripeTransferId: `FAILED_${failedPayout.id}` },
+        });
+        results.push({ tutorId, amount: totalAmount, currency: currencyPref, method: "paypal", error: message });
+      }
     }
   }
 

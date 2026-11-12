@@ -3,22 +3,18 @@
 /**
  * PayPalVaultButton — renders the official PayPal button in vault/tokenize mode.
  *
- * Uses @paypal/react-paypal-js (already installed).
- * The SDK is loaded with vault=true and intent=tokenize so the button saves the
- * PayPal account without an immediate payment.
- *
  * Flow:
- *   1. User clicks the PayPal button.
- *   2. createVaultSetupToken  → POST /api/paypal/setup-token  → returns setup token id.
- *   3. PayPal popup: payer logs in and approves.
- *   4. onApprove({ vaultSetupToken }) → POST /api/paypal/payment-token → saves vault token.
- *   5. onSuccess() is called — parent refreshes the payment methods list.
+ *   1. Component mounts → fetches clientId from /api/config/paypal (server env, no NEXT_PUBLIC_ needed).
+ *   2. User clicks the PayPal button.
+ *   3. createVaultSetupToken → POST /api/paypal/setup-token → returns setup token id.
+ *   4. PayPal popup (or redirect on mobile): payer logs in and approves.
+ *   5. onApprove({ vaultSetupToken }) → POST /api/paypal/payment-token → saves vault token.
+ *   6. onSuccess() called — parent refreshes the payment methods list.
  */
 
+import { useState, useEffect } from "react";
 import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useLanguage } from "@/context/LanguageContext";
-
-const CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
 
 interface Props {
   onSuccess: () => void;
@@ -80,17 +76,37 @@ function InnerButton({ onSuccess, onError, onCancel }: Props) {
 }
 
 export default function PayPalVaultButton(props: Props) {
-  if (!CLIENT_ID) {
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [configError, setConfigError] = useState(false);
+  const { lang } = useLanguage();
+  const t = (fr: string, en: string) => lang === "en" ? en : fr;
+
+  useEffect(() => {
+    fetch("/api/config/paypal")
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((d: { clientId: string }) => setClientId(d.clientId))
+      .catch(() => setConfigError(true));
+  }, []);
+
+  if (configError) {
     return (
       <p className="text-xs text-red-500 text-center">
-        PayPal client ID not configured (NEXT_PUBLIC_PAYPAL_CLIENT_ID).
+        {t("PayPal non configuré. Contactez le support.", "PayPal not configured. Contact support.")}
       </p>
+    );
+  }
+
+  if (!clientId) {
+    return (
+      <div className="flex items-center justify-center h-11 rounded-xl bg-[#F7F5F0] border border-black/8">
+        <div className="w-4 h-4 border-2 border-[#F5C400] border-t-transparent rounded-full animate-spin" />
+      </div>
     );
   }
 
   return (
     <PayPalScriptProvider options={{
-      clientId:   CLIENT_ID,
+      clientId,
       vault:      true,
       intent:     "tokenize",
       components: "buttons",
