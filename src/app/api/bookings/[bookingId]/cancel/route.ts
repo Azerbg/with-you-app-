@@ -21,8 +21,17 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (booking.status === "CANCELLED") {
+  if (booking.status === "CANCELLED" || booking.status === "REFUNDED") {
     return NextResponse.json({ error: "Already cancelled" }, { status: 409 });
+  }
+
+  // PENDING = slot held but payment not completed → cancel immediately, no refund
+  if (booking.status === "PENDING") {
+    await db.booking.update({
+      where: { id: bookingId },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: booking.studentId === uid ? "STUDENT" : "TUTOR", cancellationReason: reason },
+    });
+    return NextResponse.json({ success: true, refundType: "NONE" });
   }
 
   const now = new Date();

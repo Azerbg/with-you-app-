@@ -122,6 +122,52 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // ── Hold the slot: create or update PENDING booking ──────────────────────
+    // This prevents another student from booking the same slot while payment is in progress.
+    // Cancelled automatically after 60 min if payment never completes.
+    const rawDuration = sessionType === "SINGLE" ? 50 : 30;
+    const durationMins = Math.min(240, Math.max(15, rawDuration));
+    const tutorComp = await db.tutorCompensation.findUnique({
+      where: { userId: tutorId },
+      select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
+    });
+    const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
+    const hourlyRate = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+    const studentPriceUsd = amountCents / 100;
+    const tutorPayoutAmount = hourlyRate > 0
+      ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
+      : Math.round(studentPriceUsd * 0.70 * 100) / 100;
+    const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
+
+    // If student retries payment for same slot, cancel old PENDING and create fresh one
+    await db.booking.updateMany({
+      where: {
+        studentId: session.user.id,
+        tutorId,
+        scheduledAt: slotDate,
+        status: "PENDING",
+      },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "SYSTEM", cancellationReason: "Payment retry" },
+    });
+
+    await db.booking.create({
+      data: {
+        studentId: session.user.id,
+        tutorId,
+        sessionType: sessionType as "DISCOVERY" | "SINGLE",
+        status: "PENDING",
+        durationMins,
+        scheduledAt: slotDate,
+        studentPriceUsd,
+        studentCurrency: "USD",
+        tutorPayoutAmount,
+        tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
+        platformMargin,
+        stripePaymentIntentId: paymentIntent.id,
+        creditAppliedTnd,
+      },
+    });
+
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,

@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
 
+  // ── 1. Expire stale PENDING bookings (payment window = 60 min) ───────────────
+  const pendingCutoff = new Date(now.getTime() - 60 * 60_000);
+  const { count: expired } = await db.booking.updateMany({
+    where: {
+      status: "PENDING",
+      createdAt: { lt: pendingCutoff },
+    },
+    data: { status: "CANCELLED", cancelledAt: now, cancelledBy: "SYSTEM", cancellationReason: "Payment timeout" },
+  });
+
+  // ── 2. Close CONFIRMED sessions that have ended ──────────────────────────────
   const stale = await db.booking.findMany({
     where: { status: "CONFIRMED" },
     select: { id: true, scheduledAt: true, durationMins: true },
@@ -32,14 +43,12 @@ export async function POST(req: NextRequest) {
     return endAt < now;
   });
 
-  if (toClose.length === 0) {
-    return NextResponse.json({ fixed, closed: 0, message: "Nothing to close" });
+  if (toClose.length > 0) {
+    await db.booking.updateMany({
+      where: { id: { in: toClose.map((b) => b.id) } },
+      data:  { status: "COMPLETED" },
+    });
   }
 
-  await db.booking.updateMany({
-    where: { id: { in: toClose.map((b) => b.id) } },
-    data:  { status: "COMPLETED" },
-  });
-
-  return NextResponse.json({ fixed, closed: toClose.length });
+  return NextResponse.json({ fixed, expired, closed: toClose.length });
 }

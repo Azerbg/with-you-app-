@@ -62,10 +62,6 @@ export async function POST(req: NextRequest) {
 
     if (!orderId || !customId) return NextResponse.json({ received: true });
 
-    // Idempotency: skip if booking already created (e.g. by capture-order route)
-    const alreadyBooked = await db.booking.findUnique({ where: { paypalOrderId: orderId } }).catch(() => null);
-    if (alreadyBooked) return NextResponse.json({ received: true });
-
     const parts = customId.split("|");
     if (parts.length !== 4) return NextResponse.json({ received: true });
 
@@ -80,75 +76,73 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // Check slot conflict
-    const conflict = await db.booking.findFirst({
-      where: { tutorId, scheduledAt: slotDate, status: { in: ["PENDING", "CONFIRMED"] } },
+    // ── Path A: update PENDING booking (normal flow) ──────────────────────────
+    const pendingBooking = await db.booking.findFirst({
+      where: { paypalOrderId: orderId, status: "PENDING" },
     }).catch(() => null);
 
-    if (conflict) {
-      try { await refundPayPalCapture(captureId); } catch { /* best effort */ }
-      return NextResponse.json({ received: true });
-    }
+    if (pendingBooking) {
+      // ── Path A: update PENDING → CONFIRMED ─────────────────────────────────
+      try {
+        const booking = await db.booking.update({
+          where: { id: pendingBooking.id },
+          data:  { status: "CONFIRMED", paypalCaptureId: captureId },
+        });
+        await notifyBookingConfirmed({ booking, studentId, tutorId });
+      } catch (err) {
+        console.error("[paypal/webhook] PENDING→CONFIRMED failed:", err instanceof Error ? err.message : err);
+      }
+    } else {
+      // ── Path B: Idempotency — already CONFIRMED ──────────────────────────────
+      const alreadyBooked = await db.booking.findUnique({ where: { paypalOrderId: orderId } }).catch(() => null);
+      if (alreadyBooked) return NextResponse.json({ received: true });
 
-    const sessionTyped  = (sessionType === "SINGLE" ? "SINGLE" : "DISCOVERY") as "DISCOVERY" | "SINGLE";
-    const rawDuration   = sessionTyped === "SINGLE" ? 50 : 30;
-    const durationMins  = Math.min(240, Math.max(15, rawDuration));
-
-    const tutorComp = await db.tutorCompensation.findUnique({
-      where:  { userId: tutorId },
-      select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
-    }).catch(() => null);
-
-    const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
-    const hourlyRate        = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
-    const tutorPayoutAmount = hourlyRate > 0
-      ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
-      : Math.round(amountUsd * 0.70 * 100) / 100;
-    const platformMargin = Math.round((amountUsd - tutorPayoutAmount) * 100) / 100;
-
-    try {
-      const booking = await db.booking.create({
-        data: {
-          studentId,
-          tutorId,
-          sessionType:      sessionTyped,
-          status:           "CONFIRMED",
-          durationMins,
-          scheduledAt:      slotDate,
-          studentPriceUsd:  amountUsd,
-          studentCurrency:  "USD",
-          tutorPayoutAmount,
-          tutorCurrency:    tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
-          platformMargin,
-          paymentProvider:  "paypal",
-          paypalOrderId:    orderId,
-          paypalCaptureId:  captureId,
-        },
-      });
-
-      const [student, tutorUser] = await Promise.all([
-        db.user.findUnique({ where: { id: studentId }, select: { email: true } }),
-        db.user.findUnique({ where: { id: tutorId },   select: { email: true, hrApplication: { select: { fullName: true } } } }),
-      ]);
-
-      if (student?.email && tutorUser) {
-        sendBookingConfirmationEmail({
-          studentEmail: student.email,
-          tutorEmail:   tutorUser.email,
-          scheduledAt:  slotDate,
-          durationMins: booking.durationMins,
-          bookingId:    booking.id,
-          meetingUrl:   null,
-        }).catch(console.error);
+      // ── Path C: Fallback — no PENDING (edge case), create CONFIRMED directly ─
+      const conflict = await db.booking.findFirst({
+        where: { tutorId, scheduledAt: slotDate, status: { in: ["PENDING", "CONFIRMED"] } },
+      }).catch(() => null);
+      if (conflict) {
+        try { await refundPayPalCapture(captureId); } catch { /* best effort */ }
+        return NextResponse.json({ received: true });
       }
 
-      revalidatePath("/dashboard/student");
-      revalidatePath("/dashboard/student/sessions");
-      revalidatePath("/dashboard/student/billing");
-    } catch (err) {
-      console.error("[paypal/webhook] booking create failed:", err instanceof Error ? err.message : err);
+      const sessionTyped  = (sessionType === "SINGLE" ? "SINGLE" : "DISCOVERY") as "DISCOVERY" | "SINGLE";
+      const rawDuration   = sessionTyped === "SINGLE" ? 50 : 30;
+      const durationMins  = Math.min(240, Math.max(15, rawDuration));
+      const tutorComp = await db.tutorCompensation.findUnique({
+        where:  { userId: tutorId },
+        select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
+      }).catch(() => null);
+      const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
+      const hourlyRate        = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+      const tutorPayoutAmount = hourlyRate > 0
+        ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
+        : Math.round(amountUsd * 0.70 * 100) / 100;
+      const platformMargin = Math.round((amountUsd - tutorPayoutAmount) * 100) / 100;
+
+      try {
+        const booking = await db.booking.create({
+          data: {
+            studentId, tutorId,
+            sessionType:      sessionTyped,
+            status:           "CONFIRMED",
+            durationMins,
+            scheduledAt:      slotDate,
+            studentPriceUsd:  amountUsd,
+            studentCurrency:  "USD",
+            tutorPayoutAmount,
+            tutorCurrency:    tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
+            platformMargin,
+            paymentProvider:  "paypal",
+            paypalOrderId:    orderId,
+            paypalCaptureId:  captureId,
+          },
+        });
+        await notifyBookingConfirmed({ booking, studentId, tutorId });
+      } catch (err) {
+        console.error("[paypal/webhook] fallback booking create failed:", err instanceof Error ? err.message : err);
+      }
     }
-  }
 
   // ── PAYMENT.CAPTURE.DENIED ───────────────────────────────────────────────────
   if (event.event_type === "PAYMENT.CAPTURE.DENIED") {
@@ -173,8 +167,8 @@ export async function POST(req: NextRequest) {
     const orderId = resource.supplementary_data?.related_ids?.order_id;
     if (orderId) {
       await db.booking.updateMany({
-        where: { paypalOrderId: orderId, status: { not: "CANCELLED" } },
-        data:  { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "SYSTEM" },
+        where: { paypalOrderId: orderId, status: { notIn: ["CANCELLED", "REFUNDED"] } },
+        data:  { status: "REFUNDED" },
       }).catch(() => {});
       revalidatePath("/dashboard/student/sessions");
     }
@@ -237,4 +231,32 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+async function notifyBookingConfirmed({
+  booking,
+  studentId,
+  tutorId,
+}: {
+  booking: { id: string; scheduledAt: Date; durationMins: number };
+  studentId: string;
+  tutorId: string;
+}) {
+  const [student, tutorUser] = await Promise.all([
+    db.user.findUnique({ where: { id: studentId }, select: { email: true } }),
+    db.user.findUnique({ where: { id: tutorId },   select: { email: true, hrApplication: { select: { fullName: true } } } }),
+  ]);
+  if (student?.email && tutorUser) {
+    sendBookingConfirmationEmail({
+      studentEmail: student.email,
+      tutorEmail:   tutorUser.email,
+      scheduledAt:  booking.scheduledAt,
+      durationMins: booking.durationMins,
+      bookingId:    booking.id,
+      meetingUrl:   null,
+    }).catch(console.error);
+  }
+  revalidatePath("/dashboard/student");
+  revalidatePath("/dashboard/student/sessions");
+  revalidatePath("/dashboard/student/billing");
 }

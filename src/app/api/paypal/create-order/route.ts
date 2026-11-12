@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generateAvailableSlots } from "@/lib/slots";
 import { DISCOVERY_SESSION_CENTS, STANDARD_SESSION_CENTS } from "@/lib/pricing";
 import { createPayPalOrder } from "@/lib/paypal";
+// db already imported above — TutorCompensation query uses it
 
 const schema = z.object({
   tutorId:     z.string().min(1),
@@ -69,11 +70,49 @@ export async function POST(req: NextRequest) {
   }
 
   const amountUsd = (sessionType === "DISCOVERY" ? DISCOVERY_SESSION_CENTS : STANDARD_SESSION_CENTS) / 100;
-  // custom_id encodes all booking parameters — parsed by capture + webhook routes
   const customId = `${session.user.id}|${tutorId}|${slotDate.toISOString()}|${sessionType}`;
 
   try {
     const orderId = await createPayPalOrder({ amountUsd, customId });
+
+    // ── Hold the slot: create PENDING booking ────────────────────────────────
+    const rawDuration = sessionType === "SINGLE" ? 50 : 30;
+    const durationMins = Math.min(240, Math.max(15, rawDuration));
+    const tutorComp = await db.tutorCompensation.findUnique({
+      where: { userId: tutorId },
+      select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
+    });
+    const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
+    const hourlyRate = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+    const tutorPayoutAmount = hourlyRate > 0
+      ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
+      : Math.round(amountUsd * 0.70 * 100) / 100;
+    const platformMargin = Math.round((amountUsd - tutorPayoutAmount) * 100) / 100;
+
+    // Cancel any previous PENDING for the same slot (retry scenario)
+    await db.booking.updateMany({
+      where: { studentId: session.user.id, tutorId, scheduledAt: slotDate, status: "PENDING" },
+      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "SYSTEM", cancellationReason: "Payment retry" },
+    });
+
+    await db.booking.create({
+      data: {
+        studentId: session.user.id,
+        tutorId,
+        sessionType,
+        status: "PENDING",
+        durationMins,
+        scheduledAt: slotDate,
+        studentPriceUsd: amountUsd,
+        studentCurrency: "USD",
+        tutorPayoutAmount,
+        tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
+        platformMargin,
+        paymentProvider: "paypal",
+        paypalOrderId: orderId,
+      },
+    });
+
     return NextResponse.json({ orderId, amountUsd });
   } catch (err) {
     console.error("[paypal/create-order]", err instanceof Error ? err.message : err);

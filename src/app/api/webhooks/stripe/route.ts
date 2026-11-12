@@ -64,44 +64,54 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
     return;
   }
 
-  // Idempotency: booking may already exist (created by the browser flow).
-  const existing = await db.booking.findFirst({
-    where: { stripePaymentIntentId: pi.id },
+  const slotDate         = new Date(scheduledAt);
+  const type             = (sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
+  const durationMins     = type === "SINGLE" ? 50 : 30;
+  const studentPriceUsd  = pi.amount / 100;
+  const creditAppliedTnd = parseFloat(creditStr ?? "0") || 0;
+
+  // ── Path A: update existing PENDING booking ──────────────────────────────
+  const pendingBooking = await db.booking.findFirst({
+    where: { stripePaymentIntentId: pi.id, status: "PENDING" },
   });
+
+  if (pendingBooking) {
+    const [booking] = await db.$transaction([
+      db.booking.update({ where: { id: pendingBooking.id }, data: { status: "CONFIRMED" } }),
+      ...(creditAppliedTnd > 0
+        ? [db.user.update({ where: { id: studentId }, data: { platformCreditBalance: { decrement: creditAppliedTnd } } })]
+        : []),
+    ]);
+    await sendConfirmationEmail({ booking, studentId, tutorId });
+    return;
+  }
+
+  // ── Path B: Idempotency — already CONFIRMED ──────────────────────────────
+  const existing = await db.booking.findFirst({ where: { stripePaymentIntentId: pi.id } });
   if (existing) return;
 
-  const slotDate          = new Date(scheduledAt);
-  const type              = (sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
-  const durationMins      = type === "SINGLE" ? 50 : 30;
-  const studentPriceUsd   = pi.amount / 100;
-  const creditAppliedTnd  = parseFloat(creditStr ?? "0") || 0;
-
-  // Tutor payout (mirror logic from POST /api/bookings)
+  // ── Path C: Fallback — create CONFIRMED directly ─────────────────────────
   const tutorComp = await db.tutorCompensation.findUnique({
     where: { userId: tutorId },
     select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
   });
   const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
-  const hourlyRate        = tutorCurrencyPref === "CAD"
-    ? (tutorComp?.hourlyRateCad ?? 0)
-    : (tutorComp?.hourlyRateTnd ?? 0);
+  const hourlyRate        = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
   const tutorPayoutAmount = hourlyRate > 0
     ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
     : Math.round(studentPriceUsd * 0.70 * 100) / 100;
   const platformMargin    = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
 
-  // Atomic: create booking + deduct credits (unique constraint guards against races)
   const [booking] = await db.$transaction([
     db.booking.create({
       data: {
-        studentId,
-        tutorId,
+        studentId, tutorId,
         sessionType: type,
         status:      "CONFIRMED",
         durationMins,
         scheduledAt: slotDate,
         studentPriceUsd,
-        studentCurrency:    "USD",
+        studentCurrency: "USD",
         tutorPayoutAmount,
         tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
         platformMargin,
@@ -110,27 +120,32 @@ async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent) {
       },
     }),
     ...(creditAppliedTnd > 0
-      ? [db.user.update({
-          where: { id: studentId },
-          data:  { platformCreditBalance: { decrement: creditAppliedTnd } },
-        })]
+      ? [db.user.update({ where: { id: studentId }, data: { platformCreditBalance: { decrement: creditAppliedTnd } } })]
       : []),
   ]);
 
-  // Confirmation email (non-blocking)
+  await sendConfirmationEmail({ booking, studentId, tutorId });
+}
+
+async function sendConfirmationEmail({
+  booking,
+  studentId,
+  tutorId,
+}: {
+  booking: { id: string; scheduledAt: Date; durationMins: number };
+  studentId: string;
+  tutorId: string;
+}) {
   const [student, tutorUser] = await Promise.all([
     db.user.findUnique({ where: { id: studentId }, select: { email: true } }),
-    db.user.findUnique({
-      where: { id: tutorId },
-      select: { email: true, hrApplication: { select: { fullName: true } } },
-    }),
+    db.user.findUnique({ where: { id: tutorId }, select: { email: true, hrApplication: { select: { fullName: true } } } }),
   ]);
 
   if (student?.email && tutorUser) {
     sendBookingConfirmationEmail({
       studentEmail: student.email,
       tutorEmail:   tutorUser.email,
-      scheduledAt:  slotDate,
+      scheduledAt:  booking.scheduledAt,
       durationMins: booking.durationMins,
       bookingId:    booking.id,
       meetingUrl:   null,

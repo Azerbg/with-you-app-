@@ -49,50 +49,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payment metadata mismatch" }, { status: 400 });
   }
 
-  // Idempotency: check if booking already created from this payment
-  const existing = await db.booking.findFirst({
+  // ── Path A: PENDING booking already exists (normal flow) ────────────────────
+  // The payment-intent route pre-created it to hold the slot.
+  const pendingBooking = await db.booking.findFirst({
+    where: { stripePaymentIntentId: paymentIntentId, status: "PENDING" },
+  });
+
+  if (pendingBooking) {
+    const creditAppliedTnd = parseFloat(paymentIntent.metadata.creditAppliedTnd ?? "0") || 0;
+    // Atomically confirm + deduct credits
+    const [booking] = await db.$transaction([
+      db.booking.update({
+        where: { id: pendingBooking.id },
+        data: { status: "CONFIRMED" },
+      }),
+      ...(creditAppliedTnd > 0
+        ? [db.user.update({
+            where: { id: session.user.id },
+            data: { platformCreditBalance: { decrement: creditAppliedTnd } },
+          })]
+        : []),
+    ]);
+    // Notify + revalidate below (fall-through using the booking variable)
+    return await finalizeBooking({ booking, session, paymentIntent });
+  }
+
+  // ── Path B: Idempotency — booking already CONFIRMED (double call / webhook race) ─
+  const alreadyConfirmed = await db.booking.findFirst({
     where: { stripePaymentIntentId: paymentIntentId },
   });
-  if (existing) {
-    return NextResponse.json(existing, { status: 200 });
-  }
+  if (alreadyConfirmed) return NextResponse.json(alreadyConfirmed, { status: 200 });
 
-  // Final check: slot not already taken
+  // ── Path C: Fallback — no PENDING booking (legacy / redirect flow) ───────────
+  // Should not happen in normal flow, but handles edge cases.
   const conflict = await db.booking.findFirst({
-    where: {
-      tutorId,
-      scheduledAt: slotDate,
-      status: { in: ["PENDING", "CONFIRMED"] },
-    },
+    where: { tutorId, scheduledAt: slotDate, status: { in: ["PENDING", "CONFIRMED"] } },
   });
-  if (conflict) {
-    return NextResponse.json({ error: "Slot already booked" }, { status: 409 });
-  }
+  if (conflict) return NextResponse.json({ error: "Slot already booked" }, { status: 409 });
 
-  // Read session type and amount from PaymentIntent metadata
   const sessionType = (paymentIntent.metadata.sessionType ?? "DISCOVERY") as "DISCOVERY" | "SINGLE";
   const rawDuration = sessionType === "SINGLE" ? 50 : 30;
-  // Clamp to valid range (15–240 min) to prevent bad data
   const durationMins = Math.min(240, Math.max(15, rawDuration));
   const studentPriceUsd = paymentIntent.amount / 100;
   const creditAppliedTnd = parseFloat(paymentIntent.metadata.creditAppliedTnd ?? "0") || 0;
 
-  // Calculate tutor payout from their compensation rate
   const tutorComp = await db.tutorCompensation.findUnique({
     where: { userId: tutorId },
     select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
   });
-
   const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
-  const hourlyRate = tutorCurrencyPref === "CAD"
-    ? (tutorComp?.hourlyRateCad ?? 0)
-    : (tutorComp?.hourlyRateTnd ?? 0);
+  const hourlyRate = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
   const tutorPayoutAmount = hourlyRate > 0
     ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
-    : Math.round(studentPriceUsd * 0.70 * 100) / 100; // fallback: 70% of student price
+    : Math.round(studentPriceUsd * 0.70 * 100) / 100;
   const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
 
-  // Create booking (+ deduct credits atomically)
   const [booking] = await db.$transaction([
     db.booking.create({
       data: {
@@ -119,33 +130,39 @@ export async function POST(req: NextRequest) {
       : []),
   ]);
 
-  // Send confirmation email (non-blocking)
+  return await finalizeBooking({ booking, session, paymentIntent });
+}
+
+// ── Shared: send email + revalidate + return response ───────────────────────
+import type { Session } from "next-auth";
+import type Stripe from "stripe";
+
+async function finalizeBooking({
+  booking,
+  session,
+  paymentIntent,
+}: {
+  booking: { id: string; tutorId: string; scheduledAt: Date; durationMins: number };
+  session: Session;
+  paymentIntent: Stripe.PaymentIntent;
+}) {
+  const tutorId = booking.tutorId;
   const [student, tutorUser] = await Promise.all([
-    db.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    }),
-    db.user.findUnique({
-      where: { id: tutorId },
-      select: {
-        email: true,
-        hrApplication: { select: { fullName: true } },
-      },
-    }),
+    db.user.findUnique({ where: { id: session.user!.id }, select: { email: true } }),
+    db.user.findUnique({ where: { id: tutorId }, select: { email: true, hrApplication: { select: { fullName: true } } } }),
   ]);
 
   if (student?.email && tutorUser) {
     sendBookingConfirmationEmail({
       studentEmail: student.email,
       tutorEmail: tutorUser.email,
-      scheduledAt: slotDate,
+      scheduledAt: booking.scheduledAt,
       durationMins: booking.durationMins,
       bookingId: booking.id,
       meetingUrl: null,
     }).catch(console.error);
   }
 
-  // Revalidate all pages that show booking or payment data
   revalidatePath("/dashboard/student");
   revalidatePath("/dashboard/student/sessions");
   revalidatePath("/dashboard/student/billing");

@@ -113,7 +113,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     await db.booking.update({
       where: { id },
-      data: { status: "CANCELLED", cancelledAt: new Date(), cancelledBy: "ADMIN", cancellationReason: reason ?? "Refunded by admin" },
+      data: { status: "REFUNDED" },
     });
     db.auditLog.create({ data: { actorId: session!.user.id, action: "REFUND_BOOKING", targetEntity: "Booking", targetId: id, reason: reason ?? undefined } }).catch(() => {});
   }

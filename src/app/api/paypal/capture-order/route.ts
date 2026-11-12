@@ -50,38 +50,47 @@ export async function POST(req: NextRequest) {
 
   const slotDate = new Date(scheduledAt);
 
-  // Idempotency: if booking already created from this order, return it
-  const existing = await db.booking.findUnique({ where: { paypalOrderId: orderId } });
-  if (existing) return NextResponse.json(existing, { status: 200 });
-
-  // Final check: slot not taken in the meantime
-  const conflict = await db.booking.findFirst({
-    where: { tutorId, scheduledAt: slotDate, status: { in: ["PENDING", "CONFIRMED"] } },
+  // ── Path A: PENDING booking exists (normal flow) ────────────────────────────
+  const pendingBooking = await db.booking.findFirst({
+    where: { paypalOrderId: orderId, status: "PENDING" },
   });
-  if (conflict) {
-    try { await refundPayPalCapture(captured.captureId); } catch { /* best-effort refund */ }
-    return NextResponse.json({ error: "Slot already booked — refund initiated" }, { status: 409 });
-  }
 
-  const sessionTyped = (sessionType === "SINGLE" ? "SINGLE" : "DISCOVERY") as "DISCOVERY" | "SINGLE";
-  const rawDuration  = sessionTyped === "SINGLE" ? 50 : 30;
-  const durationMins = Math.min(240, Math.max(15, rawDuration));
-  const studentPriceUsd = captured.amountUsd;
+  let booking;
+  if (pendingBooking) {
+    // Update the existing PENDING → CONFIRMED + store captureId
+    booking = await db.booking.update({
+      where: { id: pendingBooking.id },
+      data: { status: "CONFIRMED", paypalCaptureId: captured.captureId },
+    });
+  } else {
+    // ── Path B: Idempotency — already CONFIRMED ─────────────────────────────
+    const existing = await db.booking.findUnique({ where: { paypalOrderId: orderId } });
+    if (existing) return NextResponse.json(existing, { status: 200 });
 
-  // Tutor payout from their compensation rate
-  const tutorComp = await db.tutorCompensation.findUnique({
-    where:  { userId: tutorId },
-    select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
-  });
-  const tutorCurrencyPref  = tutorComp?.currencyPref ?? "TND";
-  const hourlyRate         = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
-  const tutorPayoutAmount  = hourlyRate > 0
-    ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
-    : Math.round(studentPriceUsd * 0.70 * 100) / 100;
-  const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
+    // ── Path C: Fallback — no PENDING found (legacy / edge case) ───────────
+    const conflict = await db.booking.findFirst({
+      where: { tutorId, scheduledAt: slotDate, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+    if (conflict) {
+      try { await refundPayPalCapture(captured.captureId); } catch { /* best-effort */ }
+      return NextResponse.json({ error: "Slot already booked — refund initiated" }, { status: 409 });
+    }
 
-  const [booking] = await db.$transaction([
-    db.booking.create({
+    const sessionTyped = (sessionType === "SINGLE" ? "SINGLE" : "DISCOVERY") as "DISCOVERY" | "SINGLE";
+    const rawDuration  = sessionTyped === "SINGLE" ? 50 : 30;
+    const durationMins = Math.min(240, Math.max(15, rawDuration));
+    const tutorComp = await db.tutorCompensation.findUnique({
+      where:  { userId: tutorId },
+      select: { hourlyRateTnd: true, hourlyRateCad: true, currencyPref: true },
+    });
+    const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
+    const hourlyRate        = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+    const tutorPayoutAmount = hourlyRate > 0
+      ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
+      : Math.round(captured.amountUsd * 0.70 * 100) / 100;
+    const platformMargin = Math.round((captured.amountUsd - tutorPayoutAmount) * 100) / 100;
+
+    booking = await db.booking.create({
       data: {
         studentId: session.user.id,
         tutorId,
@@ -89,7 +98,7 @@ export async function POST(req: NextRequest) {
         status:           "CONFIRMED",
         durationMins,
         scheduledAt:      slotDate,
-        studentPriceUsd,
+        studentPriceUsd:  captured.amountUsd,
         studentCurrency:  "USD",
         tutorPayoutAmount,
         tutorCurrency:    tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
@@ -98,8 +107,8 @@ export async function POST(req: NextRequest) {
         paypalOrderId:    orderId,
         paypalCaptureId:  captured.captureId,
       },
-    }),
-  ]);
+    });
+  }
 
   // Confirmation email (non-blocking)
   const [student, tutorUser] = await Promise.all([
