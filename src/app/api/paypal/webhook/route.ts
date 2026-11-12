@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
         console.error("[paypal/webhook] fallback booking create failed:", err instanceof Error ? err.message : err);
       }
     }
+  } // end PAYMENT.CAPTURE.COMPLETED
 
   // ── PAYMENT.CAPTURE.DENIED ───────────────────────────────────────────────────
   if (event.event_type === "PAYMENT.CAPTURE.DENIED") {
