@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { ExcalidrawSync } from "@/components/ExcalidrawBoard";
 import type ExcalidrawBoardType from "@/components/ExcalidrawBoard";
@@ -442,6 +443,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   onOverlayChange?: (open: boolean) => void;
 }) {
   const { lang } = useLanguage();
+  const router = useRouter();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const room         = useRoomContext();
@@ -818,9 +820,16 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-[#0A0703] border-b border-white/5 flex-shrink-0 z-10">
         <div className="flex items-center gap-3 min-w-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="WithYou" className="h-12 w-auto opacity-70 flex-shrink-0"
-            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          {/* Logo — click to go to dashboard while keeping call active */}
+          <button
+            onClick={() => router.push(role === "student" ? "/dashboard/student" : "/dashboard/tutor")}
+            title={lang === "fr" ? "Retour à l'accueil (l'appel continue)" : "Back to home (call stays active)"}
+            className="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="WithYou" className="h-12 w-auto"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          </button>
           {isSandbox ? (
             <div className="flex items-center gap-2 bg-amber-900/30 border border-amber-700/40 px-3 py-1 rounded-full flex-shrink-0">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -856,6 +865,20 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             <QualityBars quality={quality} />
           </div>
         </div>
+
+        {/* Navigate to dashboard — call stays active, MiniCall appears */}
+        <button
+          onClick={() => router.push(role === "student" ? "/dashboard/student" : "/dashboard/tutor")}
+          title={lang === "fr" ? "Tableau de bord (l'appel continue)" : "Dashboard (call stays active)"}
+          aria-label={lang === "fr" ? "Tableau de bord" : "Dashboard"}
+          className="flex items-center gap-1.5 bg-[#1A1209] hover:bg-[#2A1F0E] border border-white/10 text-white/60 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl transition flex-shrink-0"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          {lang === "fr" ? "Accueil" : "Home"}
+        </button>
+
         <button onClick={handleLeave} aria-label={lang === "fr" ? "Quitter la séance" : "Leave session"}
           className="flex items-center gap-1.5 bg-red-600/90 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex-shrink-0">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
