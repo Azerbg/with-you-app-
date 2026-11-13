@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, Component } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, ChangeEvent } from "react";
 import dynamic from "next/dynamic";
 import type {
   ExcalidrawImperativeAPI,
@@ -151,6 +151,7 @@ export default function ExcalidrawBoard({
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(4);
+  const imgInputRef = useRef<HTMLInputElement>(null);
   const seenElementIds = useRef<Set<string>>(new Set());
   const selTextElRef = useRef<{ id: string; fontFamily: number; strokeColor: string; fontSize: number } | null>(null);
   const [selTextEl, setSelTextEl] = useState<{ id: string; fontFamily: number; strokeColor: string; fontSize: number } | null>(null);
@@ -487,6 +488,53 @@ export default function ExcalidrawBoard({
     setShowTablePicker(false);
   }
 
+  // ─── Insert Image ─────────────────────────────────────────────────────────
+  async function handleInsertImage(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !api) return;
+
+    const dataURL = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const img = new Image();
+    img.src = dataURL;
+    await new Promise<void>(res => { img.onload = () => res(); });
+
+    const maxW = 400;
+    const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+
+    const appState = api.getAppState();
+    const cx = -appState.scrollX + appState.width / 2;
+    const cy = -appState.scrollY + appState.height / 2;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fileId = `img-file-${Date.now()}` as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    api.addFiles([{ id: fileId, mimeType: file.type as any, dataURL: dataURL as any, created: Date.now(), lastRetrieved: Date.now() }]);
+    api.updateScene({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      elements: [...api.getSceneElements(), {
+        type: "image", id: `img-el-${Date.now()}`,
+        x: cx - w / 2, y: cy - h / 2, width: w, height: h,
+        angle: 0, strokeColor: "transparent", backgroundColor: "transparent",
+        fillStyle: "hachure", strokeWidth: 1, strokeStyle: "solid",
+        roughness: 0, opacity: 100, groupIds: [], frameId: null, roundness: null,
+        seed: Math.floor(Math.random() * 100000), version: 1,
+        versionNonce: Math.floor(Math.random() * 100000),
+        isDeleted: false, boundElements: null, updated: Date.now(),
+        link: null, locked: false, fileId, status: "saved", scale: [1, 1],
+      } as any],
+      appState: { collaborators: new Map() },
+    });
+  }
+
   // ─── Export PNG ───────────────────────────────────────────────────────────
   async function handleExportPng() {
     if (!api) return;
@@ -580,6 +628,16 @@ export default function ExcalidrawBoard({
             </label>
           </div>
         )}
+
+        {/* Insert Image */}
+        <label title={fr ? "Insérer une image" : "Insert image"}
+          className="flex items-center gap-1.5 px-2.5 h-7 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition text-xs font-semibold cursor-pointer">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          {fr ? "Image" : "Image"}
+          <input ref={imgInputRef} type="file" accept="image/*" className="sr-only" onChange={handleInsertImage} />
+        </label>
 
         {/* Insert table */}
         <div className="relative">
