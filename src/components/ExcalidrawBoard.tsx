@@ -498,6 +498,26 @@ export default function ExcalidrawBoard({
     URL.revokeObjectURL(url);
   }
 
+  // ─── Export PDF ───────────────────────────────────────────────────────────
+  async function handleExportPdf() {
+    if (!api) return;
+    const { exportToBlob } = await import("@excalidraw/excalidraw");
+    const blob = await exportToBlob({ elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles(), mimeType: "image/png", getDimensions: () => ({ width: 1920, height: 1080 }) });
+    const imgUrl = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = imgUrl;
+    await new Promise<void>(res => { img.onload = () => res(); });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.getContext("2d")!.drawImage(img, 0, 0);
+    URL.revokeObjectURL(imgUrl);
+    const { jsPDF } = await import("jspdf");
+    const isLandscape = img.width > img.height;
+    const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "px", format: [img.width, img.height], hotfixes: ["px_scaling"] });
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, img.width, img.height);
+    pdf.save(`whiteboard-${bookingId ?? "export"}.pdf`);
+  }
+
   // ─── Apply font/color/size to selected text element ──────────────────────
   function applyTextFormat(updates: { fontFamily?: number; strokeColor?: string; fontSize?: number }) {
     if (!api || !selTextEl) return;
@@ -600,6 +620,15 @@ export default function ExcalidrawBoard({
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
           PNG
+        </button>
+
+        {/* Export PDF */}
+        <button onClick={handleExportPdf} title={fr ? "Enregistrer en PDF" : "Save as PDF"}
+          className="flex items-center gap-1.5 px-2.5 h-7 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition text-xs font-semibold">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          PDF
         </button>
 
         {/* Minimize / Full screen */}
