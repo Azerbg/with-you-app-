@@ -32,11 +32,11 @@ function SlideShow({ lang }: { lang: "en" | "fr" }) {
   const slides = lang === "fr" ? [
     { img: "/images/marquee/b1.webp", pos: "60% 45%", quote: "Je progresse à mon rythme, depuis chez moi.", name: "Lina K.", role: "Apprenante en espagnol" },
     { img: "/images/marquee/b2.webp", pos: "55% 35%", quote: "J'ai progressé de A2 à B2 en seulement 4 mois.", name: "Sofia M.", role: "Apprenante en français" },
-    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "La première séance gratuite m'a convaincu immédiatement.", name: "Adam R.", role: "Apprenant en allemand" },
+    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "La première séance à tarif réduit m'a convaincu immédiatement.", name: "Adam R.", role: "Apprenant en allemand" },
   ] : [
     { img: "/images/marquee/b1.webp", pos: "60% 45%", quote: "I make real progress, from the comfort of home.", name: "Lina K.", role: "Spanish learner" },
     { img: "/images/marquee/b2.webp", pos: "55% 35%", quote: "I went from A2 to B2 in just 4 months.", name: "Sofia M.", role: "French learner" },
-    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "The free trial session convinced me right away.", name: "Adam R.", role: "German learner" },
+    { img: "/images/marquee/b3.webp", pos: "50% 45%", quote: "The discounted trial session convinced me right away.", name: "Adam R.", role: "German learner" },
   ];
 
   useEffect(() => {
@@ -379,7 +379,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
             {/* Microcopy */}
             <p className="a5 text-sm text-stone-400 mb-8 text-center lg:text-left">
-              {lang === "fr" ? "Sans engagement · 1er cours d'essai offert" : "No commitment · First trial lesson free"}
+              {lang === "fr" ? "Sans engagement · Cours d'essai à tarif réduit" : "No commitment · Discounted trial lesson"}
             </p>
 
             {/* Social proof */}
@@ -540,62 +540,58 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
           <div className="text-center mt-12">
             <Link href="/auth/register" className="btn-glow inline-block bg-[#5C3D00] text-[#F5C400] px-10 py-4 rounded-full font-bold text-base hover:bg-[#3d2900] transition">
-              {lang === "fr" ? "Commencer gratuitement →" : "Get started free →"}
+              {lang === "fr" ? "S'inscrire gratuitement →" : "Sign up free →"}
             </Link>
           </div>
 
         </div>
       </section>
 
-      {/* ── Testimonials — only if real reviews exist ── */}
-      {reviews.length > 0 && (
-        <section className="py-24 px-8 bg-[#2D1A00]">
-          <div className="max-w-5xl mx-auto">
+      {/* ── Testimonials ── */}
+      <section className="py-24 px-8 bg-[#2D1A00]">
+        <div className="max-w-5xl mx-auto">
 
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-[#F5C400]/10 border border-[#F5C400]/30 rounded-full px-4 py-1.5 mb-6">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
-                <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
-                  {lang === "fr" ? "Témoignages" : "Testimonials"}
-                </span>
-              </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
-                {lang === "fr" ? (
-                  <>Ce que disent<br />nos <span className="text-[#F5C400]">apprenants</span></>
-                ) : (
-                  <>What our<br /><span className="text-[#F5C400]">learners</span> say</>
-                )}
-              </h2>
-              <p className="text-white/50 text-base max-w-sm mx-auto leading-relaxed">
-                {lang === "fr" ? "Des progrès réels, des apprenants réels." : "Real progress, real learners."}
-              </p>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-[#F5C400]/10 border border-[#F5C400]/30 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C400] inline-block" />
+              <span className="text-xs font-bold text-[#F5C400] uppercase tracking-[0.15em]">
+                {lang === "fr" ? "Témoignages" : "Testimonials"}
+              </span>
             </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-4">
+              {lang === "fr" ? (
+                <>Ce que disent<br />nos <span className="text-[#F5C400]">apprenants</span></>
+              ) : (
+                <>What our<br /><span className="text-[#F5C400]">learners</span> say</>
+              )}
+            </h2>
+            <p className="text-white/50 text-base max-w-sm mx-auto leading-relaxed">
+              {lang === "fr" ? "Des progrès réels, des apprenants réels." : "Real progress, real learners."}
+            </p>
+          </div>
 
-            <div className="grid sm:grid-cols-3 gap-6">
-              {reviews.map((item, idx) => (
-                <div key={idx} className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col gap-5 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm">
-                  <svg className="w-8 h-8 text-[#F5C400]/40" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-                  <p className="text-white/80 text-sm leading-relaxed flex-1">{item.text}</p>
-                  <div className="flex items-center gap-3 pt-5 border-t border-white/10">
-                    <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
-                      {item.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">{item.name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">
-                        {LANG_DISPLAY[item.learningLang]?.[lang] ?? item.learningLang}
-                      </p>
-                    </div>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {t.testimonials.items.map((item, idx) => (
+              <div key={idx} className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col gap-5 hover:bg-white/10 hover:-translate-y-1 transition-all duration-300 backdrop-blur-sm">
+                <svg className="w-8 h-8 text-[#F5C400]/40" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                </svg>
+                <p className="text-white/80 text-sm leading-relaxed flex-1">{item.text}</p>
+                <div className="flex items-center gap-3 pt-5 border-t border-white/10">
+                  <div className="w-10 h-10 rounded-full bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-black text-sm flex-shrink-0">
+                    {item.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{item.name}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{item.lang} · {item.specialty}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-
+              </div>
+            ))}
           </div>
-        </section>
-      )}
+
+        </div>
+      </section>
 
       {/* ── Final CTA ── */}
       <section id="cta" className="relative w-full overflow-hidden" style={{ minHeight: "420px", background: "linear-gradient(135deg, #1A0D00 0%, #3d2900 100%)" }}>
@@ -646,9 +642,10 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
 
           <div className="flex flex-wrap items-center gap-6">
             {[
-              { text: lang === "fr" ? "Sans engagement"          : "No commitment" },
-              { text: lang === "fr" ? "Tuteurs vérifiés"         : "Verified tutors" },
-              { text: lang === "fr" ? "Séance découverte 30 min" : "30-min discovery session" },
+              { text: lang === "fr" ? "Sans engagement"                            : "No commitment" },
+              { text: lang === "fr" ? "Tuteurs vérifiés"                           : "Verified tutors" },
+              { text: lang === "fr" ? "Séance découverte 30 min"                   : "30-min discovery session" },
+              { text: lang === "fr" ? "Oral, Pro & Examens officiels"              : "Oral, Pro & Official Exams" },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-[#F5C400]/20 flex items-center justify-center text-[#F5C400] text-xs font-bold flex-shrink-0">✓</span>

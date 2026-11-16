@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://js.stripe.com https://cdn.jsdelivr.net https://www.paypal.com https://*.paypal.com https://*.paypalobjects.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
+      "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https:",
       `connect-src 'self' ${livekitWss} https://withyoou-a5l2xy7a.livekit.cloud wss://withyoou-a5l2xy7a.livekit.cloud https://*.livekit.cloud wss://*.livekit.cloud https://js.stripe.com https://api.stripe.com https://cdn.jsdelivr.net https://storage.googleapis.com https://www.paypal.com https://*.paypal.com https://api-m.paypal.com https://api-m.sandbox.paypal.com`,
       `media-src 'self' blob:`,
@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options",            value: "DENY" },
           { key: "X-Content-Type-Options",     value: "nosniff" },
           { key: "Referrer-Policy",            value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy",         value: "camera=(self), microphone=(self), display-capture=(self), geolocation=()" },
+          { key: "Permissions-Policy",         value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), unload=(self)" },
         ],
       },
     ];

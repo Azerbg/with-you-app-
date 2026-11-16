@@ -494,7 +494,7 @@ export default function ExcalidrawBoard({
     e.target.value = "";
     if (!file || !api) return;
 
-    const dataURL = await new Promise<string>((resolve, reject) => {
+    const rawDataURL = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
@@ -502,13 +502,23 @@ export default function ExcalidrawBoard({
     });
 
     const img = new Image();
-    img.src = dataURL;
+    img.src = rawDataURL;
     await new Promise<void>(res => { img.onload = () => res(); });
 
-    const maxW = 400;
-    const scale = img.naturalWidth > maxW ? maxW / img.naturalWidth : 1;
-    const w = Math.round(img.naturalWidth * scale);
-    const h = Math.round(img.naturalHeight * scale);
+    // Compress to JPEG so the file stays under LiveKit's 64 KB data-channel limit.
+    // Max dimension 500 px, JPEG 65% — results in ~20–40 KB data URL.
+    const MAX_DIM = 500;
+    const compressScale = Math.min(1, MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+    const cw = Math.round(img.naturalWidth  * compressScale);
+    const ch = Math.round(img.naturalHeight * compressScale);
+    const compressCanvas = document.createElement("canvas");
+    compressCanvas.width = cw; compressCanvas.height = ch;
+    compressCanvas.getContext("2d")!.drawImage(img, 0, 0, cw, ch);
+    const dataURL = compressCanvas.toDataURL("image/jpeg", 0.65);
+
+    // Display at compressed dimensions (already capped at 500 px)
+    const w = cw;
+    const h = ch;
 
     const appState = api.getAppState();
     const cx = -appState.scrollX + appState.width / 2;
