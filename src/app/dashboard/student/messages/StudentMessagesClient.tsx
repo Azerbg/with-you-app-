@@ -182,7 +182,12 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
   async function startRecord() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported("audio/mp4")
+        ? "audio/mp4"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+      const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recChunksRef.current = [];
       mr.ondataavailable = e => { if (e.data.size > 0) recChunksRef.current.push(e.data); };
       mr.onstop = async () => {
@@ -190,10 +195,12 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
         if (recTimerRef.current) clearInterval(recTimerRef.current);
         const dur = recSecondsRef.current;
         setRecording(false); setRecSeconds(0); recSecondsRef.current = 0;
-        const blob = new Blob(recChunksRef.current, { type: "audio/webm" });
+        const resolvedMime = mimeType || mr.mimeType || "audio/webm";
+        const ext = resolvedMime.includes("mp4") ? "mp4" : "webm";
+        const blob = new Blob(recChunksRef.current, { type: resolvedMime });
         setUploading("audio");
         try {
-          const form = new FormData(); form.append("file", blob, `voice-${Date.now()}.webm`);
+          const form = new FormData(); form.append("file", blob, `voice-${Date.now()}.${ext}`);
           const res = await fetch("/api/messages/upload", { method: "POST", body: form });
           if (!res.ok) throw new Error();
           const { url } = await res.json();

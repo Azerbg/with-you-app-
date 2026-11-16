@@ -83,7 +83,43 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">6. Politique d'annulation et remboursement</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">6. Cours d'essai et Garantie satisfaction</h2>
+            <p>
+              WithYou propose à chaque nouvel Étudiant un premier cours d'essai à <strong>tarif préférentiel</strong>.
+              Ce cours d'essai est soumis aux conditions suivantes :
+            </p>
+            <ul className="list-disc list-inside mt-3 space-y-2">
+              <li>
+                Le cours d'essai est proposé à tarif préférentiel et <strong>n'est pas remboursable en numéraire</strong> sauf
+                dans les cas prévus à l'article 7 ci-dessous.
+              </li>
+              <li>
+                En cas d'insatisfaction signalée dans un délai de <strong>24 heures</strong> après la fin de la séance,
+                l'Étudiant bénéficie d'un <strong>crédit équivalent</strong> permettant de réserver un (1) nouveau cours
+                d'essai avec un autre professeur de la plateforme, sans frais supplémentaires.
+              </li>
+              <li>
+                La garantie satisfaction s'applique <strong>une seule fois</strong> par compte Étudiant. Elle ne peut pas
+                être cumulée ni utilisée plusieurs fois consécutives avec différents professeurs.
+              </li>
+              <li>
+                Pour bénéficier de la garantie, l'Étudiant doit en faire la demande par email à{" "}
+                <a href="mailto:withyou@gmail.com" className="text-[#C49200] hover:underline">withyou@gmail.com</a>{" "}
+                en précisant le motif d'insatisfaction dans les 24 h suivant la fin de la séance.
+              </li>
+            </ul>
+            <p className="mt-3">
+              Un <strong>remboursement monétaire intégral</strong> reste garanti dans les cas suivants, indépendamment
+              du délai de 24 h :
+            </p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>Absence non signalée du Tuteur</li>
+              <li>Défaillance technique majeure imputable à la plateforme empêchant le bon déroulement de la séance</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">7. Politique d'annulation et remboursement</h2>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li><strong>Annulation par l'Étudiant plus de 24h avant :</strong> remboursement intégral</li>
               <li><strong>Annulation par l'Étudiant moins de 24h avant :</strong> aucun remboursement</li>
@@ -93,7 +129,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">7. Obligations des utilisateurs</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">8. Obligations des utilisateurs</h2>
             <p>Il est strictement interdit de :</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Partager des coordonnées personnelles (email, téléphone, réseaux sociaux) via la messagerie de la plateforme afin de contourner le système de paiement</li>
@@ -108,7 +144,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">8. Programme de parrainage</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">9. Programme de parrainage</h2>
             <p>
               WithYou propose un programme de parrainage permettant aux utilisateurs d'obtenir des crédits. Ces crédits
               sont non-remboursables, non-transférables et ne peuvent être convertis en argent. WithYou se réserve le
@@ -117,7 +153,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">9. Propriété intellectuelle</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">10. Propriété intellectuelle</h2>
             <p>
               Tous les éléments de la plateforme (logo, design, code, contenus) sont la propriété exclusive de WithYou Learning.
               Toute reproduction, distribution ou utilisation commerciale sans autorisation écrite préalable est interdite.
@@ -125,7 +161,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">10. Limitation de responsabilité</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">11. Limitation de responsabilité</h2>
             <p>
               WithYou ne saurait être tenu responsable de :
             </p>
@@ -137,7 +173,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">11. Droit applicable</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">12. Droit applicable</h2>
             <p>
               Les présentes CGU sont régies par les lois en vigueur au Canada. Tout litige relatif à leur interprétation
               ou leur exécution sera soumis aux tribunaux compétents canadiens.
@@ -145,7 +181,7 @@ export default function CGUPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-[#3d2900] mb-3">12. Contact</h2>
+            <h2 className="text-xl font-bold text-[#3d2900] mb-3">13. Contact</h2>
             <p>
               Pour toute question relative aux présentes CGU :<br />
               <a href="mailto:withyou@gmail.com" className="text-[#F5C400] hover:underline">withyou@gmail.com</a>

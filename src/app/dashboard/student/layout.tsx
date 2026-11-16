@@ -93,11 +93,12 @@ export default async function StudentDashboardLayout({ children }: { children: R
             </Link>
 
             {/* Avatar */}
-            <div className="w-10 h-10 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0">
+            <Link href="/dashboard/student/profile" prefetch={false}
+              className="w-10 h-10 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#F5C400] transition">
               {profile.user.image
                 ? <img src={profile.user.image} alt="" className="w-full h-full object-cover" />
                 : initials}
-            </div>
+            </Link>
           </div>
 
           {children}

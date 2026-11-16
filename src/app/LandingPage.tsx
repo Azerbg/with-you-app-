@@ -152,7 +152,7 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
   const footerHrefs: Record<string, Record<number, string>> = {
     "0": { 0: "/find-tutors", 1: "#how-it-works", 2: "/auth/register", 3: "/onboarding" },
     "1": { 0: "/tutors/apply", 1: "/tutors/requirements" },
-    "2": { 0: "/about", 1: "/contact", 2: "/legal/privacy", 3: "/legal/cgu" },
+    "2": { 0: "/about", 1: "/contact", 2: "/legal/privacy", 3: "/legal/cgu", 4: "/faq" },
   };
 
   return (
@@ -334,7 +334,9 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             {/* Badge */}
             <div className="a1 inline-flex items-center gap-2 bg-[#FFF3B0] border border-[#F5C400]/40 rounded-full px-4 py-1.5 text-xs font-bold text-[#C49200] mb-6">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" aria-hidden="true" />
-              {lang === "fr" ? "Cours 100% personnalisés en direct" : "100% personalized live lessons"}
+              {lang === "fr"
+                ? "Cours d'essai à tarif réduit — Satisfaction garantie*"
+                : "Discounted trial lesson — Satisfaction guaranteed*"}
             </div>
 
             {/* H1 */}
@@ -386,8 +388,16 @@ export default function LandingPage({ languages, tutorCount, studentCount, avgRa
             </div>
 
             {/* Microcopy */}
-            <p className="a5 text-sm text-stone-400 mb-8 text-center lg:text-left">
+            <p className="a5 text-sm text-stone-400 mb-3 text-center lg:text-left">
               {lang === "fr" ? "Sans engagement · Cours d'essai à tarif réduit" : "No commitment · Discounted trial lesson"}
+            </p>
+
+            {/* Guarantee footnote */}
+            <p className="a5 text-[11px] text-stone-400/70 mb-8 text-center lg:text-left max-w-[46ch] leading-relaxed">
+              {lang === "fr"
+                ? <>*<strong className="text-stone-500">Garantie satisfaction</strong> : si votre premier cours d'essai ne correspond pas à vos attentes, nous vous offrons un second cours avec un autre enseignant, sans frais supplémentaires — sur simple demande dans les 24&nbsp;h suivant la séance.</>
+                : <>*<strong className="text-stone-500">Satisfaction guarantee</strong>: if your first trial lesson doesn't meet your expectations, we'll offer you a second lesson with a different tutor at no extra cost — just reach out within 24&nbsp;h after the session.</>
+              }
             </p>
 
             {/* Social proof */}

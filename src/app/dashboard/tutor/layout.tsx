@@ -103,9 +103,10 @@ export default async function TutorLayout({ children }: { children: React.ReactN
             </Link>
 
             {/* Avatar */}
-            <div className="w-10 h-10 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0">
+            <Link href="/dashboard/tutor/complete-profile" prefetch={false}
+              className="w-10 h-10 rounded-xl bg-[#5C3D00] flex items-center justify-center text-[#F5C400] font-bold text-xs overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#F5C400] transition">
               {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : initials}
-            </div>
+            </Link>
           </div>
 
           {children}

@@ -71,7 +71,7 @@ export const T = {
       cols: [
         { title: "Learn",   links: ["Find a tutor", "How it works", "Get started", "Placement test"] },
         { title: "Teach",   links: ["Become a tutor", "Requirements"] },
-        { title: "Company", links: ["About", "Contact", "Privacy", "Terms"] },
+        { title: "Company", links: ["About", "Contact", "Privacy", "Terms", "FAQ"] },
       ],
       rights: "All rights reserved.",
       phase: "Language Learning Platform · Phase 1",
@@ -405,7 +405,7 @@ export const T = {
       cols: [
         { title: "Apprendre", links: ["Trouver un tuteur", "Comment ça marche", "Commencer", "Test de placement"] },
         { title: "Enseigner", links: ["Devenir tuteur", "Conditions requises"] },
-        { title: "Société",   links: ["À propos", "Contact", "Confidentialité", "Conditions"] },
+        { title: "Société",   links: ["À propos", "Contact", "Confidentialité", "Conditions", "FAQ"] },
       ],
       rights: "Tous droits réservés.",
       phase: "Plateforme d'apprentissage des langues · Phase 1",
