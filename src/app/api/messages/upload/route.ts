@@ -3,10 +3,12 @@ import { put } from "@vercel/blob";
 import { auth } from "@/lib/auth";
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const ALLOWED: Record<string, "image" | "pdf" | "audio"> = {
+const ALLOWED: Record<string, "image" | "pdf" | "audio" | "file"> = {
   "image/jpeg": "image", "image/png": "image", "image/gif": "image",
   "image/webp": "image", "image/svg+xml": "image",
   "application/pdf": "pdf",
+  "application/msword": "file",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "file",
   "audio/webm": "audio", "audio/ogg": "audio", "audio/mp4": "audio",
   "audio/mpeg": "audio", "audio/wav": "audio",
 };

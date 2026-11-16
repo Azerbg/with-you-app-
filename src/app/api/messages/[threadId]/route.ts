@@ -61,7 +61,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ thr
     db.message.findMany({
       where: { threadId },
       orderBy: { createdAt: "asc" },
-      select: { id: true, senderId: true, content: true, type: true, fileUrl: true, reactions: true, isRead: true, createdAt: true },
+      select: {
+        id: true, senderId: true, content: true, type: true, fileUrl: true,
+        reactions: true, isRead: true, createdAt: true, replyToId: true,
+        replyTo: { select: { id: true, content: true, type: true, senderId: true } },
+      },
     }),
     session.user.role === "STUDENT"
       ? getIsLocked(threadId, thread.studentId, thread.tutorId)
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
 
   const { threadId } = await params;
   const body = await req.json();
-  const { content, type = "TEXT", fileUrl } = body;
+  const { content, type = "TEXT", fileUrl, replyToId } = body;
   if (!content?.trim() && !fileUrl) return NextResponse.json({ error: "Empty message" }, { status: 400 });
 
   if (type === "TEXT" && content && containsContactInfo(content)) {
@@ -109,8 +113,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ thr
 
   const [message] = await db.$transaction([
     db.message.create({
-      data: { threadId, senderId: userId, content: content?.trim() ?? "", type, ...(fileUrl ? { fileUrl } : {}) },
-      select: { id: true, senderId: true, content: true, type: true, fileUrl: true, reactions: true, isRead: true, createdAt: true },
+      data: {
+        threadId, senderId: userId, content: content?.trim() ?? "", type,
+        ...(fileUrl ? { fileUrl } : {}),
+        ...(replyToId ? { replyToId } : {}),
+      },
+      select: {
+        id: true, senderId: true, content: true, type: true, fileUrl: true,
+        reactions: true, isRead: true, createdAt: true, replyToId: true,
+        replyTo: { select: { id: true, content: true, type: true, senderId: true } },
+      },
     }),
     db.messageThread.update({
       where: { id: threadId },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sendVerificationEmail } from "@/lib/email";
+import { sendEmailOtpCode } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +21,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email is already verified" }, { status: 400 });
     }
 
+    // Server-side rate limit: block if a token was created less than 60 seconds ago
+    const existing = await db.verificationToken.findFirst({ where: { userId: user.id } });
+    if (existing && existing.expires.getTime() - Date.now() > 9 * 60 * 1000) {
+      return NextResponse.json(
+        { error: "Please wait before requesting another code." },
+        { status: 429 }
+      );
+    }
+
     // Delete old tokens and create fresh OTP
     await db.verificationToken.deleteMany({ where: { userId: user.id } });
 
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      await sendVerificationEmail(email, code);
+      await sendEmailOtpCode(email, code);
     } catch (err) {
       console.warn("[RESEND] Email send failed:", err);
     }

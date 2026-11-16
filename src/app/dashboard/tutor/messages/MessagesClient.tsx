@@ -37,9 +37,11 @@ interface Message {
   reactions?: Record<string, string[]> | null;
   isRead: boolean;
   createdAt: string;
+  replyToId?: string | null;
+  replyTo?: { id: string; content: string; type: string; senderId: string } | null;
 }
 
-const MSG_EMOJIS = ["👍", "❤️", "😂", "🎉", "👏"];
+const MSG_EMOJIS = ["👍", "❤️", "😂", "🎉", "👏", "😢"];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -128,9 +130,15 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
   const [recSeconds, setRecSeconds]             = useState(0);
   const [uploading, setUploading]               = useState<"file" | "audio" | null>(null);
   const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
+  const [msgMenuId, setMsgMenuId]               = useState<string | null>(null);
+  const [showAttachMenu, setShowAttachMenu]     = useState(false);
+  const [replyTo, setReplyTo]                   = useState<Message | null>(null);
   const bottomRef     = useRef<HTMLDivElement>(null);
   const pollRef       = useRef<ReturnType<typeof setInterval> | null>(null);
   const attachRef     = useRef<HTMLInputElement>(null);
+  const imgRef        = useRef<HTMLInputElement>(null);
+  const pdfRef        = useRef<HTMLInputElement>(null);
+  const docRef        = useRef<HTMLInputElement>(null);
   const mediaRecRef   = useRef<MediaRecorder | null>(null);
   const recChunksRef  = useRef<Blob[]>([]);
   const recTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -160,9 +168,9 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
     setSending(true); setSendError(null);
     const res = await fetch(`/api/messages/${thread.id}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text.trim() }),
+      body: JSON.stringify({ content: text.trim(), ...(replyTo ? { replyToId: replyTo.id } : {}) }),
     });
-    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setText(""); onMessageSent(); }
+    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setText(""); setReplyTo(null); onMessageSent(); }
     else {
       const d = await res.json().catch(() => ({}));
       setSendError(d.error === "CONTACT_INFO_BLOCKED"
@@ -175,16 +183,16 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
   async function sendMedia(type: string, fileUrl: string, content: string) {
     const res = await fetch(`/api/messages/${thread.id}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, fileUrl, content }),
+      body: JSON.stringify({ type, fileUrl, content, ...(replyTo ? { replyToId: replyTo.id } : {}) }),
     });
-    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); onMessageSent(); }
+    if (res.ok) { const msg = await res.json(); setMessages(prev => [...prev, msg]); setReplyTo(null); onMessageSent(); }
     else setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier.");
   }
 
   async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value = "";
     if (!file) return;
-    setUploading("file");
+    setUploading("file"); setShowAttachMenu(false);
     try {
       const form = new FormData(); form.append("file", file);
       const res = await fetch("/api/messages/upload", { method: "POST", body: form });
@@ -193,6 +201,21 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
       await sendMedia(type === "image" ? "IMAGE" : "FILE", url, file.name);
     } catch { setSendError(lang === "en" ? "Failed to send file." : "Échec de l'envoi du fichier."); }
     setUploading(null);
+  }
+
+  async function deleteMessage(messageId: string) {
+    setMsgMenuId(null);
+    const res = await fetch(`/api/messages/${thread.id}/${messageId}`, { method: "DELETE" });
+    if (res.ok) setMessages(prev => prev.filter(m => m.id !== messageId));
+  }
+
+  async function reportMessage(messageId: string) {
+    setMsgMenuId(null);
+    await fetch(`/api/messages/${thread.id}/${messageId}/report`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Reported by tutor" }),
+    });
+    setSendError(lang === "en" ? "Message reported. Thank you." : "Message signalé. Merci.");
   }
 
   async function startRecord() {
@@ -244,27 +267,49 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
     }
   }
 
+  function renderReplyQuote(m: Message, isMe: boolean) {
+    if (!m.replyTo) return null;
+    const preview = m.replyTo.type === "AUDIO" ? "🎤 Message vocal"
+      : m.replyTo.type === "IMAGE" ? "🖼️ Image"
+      : m.replyTo.type === "FILE" ? "📎 Fichier"
+      : m.replyTo.content.slice(0, 80);
+    return (
+      <div className={`text-[11px] rounded-lg px-2 py-1.5 mb-1.5 border-l-2 ${
+        isMe ? "bg-white/10 border-white/40 text-white/70" : "bg-black/5 border-[#C49200] text-[#9B8A6B]"
+      }`}>
+        {preview}
+      </div>
+    );
+  }
+
   function renderContent(m: Message, isMe: boolean) {
     if (m.type === "IMAGE" && m.fileUrl) return (
-      <a href={m.fileUrl} target="_blank" rel="noopener noreferrer">
-        <img src={m.fileUrl} alt="Image" className="max-w-[220px] max-h-[200px] rounded-xl object-cover hover:opacity-90 transition" />
-      </a>
+      <>
+        {renderReplyQuote(m, isMe)}
+        <a href={m.fileUrl} target="_blank" rel="noopener noreferrer">
+          <img src={m.fileUrl} alt="Image" className="max-w-[220px] max-h-[200px] rounded-xl object-cover hover:opacity-90 transition" />
+        </a>
+      </>
     );
     if (m.type === "AUDIO" && m.fileUrl) return (
       <div className="flex flex-col gap-1 min-w-[180px]">
+        {renderReplyQuote(m, isMe)}
         <audio controls src={m.fileUrl} className="h-8 w-full max-w-[220px]" />
         <span className={`text-[10px] ${isMe ? "text-white/50" : "text-[#9B8A6B]"}`}>🎤 {m.content}</span>
       </div>
     );
     if (m.type === "FILE" && m.fileUrl) return (
-      <a href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-80 transition max-w-[220px]">
-        <svg className="w-4 h-4 flex-shrink-0 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-        </svg>
-        <span className="truncate text-sm">{m.content}</span>
-      </a>
+      <>
+        {renderReplyQuote(m, isMe)}
+        <a href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-80 transition max-w-[220px]">
+          <svg className="w-4 h-4 flex-shrink-0 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+          </svg>
+          <span className="truncate text-sm">{m.content}</span>
+        </a>
+      </>
     );
-    return <p className="whitespace-pre-wrap break-words">{m.content}</p>;
+    return <>{renderReplyQuote(m, isMe)}<p className="whitespace-pre-wrap break-words">{m.content}</p></>;
   }
 
   const locale = lang === "en" ? "en-US" : "fr-FR";
@@ -276,7 +321,7 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden" onClick={() => setReactionPickerId(null)}>
+    <div className="flex-1 flex flex-col min-w-0 overflow-hidden" onClick={() => { setReactionPickerId(null); setMsgMenuId(null); setShowAttachMenu(false); }}>
       <div className="h-14 border-b border-black/5 bg-white flex items-center gap-3 px-6 flex-shrink-0">
         <div className="w-9 h-9 rounded-xl bg-[#F5C400] flex items-center justify-center text-[#5C3D00] font-bold text-sm flex-shrink-0">{initials(name)}</div>
         <div>
@@ -315,17 +360,45 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
                           {isMe && (m.isRead ? (lang === "en" ? " · Read" : " · Lu") : (lang === "en" ? " · Sent" : " · Envoyé"))}
                         </p>
                       </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); setReactionPickerId(prev => prev === m.id ? null : m.id); }}
-                        className={`self-center ${isMe ? "mr-2 order-first" : "ml-2"} opacity-0 group-hover/msg:opacity-100 transition text-base text-[#9B8A6B] hover:text-[#5C3D00]`}>
-                        😊
-                      </button>
+                      {/* Hover action buttons */}
+                      <div className={`self-center flex gap-1 ${isMe ? "mr-1 order-first" : "ml-1"} opacity-0 group-hover/msg:opacity-100 transition`}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setReactionPickerId(prev => prev === m.id ? null : m.id); setMsgMenuId(null); }}
+                          className="w-6 h-6 flex items-center justify-center rounded-full text-sm text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-black/5 transition">
+                          😊
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setMsgMenuId(prev => prev === m.id ? null : m.id); setReactionPickerId(null); }}
+                          className="w-6 h-6 flex items-center justify-center rounded-full text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-black/5 transition text-xs font-bold">
+                          ⋯
+                        </button>
+                      </div>
                       {reactionPickerId === m.id && (
-                        <div className={`absolute z-50 bottom-full mb-1 ${isMe ? "right-8" : "left-8"} bg-white border border-black/10 rounded-2xl px-3 py-2 flex gap-2 shadow-xl`}
+                        <div className={`absolute z-50 bottom-full mb-1 ${isMe ? "right-10" : "left-10"} bg-white border border-black/10 rounded-2xl px-3 py-2 flex gap-2 shadow-xl`}
                           onClick={e => e.stopPropagation()}>
                           {MSG_EMOJIS.map(e => (
                             <button key={e} onClick={() => reactToMessage(m.id, e)} className="text-xl hover:scale-125 transition-transform">{e}</button>
                           ))}
+                        </div>
+                      )}
+                      {msgMenuId === m.id && (
+                        <div className={`absolute z-50 bottom-full mb-1 ${isMe ? "right-10" : "left-10"} bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden min-w-[130px]`}
+                          onClick={e => e.stopPropagation()}>
+                          <button onClick={() => { setReplyTo(m); setMsgMenuId(null); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#2D1A00] hover:bg-[#FAF8F0] transition">
+                            <span>↩</span> {lang === "en" ? "Reply" : "Répondre"}
+                          </button>
+                          {isMe ? (
+                            <button onClick={() => deleteMessage(m.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
+                              <span>🗑</span> {lang === "en" ? "Delete" : "Supprimer"}
+                            </button>
+                          ) : (
+                            <button onClick={() => reportMessage(m.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#9B8A6B] hover:bg-[#FAF8F0] transition">
+                              <span>🚩</span> {lang === "en" ? "Report" : "Signaler"}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -362,16 +435,51 @@ function ChatPanel({ thread, currentUserId, lang, onMessageSent }: {
         </div>
       )}
 
+      {/* Reply preview bar */}
+      {replyTo && (
+        <div className="border-t border-black/5 bg-[#FFF8E0] px-4 py-2 flex items-center gap-2">
+          <span className="text-[#C49200] text-sm">↩</span>
+          <p className="flex-1 text-xs text-[#5C3D00] truncate">
+            {replyTo.type === "AUDIO" ? "🎤 Message vocal"
+              : replyTo.type === "IMAGE" ? "🖼️ Image"
+              : replyTo.type === "FILE" ? "📎 Fichier"
+              : replyTo.content.slice(0, 60)}
+          </p>
+          <button onClick={() => setReplyTo(null)} className="text-[#9B8A6B] hover:text-[#5C3D00] text-sm">✕</button>
+        </div>
+      )}
       <div className="border-t border-black/5 bg-white px-4 py-3 flex items-end gap-2">
-        <button onClick={() => attachRef.current?.click()} disabled={!!uploading || recording} title="Pièce jointe"
-          className="w-9 h-9 rounded-xl border border-[#6B5E44]/30 flex items-center justify-center text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-[#FAF8F0] transition flex-shrink-0 disabled:opacity-40">
-          {uploading === "file"
-            ? <div className="w-4 h-4 border-2 border-[#9B8A6B] border-t-[#5C3D00] rounded-full animate-spin" />
-            : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
-          }
-        </button>
+        <div className="relative flex-shrink-0">
+          <button onClick={e => { e.stopPropagation(); setShowAttachMenu(p => !p); }} disabled={!!uploading || recording} title="Pièce jointe"
+            className="w-9 h-9 rounded-xl border border-[#6B5E44]/30 flex items-center justify-center text-[#9B8A6B] hover:text-[#5C3D00] hover:bg-[#FAF8F0] transition disabled:opacity-40">
+            {uploading === "file"
+              ? <div className="w-4 h-4 border-2 border-[#9B8A6B] border-t-[#5C3D00] rounded-full animate-spin" />
+              : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+            }
+          </button>
+          {showAttachMenu && (
+            <div className="absolute bottom-full mb-2 left-0 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden min-w-[150px] z-50"
+              onClick={e => e.stopPropagation()}>
+              <button onClick={() => { imgRef.current?.click(); setShowAttachMenu(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-[#2D1A00] hover:bg-[#FAF8F0] transition">
+                <span className="text-base">🖼️</span> {lang === "en" ? "Image" : "Image"}
+              </button>
+              <button onClick={() => { pdfRef.current?.click(); setShowAttachMenu(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-[#2D1A00] hover:bg-[#FAF8F0] transition">
+                <span className="text-base">📄</span> PDF
+              </button>
+              <button onClick={() => { docRef.current?.click(); setShowAttachMenu(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-[#2D1A00] hover:bg-[#FAF8F0] transition">
+                <span className="text-base">📝</span> {lang === "en" ? "Document" : "Document"}
+              </button>
+            </div>
+          )}
+        </div>
+        <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={handleAttach} />
+        <input ref={pdfRef} type="file" accept="application/pdf" className="hidden" onChange={handleAttach} />
+        <input ref={docRef} type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={handleAttach} />
         <input ref={attachRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleAttach} />
 
         <textarea value={text} onChange={e => setText(e.target.value)}

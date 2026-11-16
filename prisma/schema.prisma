@@ -845,6 +845,9 @@ model Message {
   fileUrl   String?
   reactions Json?   // {"emoji": ["userId1", "userId2", ...], ...}
 
+  // Reply-to
+  replyToId  String?
+
   // Anti-bypass detection
   isFlagged      Boolean   @default(false)
   flagReason     String?
@@ -855,9 +858,11 @@ model Message {
 
   createdAt DateTime @default(now())
 
-  sender User          @relation("SentMessages", fields: [senderId], references: [id])
-  thread MessageThread? @relation("ThreadMessages", fields: [threadId], references: [id])
-  lesson Lesson?        @relation("LessonMessages", fields: [lessonId], references: [id])
+  sender  User           @relation("SentMessages", fields: [senderId], references: [id])
+  thread  MessageThread? @relation("ThreadMessages", fields: [threadId], references: [id])
+  lesson  Lesson?        @relation("LessonMessages", fields: [lessonId], references: [id])
+  replyTo Message?       @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies Message[]      @relation("MessageReplies")
 
   @@map("messages")
 }

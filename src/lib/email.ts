@@ -16,7 +16,12 @@ const BASE_URL = process.env.AUTH_URL ?? "http://localhost:3000";
 
 // ─── Core send helper — Brevo HTTP API first, nodemailer fallback ─────────────
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  textContent?: string,
+): Promise<void> {
   const brevoKey = process.env.BREVO_API_KEY;
 
   if (brevoKey) {
@@ -27,10 +32,12 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "WithYou", email: FROM },
+        sender: { name: "WithYou Learning", email: FROM },
         to: [{ email: to }],
+        replyTo: { email: FROM },
         subject,
         htmlContent: html,
+        ...(textContent ? { textContent } : {}),
       }),
     });
     if (!res.ok) {
@@ -41,7 +48,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   }
 
   // Fallback: nodemailer (local dev with SMTP)
-  await transporter.sendMail({ from: FROM, to, subject, html });
+  await transporter.sendMail({ from: FROM, to, subject, html, text: textContent });
 }
 
 export async function sendVerificationEmail(email: string, token: string) {
@@ -253,21 +260,65 @@ export async function sendInterviewEmail(
 }
 
 export async function sendEmailOtpCode(email: string, otp: string) {
-  await sendEmail(email, "Votre code de vérification WithYou", `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <div style="background:#5C3D00;padding:24px 32px;border-radius:16px 16px 0 0;text-align:center">
-          <span style="font-size:28px;font-weight:900;color:#F5C400;letter-spacing:-1px">WithYou</span>
-        </div>
-        <div style="background:#fff;padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
-          <h2 style="margin:0 0 8px;font-size:20px;color:#2D1A00">Confirmez votre adresse e-mail</h2>
-          <p style="color:#6B5E44;font-size:14px;margin:0 0 24px">Utilisez le code ci-dessous pour vérifier votre adresse e-mail. Il expire dans 10 minutes.</p>
-          <div style="background:#FFF3B0;border:2px solid #F5C400;border-radius:12px;padding:20px;text-align:center;margin-bottom:24px">
-            <span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#5C3D00;font-family:monospace">${otp}</span>
-          </div>
-          <p style="color:#9B8A6B;font-size:12px;margin:0">Si vous n'avez pas demandé ce code, ignorez cet e-mail.</p>
-        </div>
+  const subject = "WithYou — Code de vérification / Verification code";
+
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#ffffff">
+      <!-- Header -->
+      <div style="background:#3d2900;padding:24px 32px;border-radius:16px 16px 0 0;text-align:center">
+        <span style="font-size:26px;font-weight:900;letter-spacing:-0.5px">
+          <span style="color:#ffffff">With</span><span style="color:#F5C400">You</span>
+        </span>
       </div>
-  `);
+
+      <!-- Body -->
+      <div style="padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
+        <h2 style="margin:0 0 8px;font-size:20px;color:#2D1A00">Confirmez votre adresse e-mail</h2>
+        <p style="color:#6B5E44;font-size:14px;margin:0 0 4px">
+          Utilisez le code ci-dessous pour activer votre compte WithYou.
+          <strong>Il expire dans 10 minutes.</strong>
+        </p>
+        <p style="color:#9B8A6B;font-size:12px;margin:0 0 24px;font-style:italic">
+          Use the code below to verify your WithYou account. Valid for 10 minutes.
+        </p>
+
+        <!-- OTP box -->
+        <div style="background:#FFF8DC;border:2px solid #F5C400;border-radius:14px;padding:24px 16px;text-align:center;margin-bottom:24px">
+          <p style="margin:0 0 6px;font-size:12px;color:#9B8A6B;font-weight:600;text-transform:uppercase;letter-spacing:1px">
+            Votre code / Your code
+          </p>
+          <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#3d2900;font-family:Courier,monospace">${otp}</span>
+        </div>
+
+        <p style="color:#9B8A6B;font-size:12px;margin:0;line-height:1.6">
+          Si vous n'avez pas créé de compte, ignorez cet e-mail.<br>
+          <em>If you didn't create an account, you can safely ignore this email.</em>
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="text-align:center;padding:16px;color:#C4B8A4;font-size:11px">
+        WithYou Learning &nbsp;·&nbsp; noreply@withyou.com
+      </div>
+    </div>
+  `;
+
+  const text = [
+    "WithYou Learning — Vérification de compte / Account Verification",
+    "",
+    "Votre code de vérification / Your verification code:",
+    "",
+    `  ${otp}`,
+    "",
+    "Ce code expire dans 10 minutes. / This code expires in 10 minutes.",
+    "",
+    "Si vous n'avez pas créé de compte, ignorez cet e-mail.",
+    "If you didn't create an account, you can safely ignore this email.",
+    "",
+    "WithYou Learning — noreply@withyou.com",
+  ].join("\n");
+
+  await sendEmail(email, subject, html, text);
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {

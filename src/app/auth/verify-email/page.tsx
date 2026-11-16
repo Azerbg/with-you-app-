@@ -89,13 +89,20 @@ function VerifyEmailForm() {
     setResendLoading(true);
     setError("");
 
-    await fetch("/api/auth/resend-verification", {
+    const res = await fetch("/api/auth/resend-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
 
     setResendLoading(false);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? (lang === "en" ? "Could not resend. Please try again." : "Impossible de renvoyer. Réessayez."));
+      return;
+    }
+
     setDigits(["", "", "", "", "", ""]);
     inputs.current[0]?.focus();
     setResendCooldown(60);

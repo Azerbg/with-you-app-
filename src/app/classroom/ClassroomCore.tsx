@@ -32,6 +32,7 @@ interface ChatMessage {
   id: string; sender: string; text: string; time: number; isLocal: boolean;
   reactions?: Record<string, string[]>;
   attachment?: ChatAttachment;
+  deleted?: boolean;
 }
 interface FloatingReaction {
   id: string; emoji: string; sender: string; x: number;
@@ -207,7 +208,7 @@ function VirtualBgPanel({ onClose, onApply, current, applying }: {
 
 const MSG_REACTIONS = ["👍", "❤️", "😂", "🎉", "👏"];
 
-function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef, lang, onReact, onAttach, uploading, myName }: {
+function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesEndRef, lang, onReact, onAttach, uploading, myName, onDelete }: {
   messages: ChatMessage[];
   input: string;
   setInput: (v: string) => void;
@@ -219,6 +220,7 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
   onAttach: (file: File) => void;
   uploading: boolean;
   myName: string;
+  onDelete: (msgId: string) => void;
 }) {
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
   const attachRef = useRef<HTMLInputElement>(null);
@@ -239,9 +241,16 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
           </div>
         ) : messages.map(msg => (
           <div key={msg.id} className={`flex flex-col ${msg.isLocal ? "items-end" : "items-start"}`}>
-            <span className="text-[10px] font-semibold mb-1" style={{ color: msg.isLocal ? "#F5C400" : "#9B8A6B" }}>
-              {msg.sender.split(" ")[0]}
-            </span>
+            {!msg.deleted && (
+              <span className="text-[10px] font-semibold mb-1" style={{ color: msg.isLocal ? "#F5C400" : "#9B8A6B" }}>
+                {msg.sender.split(" ")[0]}
+              </span>
+            )}
+            {msg.deleted ? (
+              <span className="text-[11px] text-white/25 italic px-2 py-1">
+                {lang === "fr" ? "Message supprimé" : "Message deleted"}
+              </span>
+            ) : (
             <div className="relative group/msg">
               {/* Text bubble */}
               {msg.text && (
@@ -266,13 +275,25 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
                   </a>
                 )
               )}
-              {/* Hover reaction trigger */}
-              <button
-                onClick={e => { e.stopPropagation(); setReactionPickerMsgId(prev => prev === msg.id ? null : msg.id); }}
-                className={`absolute ${msg.isLocal ? "-left-7" : "-right-7"} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition text-base leading-none text-white/40 hover:text-white/80`}
-                aria-label="Add reaction">
-                😊
-              </button>
+              {/* Hover action buttons */}
+              <div className={`absolute ${msg.isLocal ? "-left-14" : "-right-14"} top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition flex items-center gap-0.5`}>
+                <button
+                  onClick={e => { e.stopPropagation(); setReactionPickerMsgId(prev => prev === msg.id ? null : msg.id); }}
+                  className="w-6 h-6 flex items-center justify-center text-base text-white/40 hover:text-white/80"
+                  aria-label="Add reaction">
+                  😊
+                </button>
+                {msg.isLocal && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete(msg.id); }}
+                    className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-red-400 transition"
+                    aria-label={lang === "fr" ? "Supprimer" : "Delete"}>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               {/* Mini reaction picker */}
               {reactionPickerMsgId === msg.id && (
                 <div
@@ -285,8 +306,9 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
                 </div>
               )}
             </div>
+            )}
             {/* Reaction chips */}
-            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+            {!msg.deleted && msg.reactions && Object.keys(msg.reactions).length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1">
                 {Object.entries(msg.reactions).map(([emoji, senders]) => {
                   const isMine = senders.includes(myName);
@@ -302,9 +324,11 @@ function ChatPanel({ messages, input, setInput, sendMessage, inputRef, messagesE
                 })}
               </div>
             )}
-            <span className="text-[9px] text-white/20 mt-1">
-              {new Date(msg.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-            </span>
+            {!msg.deleted && (
+              <span className="text-[9px] text-white/20 mt-1">
+                {new Date(msg.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -533,6 +557,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
   const [showPicker,   setShowPicker]   = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [boardFull, setBoardFull] = useState(false);
+  // Bug 2: allow hiding the local PiP while sharing/in call
+  const [localPipHidden, setLocalPipHidden] = useState(false);
 
   function togglePanel(p: Exclude<ActivePanel, null>) { setActivePanel(prev => prev === p ? null : p); setOpenDropdown(null); setShowPicker(false); setBgPanelOpen(false); }
   function toggleDd(dd: Exclude<Dropdown, null>) { setOpenDropdown(prev => prev === dd ? null : dd); }
@@ -704,6 +730,9 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             setMessages(prev => [...prev, { id: msg.id, sender: msg.sender, text: "", time: msg.time, isLocal: false, attachment: { url: msg.url, name: msg.fileName, type: msg.fileType } }]);
             setActivePanel(prev => { if (prev !== "chat") setUnread(n => n + 1); return prev; });
             break;
+          case "chat-delete":
+            setMessages(prev => prev.map(m => m.id === msg.messageId ? { ...m, deleted: true } : m));
+            break;
           case "excalidraw-sync": setIncomingSync({ elements: msg.elements ?? [], files: msg.files, version: msg.version ?? 0, pageId: msg.pageId }); break;
           case "excalidraw-page-add": setIncomingSync({ elements: [], files: undefined, version: 0, pageId: msg.page?.id }); break;
         }
@@ -744,6 +773,19 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
       return { ...m, reactions };
     }));
   }
+
+  function deleteMessage(msgId: string) {
+    sendData({ type: "chat-delete", messageId: msgId });
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, deleted: true } : m));
+  }
+
+  // Bug 1 fix: MiniCall "Back to call" dispatches this event when the user is
+  // already on the classroom page but the whiteboard overlay is open.
+  useEffect(() => {
+    const handler = () => setBoardOpen(false);
+    window.addEventListener("close-classroom-overlay", handler);
+    return () => window.removeEventListener("close-classroom-overlay", handler);
+  }, []);
 
   async function sendAttachment(file: File) {
     setUploading(true);
@@ -898,7 +940,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
             <div className="absolute inset-0 bg-black flex flex-col">
               <VideoTrack trackRef={remoteScrnTrack} className="flex-1 w-full object-contain" />
               {/* Self PiP over screen share */}
-              <div className="absolute bottom-4 right-4 w-36 rounded-xl overflow-hidden shadow-xl border border-white/20 bg-[#1A1209]" style={{ aspectRatio: "16/9" }}>
+              <div className="absolute bottom-4 right-4 rounded-xl overflow-hidden shadow-xl border border-white/20 bg-[#1A1209] flex-shrink-0" style={{ width: 144, height: 81 }}>
                 {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
                   <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                 ) : (
@@ -935,8 +977,18 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                 </div>
               </div>
 
-              {/* PiP local — coin bas droite */}
-              <div className="absolute bottom-4 right-4 w-44 rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-[#1A1209]" style={{ aspectRatio: "16/9" }}>
+              {/* PiP local — coin bas droite (Bug 2: click to hide/show) */}
+              {localPipHidden ? (
+                <button
+                  onClick={() => setLocalPipHidden(false)}
+                  className="absolute bottom-4 right-4 w-10 h-10 rounded-xl bg-[#1A1209] border border-white/20 flex items-center justify-center text-white/40 hover:text-white hover:bg-[#2A1F0E] transition shadow-xl"
+                  title={lang === "fr" ? "Afficher la caméra" : "Show camera"}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              ) : (
+              <div className="absolute bottom-4 right-4 rounded-xl overflow-hidden shadow-2xl border border-white/20 bg-[#1A1209] flex-shrink-0 group/pip" style={{ width: 176, height: 99 }}>
                 {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
                   <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                 ) : (
@@ -952,7 +1004,17 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                   )}
                   <span className="text-white/60 text-[9px] font-semibold bg-black/50 px-1 py-0.5 rounded">Vous</span>
                 </div>
+                {/* Hide button — appears on hover */}
+                <button
+                  onClick={() => setLocalPipHidden(true)}
+                  className="absolute top-1 right-1 w-5 h-5 rounded bg-black/60 flex items-center justify-center text-white/50 hover:text-white opacity-0 group-hover/pip:opacity-100 transition"
+                  title={lang === "fr" ? "Masquer" : "Hide"}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                  </svg>
+                </button>
               </div>
+              )}
 
               {/* Bannière partage écran local */}
               {isSharing && (
@@ -993,8 +1055,8 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
                 </div>
               </div>
               {/* Aperçu caméra locale */}
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#1A1209]"
-                style={{ width: 280, aspectRatio: "16/9" }}>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#1A1209] flex-shrink-0"
+                style={{ width: 280, height: 157 }}>
                 {localCamTrack && isCameraEnabled && isTrackReference(localCamTrack) ? (
                   <VideoTrack trackRef={localCamTrack} className="absolute inset-0 w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                 ) : (
@@ -1033,7 +1095,7 @@ export function ClassroomView({ role, myName, otherName, durationMins, scheduled
               </button>
             </div>
             <div className="flex-1 flex flex-col overflow-hidden">
-              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} lang={lang} onReact={sendReactionToMsg} onAttach={sendAttachment} uploading={uploading} myName={myName} />}
+              {activePanel === "chat" && <ChatPanel messages={messages} input={input} setInput={setInput} sendMessage={sendMessage} inputRef={inputRef} messagesEndRef={messagesEndRef} lang={lang} onReact={sendReactionToMsg} onAttach={sendAttachment} uploading={uploading} myName={myName} onDelete={deleteMessage} />}
               {activePanel === "info" && <InfoPanel myName={myName} otherName={displayOther} elapsed={elapsed} msgCount={messages.length} quality={quality} remoteQuality={remoteQuality} isSandbox={isSandbox} />}
             </div>
           </div>

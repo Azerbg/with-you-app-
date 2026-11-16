@@ -195,7 +195,13 @@ export default function MiniCall() {
     try { await localParticipant.setCameraEnabled(!isCameraEnabled); } catch { /* denied */ }
   }
   function backToCall() {
-    router.push(isSandbox ? "/classroom/sandbox" : `/classroom/${roomId}`);
+    if (overlayOpen) {
+      // User is already on the classroom page — the whiteboard overlay is open.
+      // Close it via a custom event so ClassroomCore resets boardOpen to false.
+      window.dispatchEvent(new CustomEvent("close-classroom-overlay"));
+    } else {
+      router.push(isSandbox ? "/classroom/sandbox" : `/classroom/${roomId}`);
+    }
   }
   async function handleLeave() {
     // Dispose background processor before leaving

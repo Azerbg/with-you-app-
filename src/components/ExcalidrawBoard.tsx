@@ -393,7 +393,20 @@ export default function ExcalidrawBoard({
           const v = getSceneVersion(els);
           if (v === lastVersion.current) return;
           lastVersion.current = v;
-          sendData({ type: "excalidraw-sync", elements: els, files, version: v, pageId: currentPageIdRef.current });
+          // If actively editing a text element, merge live text into the sync so the
+          // remote peer sees each keystroke instead of waiting until editing ends.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const editingEl = (_state as any).editingTextElement;
+          let syncEls: typeof els = els;
+          if (editingEl?.id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const hasEl = (els as any[]).some(e => e.id === editingEl.id);
+            syncEls = hasEl
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ? (els as any[]).map(e => e.id === editingEl.id ? { ...e, text: editingEl.text ?? e.text } : e) as typeof els
+              : [...(els as any[]), editingEl] as typeof els;
+          }
+          sendData({ type: "excalidraw-sync", elements: syncEls, files, version: v, pageId: currentPageIdRef.current });
         }, 50);
       }
 
@@ -545,14 +558,24 @@ export default function ExcalidrawBoard({
     });
   }
 
+  // ─── Export helpers ───────────────────────────────────────────────────────
+  function exportFilename(ext: string) {
+    const page = pagesRef.current.find(p => p.id === currentPageIdRef.current);
+    const label = (page?.label ?? "page").toLowerCase().replace(/\s+/g, "-");
+    const date  = new Date().toISOString().slice(0, 10);
+    return `tableau-${label}-${date}.${ext}`;
+  }
+
   // ─── Export PNG ───────────────────────────────────────────────────────────
   async function handleExportPng() {
     if (!api) return;
     const { exportToBlob } = await import("@excalidraw/excalidraw");
-    const blob = await exportToBlob({ elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles(), mimeType: "image/png" });
+    const elements = api.getSceneElements();
+    const appState = { ...api.getAppState(), exportWithDarkMode: false };
+    const blob = await exportToBlob({ elements, appState, files: api.getFiles(), mimeType: "image/png", exportPadding: 24 });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `whiteboard-${bookingId ?? "export"}.png`; a.click();
+    a.href = url; a.download = exportFilename("png"); a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -560,7 +583,10 @@ export default function ExcalidrawBoard({
   async function handleExportPdf() {
     if (!api) return;
     const { exportToBlob } = await import("@excalidraw/excalidraw");
-    const blob = await exportToBlob({ elements: api.getSceneElements(), appState: api.getAppState(), files: api.getFiles(), mimeType: "image/png", getDimensions: () => ({ width: 1920, height: 1080 }) });
+    const elements = api.getSceneElements();
+    const appState = { ...api.getAppState(), exportWithDarkMode: false };
+    // Export at content bounds (exportPadding adds margin around drawn content)
+    const blob = await exportToBlob({ elements, appState, files: api.getFiles(), mimeType: "image/png", exportPadding: 24 });
     const imgUrl = URL.createObjectURL(blob);
     const img = new Image();
     img.src = imgUrl;
@@ -573,7 +599,7 @@ export default function ExcalidrawBoard({
     const isLandscape = img.width > img.height;
     const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "px", format: [img.width, img.height], hotfixes: ["px_scaling"] });
     pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, img.width, img.height);
-    pdf.save(`whiteboard-${bookingId ?? "export"}.pdf`);
+    pdf.save(exportFilename("pdf"));
   }
 
   // ─── Apply font/color/size to selected text element ──────────────────────
@@ -582,7 +608,9 @@ export default function ExcalidrawBoard({
     api.updateScene({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       elements: (api.getSceneElements() as any[]).map(el =>
-        el.id === selTextEl.id ? { ...el, ...updates } : el
+        el.id === selTextEl.id
+          ? { ...el, ...updates, version: (el.version ?? 0) + 1, versionNonce: Math.floor(Math.random() * 100000) }
+          : el
       ),
       appState: { collaborators: new Map() },
     });
@@ -742,10 +770,8 @@ export default function ExcalidrawBoard({
       `}</style>
 
       <BoardErrorBoundary lang={lang} onClose={onClose}>
-        {/* Outer: light gray background so users see the page boundary */}
-        <div className="flex-1 relative min-h-0 bg-[#e8e8e8] flex justify-center overflow-hidden">
-          {/* Inner "page": white, max-width 900px, fills full height */}
-          <div className="relative h-full shadow-[0_2px_16px_rgba(0,0,0,0.18)]" style={{ width: "100%", maxWidth: 900 }}>
+        <div className="flex-1 relative min-h-0 bg-white overflow-hidden">
+          <div className="relative w-full h-full">
             <Excalidraw
               excalidrawAPI={handleMount}
               onChange={handleChange}

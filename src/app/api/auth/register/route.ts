@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { registerSchema } from "@/lib/validations/auth";
-import { sendVerificationEmail } from "@/lib/email";
+import { sendEmailOtpCode } from "@/lib/email";
 import { Role } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      await sendVerificationEmail(user.email, code);
+      await sendEmailOtpCode(user.email, code);
     } catch (emailError) {
       console.warn("[REGISTER] Email send failed (check SMTP config):", emailError);
     }
