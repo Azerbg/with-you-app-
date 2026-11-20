@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { db } from "@/lib/db";
+import { getUsdToTndRate } from "@/lib/adminSettings";
 
-export async function GET() {
+export async function GET(req: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
+
+  const { searchParams } = new URL(req.url);
+  const yearParam = searchParams.get("year");
+  const selectedYear = yearParam ? parseInt(yearParam) : null;
 
   const now        = new Date();
   const weekStart  = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0, 0, 0, 0);
@@ -12,7 +17,17 @@ export async function GET() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd   = new Date(todayStart.getTime() + 86_400_000 - 1);
 
+  // Year-filter date ranges
+  const yearStart  = selectedYear ? new Date(selectedYear, 0, 1) : null;
+  const yearEnd    = selectedYear ? new Date(selectedYear, 11, 31, 23, 59, 59, 999) : null;
+  const h1Start    = selectedYear ? new Date(selectedYear, 0, 1) : null;
+  const h1End      = selectedYear ? new Date(selectedYear, 5, 30, 23, 59, 59, 999) : null;
+  const h2Start    = selectedYear ? new Date(selectedYear, 6, 1) : null;
+  const h2End      = selectedYear ? new Date(selectedYear, 11, 31, 23, 59, 59, 999) : null;
+
   const r2 = (n: number) => Math.round(n * 100) / 100;
+
+  const usdToTnd = await getUsdToTndRate();
 
   const [
     // Students
@@ -23,9 +38,9 @@ export async function GET() {
     sessionsToday,
     sessionsWeek,
     sessionsMonth,
-    // Revenue
-    revenueWeek,
-    revenueMonth,
+    // Revenue (default or year-filtered)
+    revenuePeriod1,
+    revenuePeriod2,
     revenueTotal,
     // Payouts owed
     payoutsOwed,
@@ -41,25 +56,41 @@ export async function GET() {
 
     db.booking.count({ where: { status: "CONFIRMED", scheduledAt: { gte: now } } }),
     db.booking.count({ where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: todayStart, lte: todayEnd } } }),
-    db.booking.count({ where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: weekStart } } }),
-    db.booking.count({ where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: monthStart } } }),
+    db.booking.count({ where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: selectedYear ? yearStart! : weekStart } } }),
+    db.booking.count({ where: { status: { in: ["CONFIRMED", "COMPLETED"] }, scheduledAt: { gte: selectedYear ? yearStart! : monthStart } } }),
 
+    // Period 1: H1 of year OR current week
     db.booking.aggregate({
-      where: { status: { in: ["CONFIRMED", "COMPLETED"] }, createdAt: { gte: weekStart } },
+      where: {
+        status: { in: ["CONFIRMED", "COMPLETED"] },
+        scheduledAt: selectedYear
+          ? { gte: h1Start!, lte: h1End! }
+          : { gte: weekStart },
+      },
       _sum: { studentPriceUsd: true },
     }),
+    // Period 2: H2 of year OR current month
     db.booking.aggregate({
-      where: { status: { in: ["CONFIRMED", "COMPLETED"] }, createdAt: { gte: monthStart } },
+      where: {
+        status: { in: ["CONFIRMED", "COMPLETED"] },
+        scheduledAt: selectedYear
+          ? { gte: h2Start!, lte: h2End! }
+          : { gte: monthStart },
+      },
       _sum: { studentPriceUsd: true },
     }),
+    // Total: full year OR all-time
     db.booking.aggregate({
-      where: { status: { in: ["CONFIRMED", "COMPLETED"] } },
+      where: {
+        status: { in: ["CONFIRMED", "COMPLETED"] },
+        ...(selectedYear ? { scheduledAt: { gte: yearStart!, lte: yearEnd! } } : {}),
+      },
       _sum: { studentPriceUsd: true },
     }),
 
     db.booking.aggregate({
       where: { status: "COMPLETED", tutorPaidAt: null, tutorPayoutAmount: { gt: 0 } },
-      _sum: { tutorPayoutUsd: true },
+      _sum: { tutorPayoutUsd: true, tutorPayoutAmount: true },
       _count: { id: true },
     }),
     db.booking.groupBy({
@@ -69,7 +100,7 @@ export async function GET() {
     }).then(rows => rows.length),
 
     db.dispute.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW"] } } }),
-    db.hrApplication.count({ where: { status: { in: ["NEW", "STAGE1_REVIEW", "VIDEO_SUBMITTED", "INTERVIEW_COMPLETE"] } } }),
+    db.hrApplication.count({ where: { status: { notIn: ["ACTIVE", "SUSPENDED", "REJECTED"] } } }),
 
     db.booking.findMany({
       where: { status: { in: ["CONFIRMED", "COMPLETED"] } },
@@ -92,6 +123,8 @@ export async function GET() {
 
   return NextResponse.json({
     generatedAt: now.toISOString(),
+    usdToTnd,
+    selectedYear,
     students: {
       total:   totalStudents,
       newWeek: newStudentsWeek,
@@ -103,12 +136,13 @@ export async function GET() {
       month:    sessionsMonth,
     },
     revenue: {
-      week:  r2(revenueWeek._sum.studentPriceUsd  ?? 0),
-      month: r2(revenueMonth._sum.studentPriceUsd ?? 0),
-      total: r2(revenueTotal._sum.studentPriceUsd ?? 0),
+      period1: r2(revenuePeriod1._sum.studentPriceUsd ?? 0),
+      period2: r2(revenuePeriod2._sum.studentPriceUsd ?? 0),
+      total:   r2(revenueTotal._sum.studentPriceUsd   ?? 0),
     },
     payoutsOwed: {
       amountUsd:   r2(payoutsOwed._sum.tutorPayoutUsd ?? 0),
+      amountTnd:   r2(payoutsOwed._sum.tutorPayoutAmount ?? 0),
       sessionCount: payoutsOwed._count.id,
       tutorCount:  payoutsOwedTutorCount,
     },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { db } from "@/lib/db";
+import { sendDisputeResolutionEmail } from "@/lib/email";
+import { DisputeStatus } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAdmin();
@@ -47,18 +49,46 @@ export async function PATCH(req: NextRequest) {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const { id, status, resolution } = await req.json();
+  const { id, status, resolution, internalNote, notify } = await req.json() as {
+    id: string;
+    status: DisputeStatus;
+    resolution?: string;
+    internalNote?: string;
+    notify?: boolean;
+  };
   if (!id || !status) return NextResponse.json({ error: "id and status required" }, { status: 400 });
+
+  const parts = [resolution?.trim(), internalNote?.trim()].filter(Boolean);
+  const finalResolution = parts.length > 0 ? parts.join("\n\nNote : ") : undefined;
 
   const updated = await db.dispute.update({
     where: { id },
     data: {
       status,
-      resolution: resolution ?? undefined,
+      resolution: finalResolution,
       resolvedAt: ["RESOLVED", "CLOSED"].includes(status) ? new Date() : undefined,
     },
     select: { id: true, status: true, resolution: true },
   });
+
+  if (notify && ["RESOLVED", "CLOSED"].includes(status) && resolution?.trim()) {
+    const dispute = await db.dispute.findUnique({
+      where: { id },
+      select: {
+        type: true,
+        student: { select: { email: true, firstName: true, lastName: true } },
+        tutor:   { select: { email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
+      },
+    });
+    if (dispute) {
+      const studentName = [dispute.student.firstName, dispute.student.lastName].filter(Boolean).join(" ") || dispute.student.email;
+      const tutorName   = dispute.tutor.hrApplication?.fullName ?? [dispute.tutor.firstName, dispute.tutor.lastName].filter(Boolean).join(" ") ?? dispute.tutor.email;
+      await Promise.allSettled([
+        sendDisputeResolutionEmail(dispute.student.email, studentName, resolution.trim(), internalNote?.trim(), dispute.type),
+        sendDisputeResolutionEmail(dispute.tutor.email,   tutorName,   resolution.trim(), internalNote?.trim(), dispute.type),
+      ]);
+    }
+  }
 
   return NextResponse.json(updated);
 }

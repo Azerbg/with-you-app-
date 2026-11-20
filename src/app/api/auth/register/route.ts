@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, password, firstName, lastName, role } = parsed.data;
+    const { email: rawEmail, password, firstName, lastName, role } = parsed.data;
+    const email = rawEmail.toLowerCase().trim();
     const referralCode = typeof body.referralCode === "string" ? body.referralCode.toUpperCase() : null;
 
     const existing = await db.user.findUnique({ where: { email } });

@@ -133,11 +133,11 @@ export default function BookingsClient() {
                   className="hover:bg-[#FAF8F0] transition cursor-pointer">
                   <td className="px-8 py-3 min-w-0">
                     <p className="text-sm font-medium text-[#2D1A00] truncate">{userName(b.student)}</p>
-                    <p className="text-[10px] text-[#9B8A6B] truncate">{b.student.email}</p>
+                    <p className="text-[10px] text-[#9B8A6B] truncate" title={b.student.email}>{b.student.email}</p>
                   </td>
                   <td className="px-4 py-3 min-w-0">
                     <p className="text-sm text-[#2D1A00] truncate">{userName(b.tutor)}</p>
-                    <p className="text-[10px] text-[#9B8A6B] truncate">{b.tutor.email}</p>
+                    <p className="text-[10px] text-[#9B8A6B] truncate" title={b.tutor.email}>{b.tutor.email}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">{TYPE_LABELS[b.sessionType]?.[lang] ?? b.sessionType}</td>
                   <td className="px-4 py-3">

@@ -163,6 +163,8 @@ model User {
   statusUpdatedAt  DateTime?
   statusUpdatedBy  String?       // Admin user ID who changed the status
 
+  lastLoginAt DateTime?           // Updated on every successful sign-in
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

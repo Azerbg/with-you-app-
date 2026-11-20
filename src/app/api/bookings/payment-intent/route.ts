@@ -6,6 +6,7 @@ import { stripe } from "@/lib/stripe";
 import { generateAvailableSlots } from "@/lib/slots";
 import { DISCOVERY_SESSION_CENTS, STANDARD_SESSION_CENTS } from "@/lib/pricing";
 import { resolveStripeCustomer, friendlyStripeError } from "@/lib/stripe-customer";
+import { getUsdToTndRate, computePayoutUsd } from "@/lib/adminSettings";
 
 const schema = z.object({
   tutorId:     z.string().min(1),
@@ -134,10 +135,12 @@ export async function POST(req: NextRequest) {
     const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
     const hourlyRate = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
     const studentPriceUsd = amountCents / 100;
+    const usdToTnd = await getUsdToTndRate();
     const tutorPayoutAmount = hourlyRate > 0
       ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
       : Math.round(studentPriceUsd * 0.70 * 100) / 100;
-    const platformMargin = Math.round((studentPriceUsd - tutorPayoutAmount) * 100) / 100;
+    const tutorPayoutUsd  = computePayoutUsd(tutorPayoutAmount, tutorCurrencyPref, usdToTnd);
+    const platformMargin  = Math.round((studentPriceUsd - tutorPayoutUsd) * 100) / 100;
 
     // If student retries payment for same slot, cancel old PENDING and create fresh one
     await db.booking.updateMany({
@@ -161,6 +164,7 @@ export async function POST(req: NextRequest) {
         studentPriceUsd,
         studentCurrency: "USD",
         tutorPayoutAmount,
+        tutorPayoutUsd,
         tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
         platformMargin,
         stripePaymentIntentId: paymentIntent.id,

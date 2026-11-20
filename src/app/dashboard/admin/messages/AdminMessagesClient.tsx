@@ -3,6 +3,71 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+// ─── Moderation modal ──────────────────────────────────────────────────────────
+
+type ModAction = "FLAG" | "BLOCK_STUDENT" | "BLOCK_TUTOR";
+
+function ModerationModal({
+  threadId,
+  action,
+  targetName,
+  onClose,
+  onDone,
+}: {
+  threadId: string;
+  action: ModAction;
+  targetName: string;
+  onClose: () => void;
+  onDone: (action: ModAction) => void;
+}) {
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const labels: Record<ModAction, { title: string; btn: string; color: string }> = {
+    FLAG:          { title: "Signaler la conversation",   btn: "Signaler",          color: "bg-amber-500 hover:bg-amber-600" },
+    BLOCK_STUDENT: { title: `Geler le compte étudiant`,   btn: "Geler le compte",   color: "bg-orange-600 hover:bg-orange-700" },
+    BLOCK_TUTOR:   { title: `Geler le compte tuteur`,     btn: "Geler le compte",   color: "bg-orange-600 hover:bg-orange-700" },
+  };
+  const cfg = labels[action];
+
+  async function submit() {
+    setLoading(true); setErr(null);
+    const res = await fetch(`/api/admin/messages/${threadId}/moderate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, note }),
+    });
+    setLoading(false);
+    if (res.ok) { onDone(action); onClose(); }
+    else setErr("Échec de l'action.");
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+        <h2 className="font-bold text-[#2D1A00] mb-1">{cfg.title}</h2>
+        <p className="text-xs text-[#9B8A6B] mb-4">{targetName}</p>
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          rows={3}
+          placeholder={action === "FLAG" ? "Motif du signalement (ex: échange de coordonnées externes)…" : "Motif du gel (optionnel)…"}
+          className="w-full border border-[#D9D0C3] rounded-xl px-3 py-2 text-sm text-[#2D1A00] focus:outline-none focus:ring-2 focus:ring-[#F5C400]/40 resize-none mb-4"
+        />
+        {err && <p className="text-xs text-red-600 mb-3">{err}</p>}
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold">Annuler</button>
+          <button onClick={submit} disabled={loading}
+            className={`px-4 py-2 text-sm text-white font-bold rounded-xl transition disabled:opacity-50 ${cfg.color}`}>
+            {loading ? "En cours…" : cfg.btn}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface ThreadUser {
   id: string; email: string; firstName: string | null; lastName: string | null;
   hrApplication?: { fullName: string | null } | null;
@@ -11,7 +76,7 @@ interface Thread {
   id: string; lastMessageAt: string | null;
   student: ThreadUser; tutor: ThreadUser;
   _count: { messages: number };
-  messages: { content: string; createdAt: string; senderId: string }[];
+  messages: { content: string; createdAt: string; senderId: string; type: string }[];
 }
 interface Message {
   id: string; senderId: string; content: string; type: string; isRead: boolean; createdAt: string;
@@ -54,6 +119,16 @@ export default function AdminMessagesClient() {
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [modAction, setModAction] = useState<ModAction | null>(null);
+  const [flaggedThreads, setFlaggedThreads] = useState<Set<string>>(new Set());
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set());
+
+  function handleModDone(action: ModAction) {
+    if (!activeId || !detail) return;
+    if (action === "FLAG") setFlaggedThreads(prev => new Set(prev).add(activeId));
+    if (action === "BLOCK_STUDENT") setBlockedUsers(prev => new Set(prev).add(detail.student.id));
+    if (action === "BLOCK_TUTOR")   setBlockedUsers(prev => new Set(prev).add(detail.tutor.id));
+  }
 
   const loadThreads = useCallback(async () => {
     setLoading(true);
@@ -123,11 +198,24 @@ export default function AdminMessagesClient() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-[#2D1A00] truncate">{sName}</p>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <p className="text-xs font-bold text-[#2D1A00] truncate">{sName}</p>
+                      {flaggedThreads.has(t.id) && <span className="text-amber-500 flex-shrink-0">🚩</span>}
+                    </div>
                     {last && <span className="text-[10px] text-[#9B8A6B] shrink-0 ml-1">{timeLabel(last.createdAt)}</span>}
                   </div>
                   <p className="text-[10px] text-[#9B8A6B] truncate">↔ {tName}</p>
-                  {last && <p className="text-[10px] text-[#9B8A6B] truncate mt-0.5">{last.content}</p>}
+                  {last && (
+                    <p className="text-[10px] text-[#9B8A6B] truncate mt-0.5">
+                      {last.type === "AUDIO" || last.type === "VOICE_NOTE"
+                        ? "🎤 Note vocale"
+                        : last.type === "FILE"
+                        ? "📎 Fichier"
+                        : last.type === "IMAGE"
+                        ? "🖼 Image"
+                        : last.content}
+                    </p>
+                  )}
                   <p className="text-[10px] text-[#9B8A6B] mt-0.5">{t._count.messages} msg</p>
                 </div>
               </button>
@@ -146,19 +234,62 @@ export default function AdminMessagesClient() {
       </div>
 
       {/* Message viewer */}
+      {modAction && detail && activeId && (
+        <ModerationModal
+          threadId={activeId}
+          action={modAction}
+          targetName={modAction === "FLAG"
+            ? `${userName(detail.student)} ↔ ${userName(detail.tutor)}`
+            : modAction === "BLOCK_STUDENT"
+            ? userName(detail.student)
+            : userName(detail.tutor)}
+          onClose={() => setModAction(null)}
+          onDone={handleModDone}
+        />
+      )}
+
       {detail ? (
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Header */}
-          <div className="h-14 border-b border-black/5 bg-white flex items-center gap-4 px-6 flex-shrink-0">
-            <div>
-              <p className="text-sm font-bold text-[#2D1A00]">{userName(detail.student)} ↔ {userName(detail.tutor)}</p>
-              <p className="text-[10px] text-[#9B8A6B]">{detail.messages.length} messages · lecture seule</p>
-            </div>
-            <div className="ml-auto flex gap-3">
-              <a href={`/dashboard/admin/users/${detail.student.id}`}
-                className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">Voir étudiant →</a>
-              <a href={`/dashboard/admin/users/${detail.tutor.id}`}
-                className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition">Voir tuteur →</a>
+          <div className="border-b border-black/5 bg-white px-6 py-3 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-[#2D1A00] truncate">{userName(detail.student)} ↔ {userName(detail.tutor)}</p>
+                  {activeId && flaggedThreads.has(activeId) && (
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0">🚩 Signalé</span>
+                  )}
+                </div>
+                <p className="text-[10px] text-[#9B8A6B]">{detail.messages.length} messages · lecture seule</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                <a href={`/dashboard/admin/users/${detail.student.id}`}
+                  className="text-[10px] text-[#9B8A6B] hover:text-[#5C3D00] transition border border-[#D9D0C3] px-2 py-1 rounded-lg">
+                  Profil étudiant →
+                </a>
+                <a href={`/dashboard/admin/users/${detail.tutor.id}`}
+                  className="text-[10px] text-[#9B8A6B] hover:text-[#5C3D00] transition border border-[#D9D0C3] px-2 py-1 rounded-lg">
+                  Profil tuteur →
+                </a>
+                <button
+                  onClick={() => setModAction("FLAG")}
+                  disabled={!!(activeId && flaggedThreads.has(activeId))}
+                  className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded-lg hover:bg-amber-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  🚩 {activeId && flaggedThreads.has(activeId) ? "Déjà signalé" : "Signaler"}
+                </button>
+                <button
+                  onClick={() => setModAction("BLOCK_STUDENT")}
+                  disabled={blockedUsers.has(detail.student.id)}
+                  className="text-[10px] font-semibold bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {blockedUsers.has(detail.student.id) ? "Étudiant gelé ✓" : "Geler étudiant"}
+                </button>
+                <button
+                  onClick={() => setModAction("BLOCK_TUTOR")}
+                  disabled={blockedUsers.has(detail.tutor.id)}
+                  className="text-[10px] font-semibold bg-orange-50 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {blockedUsers.has(detail.tutor.id) ? "Tuteur gelé ✓" : "Geler tuteur"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -179,7 +310,15 @@ export default function AdminMessagesClient() {
                         ? "bg-white border border-black/8 text-[#2D1A00] rounded-bl-sm shadow-sm"
                         : "bg-[#5C3D00] text-white rounded-br-sm"
                     }`}>
-                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                      {m.type === "AUDIO" || m.type === "VOICE_NOTE" ? (
+                        <p className="flex items-center gap-1.5 text-xs italic opacity-70">🎤 {m.content || "Note vocale"}</p>
+                      ) : m.type === "FILE" ? (
+                        <p className="flex items-center gap-1.5 text-xs">📎 <span className="underline truncate max-w-[180px]">{m.content}</span></p>
+                      ) : m.type === "IMAGE" ? (
+                        <p className="text-xs italic opacity-70">🖼 Image</p>
+                      ) : (
+                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                      )}
                       <p className={`text-[10px] mt-1 ${isStudent ? "text-[#9B8A6B]" : "text-white/50 text-right"}`}>
                         {new Date(m.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                         {" · "}

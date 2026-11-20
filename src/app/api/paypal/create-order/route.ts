@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generateAvailableSlots } from "@/lib/slots";
 import { DISCOVERY_SESSION_CENTS, STANDARD_SESSION_CENTS } from "@/lib/pricing";
 import { createPayPalOrder } from "@/lib/paypal";
+import { getUsdToTndRate, computePayoutUsd } from "@/lib/adminSettings";
 // db already imported above — TutorCompensation query uses it
 
 const schema = z.object({
@@ -88,10 +89,12 @@ export async function POST(req: NextRequest) {
     });
     const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
     const hourlyRate = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+    const usdToTnd = await getUsdToTndRate();
     const tutorPayoutAmount = hourlyRate > 0
       ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
       : Math.round(amountUsd * 0.70 * 100) / 100;
-    const platformMargin = Math.round((amountUsd - tutorPayoutAmount) * 100) / 100;
+    const tutorPayoutUsd = computePayoutUsd(tutorPayoutAmount, tutorCurrencyPref, usdToTnd);
+    const platformMargin = Math.round((amountUsd - tutorPayoutUsd) * 100) / 100;
 
     // Cancel any previous PENDING for the same slot (retry scenario)
     await db.booking.updateMany({
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
         studentPriceUsd: amountUsd,
         studentCurrency: "USD",
         tutorPayoutAmount,
+        tutorPayoutUsd,
         tutorCurrency: tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
         platformMargin,
         paymentProvider: "paypal",

@@ -3,6 +3,9 @@ import { db } from "@/lib/db";
 /** Default USD→TND rate if not set in DB */
 export const DEFAULT_USD_TO_TND = 2.95;
 
+/** Approximate CAD→USD conversion (no DB setting — update here if needed) */
+export const DEFAULT_CAD_TO_USD = 0.73;
+
 /** Reads usdToTnd from the settings table, falls back to default. */
 export async function getUsdToTndRate(): Promise<number> {
   try {
@@ -12,6 +15,21 @@ export async function getUsdToTndRate(): Promise<number> {
   } catch {
     return DEFAULT_USD_TO_TND;
   }
+}
+
+/**
+ * Convert a tutor's local-currency payout amount to USD.
+ * Used at booking creation to populate tutorPayoutUsd and compute a correct platformMargin.
+ */
+export function computePayoutUsd(
+  payoutAmountLocal: number,
+  tutorCurrency: string,
+  usdToTnd: number,
+): number {
+  if (tutorCurrency === "USD") return Math.round(payoutAmountLocal * 100) / 100;
+  if (tutorCurrency === "CAD") return Math.round(payoutAmountLocal * DEFAULT_CAD_TO_USD * 100) / 100;
+  // TND (default): divide by the current rate
+  return Math.round((payoutAmountLocal / usdToTnd) * 100) / 100;
 }
 
 /**

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, email: true, firstName: true, lastName: true,
         role: true, accountStatus: true, statusReason: true,
-        createdAt: true, emailVerified: true,
+        createdAt: true, emailVerified: true, lastLoginAt: true,
         hrApplication: { select: { fullName: true, status: true } },
         _count: { select: { bookingsAsStudent: true, bookingsAsTutor: true } },
       },
@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       ...u,
       createdAt: u.createdAt.toISOString(),
       emailVerified: u.emailVerified?.toISOString() ?? null,
+      lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     })),
     total,
     pages: Math.ceil(total / limit),

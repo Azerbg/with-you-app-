@@ -39,6 +39,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         if (process.env.NODE_ENV === "production" && !user.emailVerified) return null;
 
+        // Record last login time (non-blocking)
+        db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => {});
+
         const displayName =
           user.hrApplication?.fullName ||
           (user.firstName ? [user.firstName, user.lastName].filter(Boolean).join(" ") : null);
@@ -142,9 +145,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           if (!existing.emailVerified) {
             updates.emailVerified = new Date();
           }
-          if (Object.keys(updates).length > 0) {
-            await db.user.update({ where: { id: existing.id }, data: updates });
-          }
+          updates.lastLoginAt = new Date();
+          await db.user.update({ where: { id: existing.id }, data: updates });
         }
         return true;
       }

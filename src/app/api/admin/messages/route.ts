@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
         student: { select: { id: true, email: true, firstName: true, lastName: true } },
         tutor:   { select: { id: true, email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
         _count:  { select: { messages: true } },
-        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { content: true, createdAt: true, senderId: true } },
+        messages: { orderBy: { createdAt: "desc" }, take: 1, select: { content: true, createdAt: true, senderId: true, type: true } },
       },
     }),
     db.messageThread.count({ where }),

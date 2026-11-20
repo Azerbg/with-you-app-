@@ -20,10 +20,12 @@ interface ActivityItem {
 
 interface OverviewData {
   generatedAt: string;
+  usdToTnd: number;
+  selectedYear: number | null;
   students:    { total: number; newWeek: number };
   sessions:    { upcoming: number; today: number; week: number; month: number };
-  revenue:     { week: number; month: number; total: number };
-  payoutsOwed: { amountUsd: number; sessionCount: number; tutorCount: number };
+  revenue:     { period1: number; period2: number; total: number };
+  payoutsOwed: { amountUsd: number; amountTnd: number; sessionCount: number; tutorCount: number };
   misc:        { openDisputes: number; hrAwaiting: number };
   recentActivity: ActivityItem[];
 }
@@ -78,12 +80,17 @@ export default function OverviewClient() {
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [pulse, setPulse]     = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const intervalRef           = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const currentYear = new Date().getFullYear();
+  const availableYears = Array.from({ length: currentYear - 2023 }, (_, i) => 2024 + i);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const r = await fetch("/api/admin/overview");
+      const url = selectedYear ? `/api/admin/overview?year=${selectedYear}` : "/api/admin/overview";
+      const r = await fetch(url);
       if (!r.ok) return;
       const d = await r.json() as OverviewData;
       setData(d);
@@ -100,6 +107,9 @@ export default function OverviewClient() {
     intervalRef.current = setInterval(() => load(true), 30_000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [load]);
+
+  // Reload when year changes
+  useEffect(() => { load(); }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading && !data) return (
     <div className="flex items-center justify-center h-64">
@@ -121,7 +131,21 @@ export default function OverviewClient() {
             <h1 className="text-2xl font-black text-[#1A0F00]">{t("Vue d'ensemble", "Overview")}</h1>
             <p className="text-sm text-[#9B8A6B] mt-1 capitalize">{dateStr}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Year filter */}
+            <div className="flex items-center gap-1 bg-white border border-[#D9D0C3] rounded-full px-1 py-1">
+              <button
+                onClick={() => setSelectedYear(null)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${selectedYear === null ? "bg-[#F5C400] text-[#5C3D00]" : "text-[#9B8A6B] hover:text-[#5C3D00]"}`}>
+                {t("Tout", "All")}
+              </button>
+              {availableYears.map(y => (
+                <button key={y} onClick={() => setSelectedYear(y)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition ${selectedYear === y ? "bg-[#F5C400] text-[#5C3D00]" : "text-[#9B8A6B] hover:text-[#5C3D00]"}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
             <span className={`flex items-center gap-1.5 text-xs text-[#9B8A6B] transition-opacity ${pulse ? "opacity-100" : "opacity-60"}`}>
               <span className={`w-2 h-2 rounded-full ${pulse ? "bg-green-500 animate-ping" : "bg-green-400"}`} />
               {t("Mis à jour", "Updated")} {lastSync}
@@ -134,29 +158,53 @@ export default function OverviewClient() {
         </div>
 
         {/* ── REVENUS ─────────────────────────────────────────────────── */}
-        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">{t("Revenus reçus", "Revenue received")}</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest">{t("Revenus reçus (étudiants → plateforme)", "Revenue received (students → platform)")}</p>
+          <span className="text-[10px] text-[#9B8A6B] bg-[#F2EFE9] px-2 py-0.5 rounded-full">
+            {t("Tous les montants en", "All amounts in")} USD · 1 USD = {data.usdToTnd} TND
+          </span>
+        </div>
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <Card label={t("Cette semaine", "This week")}  value={fmt(data.revenue.week)}  color="text-green-700" sub="USD" />
-          <Card label={t("Ce mois",       "This month")} value={fmt(data.revenue.month)} color="text-green-700" sub="USD" />
-          <Card label={t("Total (tout temps)", "All time")} value={fmt(data.revenue.total)} color="text-[#5C3D00]" sub="USD" />
+          <Card
+            label={selectedYear ? `${t("1er sem.", "H1")} ${selectedYear}` : t("Cette semaine", "This week")}
+            value={fmt(data.revenue.period1)}
+            color="text-green-700"
+            sub={`≈ ${(data.revenue.period1 * data.usdToTnd).toFixed(0)} TND`}
+          />
+          <Card
+            label={selectedYear ? `${t("2ème sem.", "H2")} ${selectedYear}` : t("Ce mois", "This month")}
+            value={fmt(data.revenue.period2)}
+            color="text-green-700"
+            sub={`≈ ${(data.revenue.period2 * data.usdToTnd).toFixed(0)} TND`}
+          />
+          <Card
+            label={selectedYear ? `${t("Total", "Total")} ${selectedYear}` : t("Total (tout temps)", "All time")}
+            value={fmt(data.revenue.total)}
+            color="text-[#5C3D00]"
+            sub={`≈ ${(data.revenue.total * data.usdToTnd).toFixed(0)} TND`}
+          />
         </div>
 
         {/* ── VIREMENTS À FAIRE ───────────────────────────────────────── */}
-        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">{t("À payer aux tuteurs", "Owed to tutors")}</p>
+        <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">{t("À payer aux tuteurs (plateforme → tuteurs)", "Owed to tutors (platform → tutors)")}</p>
         {data.payoutsOwed.amountUsd > 0 ? (
           <a href="/dashboard/admin/payouts" className="block mb-6">
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 hover:shadow-md transition">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-3xl font-black text-orange-700">{fmt(data.payoutsOwed.amountUsd, 2)}</p>
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <p className="text-3xl font-black text-orange-700">{data.payoutsOwed.amountTnd.toFixed(2)} <span className="text-lg font-bold">TND</span></p>
+                    <p className="text-sm text-orange-500">≈ {fmt(data.payoutsOwed.amountUsd, 2)} USD</p>
+                  </div>
                   <p className="text-sm text-orange-600 mt-1">
                     {data.payoutsOwed.sessionCount} {t("séance(s)", "session(s)")} · {data.payoutsOwed.tutorCount} {t("tuteur(s)", "tutor(s)")}
+                    <span className="ml-2 text-[10px] text-orange-400">(1 USD = {data.usdToTnd} TND)</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="text-xs font-bold text-orange-700 uppercase tracking-widest">{t("En attente de paiement", "Awaiting payment")}</p>
-                    <p className="text-xs text-orange-500 mt-0.5">{t("Payer manuellement via PayPal", "Pay manually via PayPal")}</p>
+                    <p className="text-xs text-orange-500 mt-0.5">{t("Payer manuellement via Wise / Virement", "Pay manually via Wise / Transfer")}</p>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center flex-shrink-0">
                     <svg viewBox="0 0 20 20" fill="white" className="w-5 h-5">
@@ -178,8 +226,8 @@ export default function OverviewClient() {
         <p className="text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest mb-3">{t("Séances", "Sessions")}</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card label={t("Aujourd'hui",    "Today")}      value={data.sessions.today}    sub={t("confirmées", "confirmed")} />
-          <Card label={t("Cette semaine",  "This week")}  value={data.sessions.week}     sub={t("tenues/confirmées", "held/confirmed")} />
-          <Card label={t("Ce mois",        "This month")} value={data.sessions.month}    />
+          <Card label={selectedYear ? `${t("1er sem.", "H1")} ${selectedYear}` : t("Cette semaine",  "This week")}  value={data.sessions.week}  sub={selectedYear ? undefined : t("tenues/confirmées", "held/confirmed")} />
+          <Card label={selectedYear ? `${t("Total", "Total")} ${selectedYear}` : t("Ce mois", "This month")} value={data.sessions.month} />
           <Card label={t("À venir",        "Upcoming")}   value={data.sessions.upcoming} color="text-blue-700" sub={t("programmées", "scheduled")} href="/dashboard/admin/bookings" />
         </div>
 
@@ -215,7 +263,7 @@ export default function OverviewClient() {
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-green-700">+{fmt(a.amountUsd, 2)}</p>
+                  <p className="text-sm font-bold text-green-700">+{fmt(a.amountUsd, 2)} <span className="text-[10px] font-normal text-green-600">USD</span></p>
                   <p className="text-[10px] text-[#9B8A6B]">{timeAgo(a.createdAt, lang)}</p>
                 </div>
                 <ProviderBadge p={a.provider} />

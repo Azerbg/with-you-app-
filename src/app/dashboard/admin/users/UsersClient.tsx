@@ -13,6 +13,7 @@ interface User {
   accountStatus: string;
   statusReason: string | null;
   createdAt: string;
+  lastLoginAt: string | null;
   hrApplication: { fullName: string | null; status: string } | null;
   _count: { bookingsAsStudent: number; bookingsAsTutor: number };
 }
@@ -45,13 +46,16 @@ interface ActionModalProps {
 function ActionModal({ user, onClose, onDone }: ActionModalProps) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "fr" ? fr : en;
-  const [tab, setTab] = useState<"status" | "delete">("status");
+  const [tab, setTab] = useState<"status" | "actions" | "delete">("status");
   const [status, setStatus] = useState(user.accountStatus);
   const [reason, setReason] = useState(user.statusReason ?? "");
   const [confirmEmail, setConfirmEmail] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState(user.role);
+  const [roleMsg, setRoleMsg] = useState<string | null>(null);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
 
   const needsReason = status !== "ACTIVE";
   const canSave = !needsReason || reason.trim().length > 0;
@@ -72,6 +76,31 @@ function ActionModal({ user, onClose, onDone }: ActionModalProps) {
         : t("Échec de la mise à jour.", "Update failed."));
       setLoading(false);
     }
+  }
+
+  async function saveRole() {
+    if (selectedRole === user.role) return;
+    setLoading(true); setError(null); setRoleMsg(null);
+    const res = await fetch(`/api/admin/users/${user.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: selectedRole }),
+    });
+    setLoading(false);
+    if (res.ok) { setRoleMsg(t("Rôle mis à jour.", "Role updated.")); onDone(); }
+    else setError(t("Échec de la mise à jour.", "Update failed."));
+  }
+
+  async function sendPasswordReset() {
+    setLoading(true); setError(null); setResetMsg(null);
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: user.email }),
+    });
+    setLoading(false);
+    if (res.ok) setResetMsg(t("Email de réinitialisation envoyé.", "Password reset email sent."));
+    else setError(t("Échec de l'envoi.", "Send failed."));
   }
 
   const emailMatches = confirmEmail.toLowerCase() === user.email.toLowerCase();
@@ -100,7 +129,7 @@ function ActionModal({ user, onClose, onDone }: ActionModalProps) {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-bold text-[#2D1A00]">{displayName(user)}</h2>
-            <p className="text-xs text-[#9B8A6B]">{user.email}</p>
+            <p className="text-xs text-[#9B8A6B]">{user.email.toLowerCase()}</p>
           </div>
           <button onClick={onClose} className="text-[#9B8A6B] hover:text-[#5C3D00] transition">
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -111,11 +140,15 @@ function ActionModal({ user, onClose, onDone }: ActionModalProps) {
 
         <div className="flex gap-2 mb-5">
           <button onClick={() => setTab("status")}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${tab === "status" ? "bg-[#F5C400] text-[#5C3D00]" : "bg-black/5 text-[#9B8A6B]"}`}>
-            {t("Statut du compte", "Account status")}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition ${tab === "status" ? "bg-[#F5C400] text-[#5C3D00]" : "bg-black/5 text-[#9B8A6B]"}`}>
+            {t("Statut", "Status")}
+          </button>
+          <button onClick={() => setTab("actions")}
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition ${tab === "actions" ? "bg-[#F5C400] text-[#5C3D00]" : "bg-black/5 text-[#9B8A6B]"}`}>
+            {t("Actions", "Actions")}
           </button>
           <button onClick={() => setTab("delete")}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${tab === "delete" ? "bg-red-500 text-white" : "bg-black/5 text-[#9B8A6B]"}`}>
+            className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition ${tab === "delete" ? "bg-red-500 text-white" : "bg-black/5 text-[#9B8A6B]"}`}>
             {t("Anonymiser", "Anonymize")}
           </button>
         </div>
@@ -156,6 +189,45 @@ function ActionModal({ user, onClose, onDone }: ActionModalProps) {
           </div>
         )}
 
+        {tab === "actions" && (
+          <div className="space-y-5">
+            {/* Role change */}
+            <div>
+              <p className="text-xs font-semibold text-[#5C3D00] mb-2">{t("Changer le rôle", "Change role")}</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {["STUDENT", "TUTOR", "HR", "ADMIN"].map(r => (
+                  <button key={r} onClick={() => setSelectedRole(r)}
+                    className={`py-2 rounded-xl text-xs font-bold transition border-2 ${
+                      selectedRole === r ? "border-[#F5C400] bg-[#FFF3B0] text-[#5C3D00]" : "border-transparent bg-black/5 text-[#9B8A6B]"
+                    }`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              {roleMsg && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-2">{roleMsg}</p>}
+              <button onClick={saveRole} disabled={loading || selectedRole === user.role}
+                className="w-full py-2 bg-[#F5C400] text-[#5C3D00] rounded-xl font-bold text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition">
+                {loading ? t("En cours…", "Processing…") : t("Enregistrer le rôle", "Save role")}
+              </button>
+            </div>
+
+            {/* Password reset */}
+            <div className="border-t border-black/5 pt-4">
+              <p className="text-xs font-semibold text-[#5C3D00] mb-1">{t("Réinitialiser le mot de passe", "Reset password")}</p>
+              <p className="text-[10px] text-[#9B8A6B] mb-3">
+                {t("Un email de réinitialisation sera envoyé à :", "A reset email will be sent to:")} <span className="font-mono">{user.email.toLowerCase()}</span>
+              </p>
+              {resetMsg && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-2">{resetMsg}</p>}
+              <button onClick={sendPasswordReset} disabled={loading}
+                className="w-full py-2 border border-[#D9D0C3] text-[#5C3D00] rounded-xl font-semibold text-sm hover:bg-[#FAF8F0] disabled:opacity-50 transition">
+                {loading ? t("Envoi…", "Sending…") : t("Envoyer l'email de réinitialisation", "Send password reset email")}
+              </button>
+            </div>
+
+            {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          </div>
+        )}
+
         {tab === "delete" && (
           <div className="space-y-4">
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
@@ -172,7 +244,7 @@ function ActionModal({ user, onClose, onDone }: ActionModalProps) {
               <p className="text-xs font-semibold text-[#5C3D00] mb-1">
                 {t("Confirmez en tapant l'adresse e-mail", "Confirm by typing the email address")}
               </p>
-              <p className="text-[10px] text-[#9B8A6B] mb-2 font-mono">{user.email}</p>
+              <p className="text-[10px] text-[#9B8A6B] mb-2 font-mono">{user.email.toLowerCase()}</p>
               <input value={confirmEmail} onChange={e => setConfirmEmail(e.target.value)}
                 placeholder={user.email}
                 className={`w-full border rounded-xl px-3 py-2 text-sm text-[#2D1A00] focus:outline-none transition ${
@@ -282,6 +354,7 @@ export default function UsersClient() {
                 <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Statut", "Status")}</th>
                 <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Activité", "Activity")}</th>
                 <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Inscrit le", "Joined")}</th>
+                <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Dernière connexion", "Last login")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -295,7 +368,7 @@ export default function UsersClient() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-[#2D1A00]">{displayName(u)}</p>
-                        <p className="text-xs text-[#9B8A6B]">{u.email}</p>
+                        <p className="text-xs text-[#9B8A6B] truncate" title={u.email.toLowerCase()}>{u.email.toLowerCase()}</p>
                       </div>
                     </div>
                   </td>
@@ -318,6 +391,11 @@ export default function UsersClient() {
                   </td>
                   <td className="px-4 py-3 text-xs text-[#9B8A6B]">
                     {new Date(u.createdAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-[#9B8A6B]">
+                    {u.lastLoginAt
+                      ? new Date(u.lastLoginAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
+                      : <span className="text-[#C4B89A]">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">

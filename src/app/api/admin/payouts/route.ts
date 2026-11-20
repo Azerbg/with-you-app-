@@ -62,11 +62,11 @@ export async function GET() {
       _sum: { tutorPayoutAmount: true },
       _count: { id: true },
     }),
-    // Revenue this month = paid bookings by createdAt (= student payment date)
+    // Revenue this month = bookings whose session is scheduled this month
     db.booking.aggregate({
       where: {
         status: { in: ["CONFIRMED", "COMPLETED"] },
-        createdAt: { gte: monthStart },
+        scheduledAt: { gte: monthStart },
       },
       _sum: { tutorPayoutUsd: true, studentPriceUsd: true },
       _count: { id: true },

@@ -44,6 +44,14 @@ function userName(u: DisputeUser) {
   return n || u.email;
 }
 
+const PRESET_RESOLUTIONS = [
+  { key: "CREDIT_TRIAL",   fr: "Crédit pour un autre cours d'essai", en: "Credit for another trial lesson" },
+  { key: "PARTIAL_REFUND", fr: "Remboursement partiel",              en: "Partial refund" },
+  { key: "FULL_REFUND",    fr: "Remboursement total",                en: "Full refund" },
+  { key: "TUTOR_PAID",     fr: "Paiement maintenu au tuteur",        en: "Payment maintained to tutor" },
+  { key: "REJECTED",       fr: "Rejet du litige",                    en: "Dispute rejected" },
+];
+
 interface ResolveModalProps {
   dispute: Dispute;
   onClose: () => void;
@@ -54,17 +62,24 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
   const { lang } = useLanguage();
   const t = (fr: string, en: string) => lang === "fr" ? fr : en;
   const [status, setStatus] = useState(dispute.status);
-  const [resolution, setResolution] = useState(dispute.resolution ?? "");
+  const [preset, setPreset] = useState<string | null>(null);
+  const [internalNote, setInternalNote] = useState(dispute.resolution ?? "");
+  const [notify, setNotify] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isClosing = ["RESOLVED", "CLOSED"].includes(status);
+  const canSave = !loading && (!isClosing || preset !== null);
+
   async function save() {
-    if (loading) return;
+    if (!canSave) return;
     setLoading(true); setError(null);
+    const selectedPreset = PRESET_RESOLUTIONS.find(p => p.key === preset);
+    const resolutionLabel = selectedPreset ? (lang === "fr" ? selectedPreset.fr : selectedPreset.en) : undefined;
     const res = await fetch("/api/admin/disputes", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: dispute.id, status, resolution }),
+      body: JSON.stringify({ id: dispute.id, status, resolution: resolutionLabel, internalNote: internalNote.trim() || undefined, notify: isClosing && notify }),
     });
     if (res.ok) { onDone(); onClose(); }
     else { setError(t("Échec de la mise à jour.", "Update failed.")); setLoading(false); }
@@ -72,7 +87,7 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="font-bold text-[#2D1A00]">{t("Gérer le litige", "Manage dispute")}</h2>
@@ -101,12 +116,13 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
           </div>
           {dispute.booking && (
             <div className="flex justify-between">
-              <span className="text-[#9B8A6B]">{t("Réservation", "Booking")}</span>
+              <span className="text-[#9B8A6B]">{t("Séance", "Session")}</span>
               <span className="font-medium text-[#2D1A00]">
                 {dispute.booking.scheduledAt
                   ? new Date(dispute.booking.scheduledAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })
                   : "—"}
-                {dispute.booking.studentPriceUsd != null && ` · $${dispute.booking.studentPriceUsd.toFixed(0)}`}
+                {dispute.booking.studentPriceUsd != null && ` · $${dispute.booking.studentPriceUsd.toFixed(0)} USD`}
+                {dispute.booking.sessionType && ` · ${dispute.booking.sessionType}`}
               </span>
             </div>
           )}
@@ -119,7 +135,7 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
         </div>
 
         {/* Status */}
-        <div className="mb-4">
+        <div className="mb-5">
           <p className="text-xs font-semibold text-[#5C3D00] mb-2">{t("Statut", "Status")}</p>
           <div className="grid grid-cols-4 gap-2">
             {["OPEN", "UNDER_REVIEW", "RESOLVED", "CLOSED"].map(s => (
@@ -133,13 +149,45 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
           </div>
         </div>
 
-        {/* Resolution note */}
-        <div className="mb-5">
-          <p className="text-xs font-semibold text-[#5C3D00] mb-2">{t("Note de résolution", "Resolution note")}</p>
-          <textarea value={resolution} onChange={e => setResolution(e.target.value)} rows={3}
-            placeholder={t("Décision prise, remboursement, avertissement…", "Decision taken, refund, warning…")}
+        {/* Preset resolution — required when closing */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-[#5C3D00] mb-2">
+            {t("Résolution", "Resolution")}
+            {isClosing && <span className="text-red-500 ml-1">*</span>}
+          </p>
+          <div className="space-y-1.5">
+            {PRESET_RESOLUTIONS.map(p => (
+              <button key={p.key} onClick={() => setPreset(prev => prev === p.key ? null : p.key)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl border-2 text-sm transition ${
+                  preset === p.key
+                    ? "border-[#F5C400] bg-[#FFF3B0] text-[#5C3D00] font-semibold"
+                    : "border-black/10 bg-black/[0.02] text-[#5C3D00] hover:border-[#F5C400]/60"
+                }`}>
+                {lang === "fr" ? p.fr : p.en}
+              </button>
+            ))}
+          </div>
+          {isClosing && !preset && (
+            <p className="text-[10px] text-[#9B8A6B] mt-1.5">{t("Sélectionnez une résolution pour clore le litige.", "Select a resolution to close the dispute.")}</p>
+          )}
+        </div>
+
+        {/* Internal note */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-[#5C3D00] mb-2">{t("Note interne (optionnel)", "Internal note (optional)")}</p>
+          <textarea value={internalNote} onChange={e => setInternalNote(e.target.value)} rows={2}
+            placeholder={t("Détails supplémentaires, montant exact, contexte…", "Additional details, exact amount, context…")}
             className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#2D1A00] focus:outline-none focus:border-[#F5C400] resize-none transition" />
         </div>
+
+        {/* Notify parties */}
+        {isClosing && (
+          <label className="flex items-center gap-2.5 mb-5 cursor-pointer select-none">
+            <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)}
+              className="w-4 h-4 accent-[#F5C400]" />
+            <span className="text-sm text-[#5C3D00]">{t("Envoyer un e-mail aux deux parties", "Send email to both parties")}</span>
+          </label>
+        )}
 
         {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{error}</p>}
 
@@ -148,8 +196,8 @@ function ResolveModal({ dispute, onClose, onDone }: ResolveModalProps) {
             className="flex-1 py-2.5 border border-black/10 rounded-xl text-sm font-semibold text-[#9B8A6B] hover:bg-black/5 transition">
             {t("Annuler", "Cancel")}
           </button>
-          <button onClick={save} disabled={loading}
-            className="flex-1 py-2.5 bg-[#F5C400] text-[#5C3D00] rounded-xl font-bold text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition">
+          <button onClick={save} disabled={!canSave}
+            className="flex-1 py-2.5 bg-[#F5C400] text-[#5C3D00] rounded-xl font-bold text-sm hover:bg-[#FFDE59] disabled:opacity-40 transition">
             {loading ? t("Enregistrement…", "Saving…") : t("Enregistrer", "Save")}
           </button>
         </div>

@@ -168,8 +168,8 @@ function MarkPaidModal({
               </p>
             </>
           ) : (
-            <p className="text-xs text-red-500 font-semibold">
-              {t("Aucun moyen de paiement enregistré — contactez le tuteur", "No payment method on file — contact the tutor")}
+            <p className="text-xs text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {t("Aucun moyen de paiement enregistré. Le tuteur doit ajouter ses coordonnées bancaires depuis son profil avant de pouvoir être payé.", "No payment method on file. The tutor must add their bank details from their profile before payment can be processed.")}
             </p>
           )}
         </div>
@@ -256,7 +256,7 @@ function MarkPaidModal({
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={loading || selectedIds.size === 0}
+                disabled={loading || selectedIds.size === 0 || !tutor.paymentMethod}
                 className="px-5 py-2 bg-[#F5C400] text-[#5C3D00] font-bold text-sm rounded-xl hover:bg-[#FFDE59] transition disabled:opacity-50"
               >
                 {loading ? t("En cours…", "Processing…") : t("Confirmer le paiement", "Confirm payment")}
@@ -365,6 +365,9 @@ export default function PayoutsClient() {
           <p className="text-sm text-[#9B8A6B] mt-1">
             {t("Séances terminées en attente de paiement tuteur.", "Completed sessions pending tutor payment.")}
           </p>
+          <p className="text-xs text-[#9B8A6B] mt-1.5 bg-[#F2EFE9] rounded-lg px-3 py-1.5 inline-block">
+            {t("Les étudiants paient en USD · Les tuteurs sont rémunérés en TND (ou CAD)", "Students pay in USD · Tutors are paid in TND (or CAD)")}
+          </p>
         </div>
       </div>
 
@@ -413,13 +416,13 @@ export default function PayoutsClient() {
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
             <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Revenus bruts (mois)", "Gross revenue (month)")}</p>
-            <p className="text-3xl font-black text-[#2D1A00]">${summary.platformGrossUsd.toFixed(0)}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">{t("payés ce mois (createdAt)", "booked this month")}</p>
+            <p className="text-3xl font-black text-[#2D1A00]">${summary.platformGrossUsd.toFixed(0)} <span className="text-sm font-bold text-[#9B8A6B]">USD</span></p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("paiements étudiants ce mois", "student payments this month")}</p>
           </div>
           <div className="bg-white rounded-2xl border border-black/5 p-5 shadow-sm">
             <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-2">{t("Marge plateforme (mois)", "Platform margin (month)")}</p>
-            <p className="text-3xl font-black text-green-700">${summary.platformRevenueUsd.toFixed(0)}</p>
-            <p className="text-xs text-[#9B8A6B] mt-1">{t("après paiement tuteurs", "after tutor payouts")}</p>
+            <p className="text-3xl font-black text-green-700">${summary.platformRevenueUsd.toFixed(0)} <span className="text-sm font-bold text-green-500">USD</span></p>
+            <p className="text-xs text-[#9B8A6B] mt-1">{t("brut − paiements tuteurs (en USD)", "gross − tutor payouts (in USD)")}</p>
           </div>
         </div>
       )}
@@ -476,8 +479,11 @@ export default function PayoutsClient() {
                         className="text-xs text-[#9B8A6B] hover:text-[#5C3D00] transition font-semibold px-3 py-1.5 rounded-lg hover:bg-[#FAF8F0]">
                         {isExpanded ? t("Masquer", "Hide") : t("Détails", "Details")}
                       </button>
-                      <button onClick={() => setMarkingTutor(tutor)}
-                        className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] transition">
+                      <button
+                        onClick={() => hasPaymentMethod && setMarkingTutor(tutor)}
+                        disabled={!hasPaymentMethod}
+                        title={!hasPaymentMethod ? t("Coordonnées de versement manquantes — le tuteur doit enregistrer son moyen de paiement", "Payment details missing — tutor must register a payment method") : undefined}
+                        className="text-xs bg-[#F5C400] text-[#5C3D00] font-bold px-4 py-1.5 rounded-xl hover:bg-[#FFDE59] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#F5C400]">
                         {t("Marquer payé", "Mark paid")}
                       </button>
                     </div>

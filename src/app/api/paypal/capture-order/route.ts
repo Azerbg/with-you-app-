@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { capturePayPalOrder, refundPayPalCapture } from "@/lib/paypal";
 import { sendBookingConfirmationEmail } from "@/lib/email";
 import { DISCOVERY_SESSION_USD, STANDARD_SESSION_USD } from "@/lib/pricing";
+import { getUsdToTndRate, computePayoutUsd } from "@/lib/adminSettings";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -85,10 +86,12 @@ export async function POST(req: NextRequest) {
     });
     const tutorCurrencyPref = tutorComp?.currencyPref ?? "TND";
     const hourlyRate        = tutorCurrencyPref === "CAD" ? (tutorComp?.hourlyRateCad ?? 0) : (tutorComp?.hourlyRateTnd ?? 0);
+    const usdToTnd = await getUsdToTndRate();
     const tutorPayoutAmount = hourlyRate > 0
       ? Math.round((hourlyRate * (durationMins / 60)) * 100) / 100
       : Math.round(captured.amountUsd * 0.70 * 100) / 100;
-    const platformMargin = Math.round((captured.amountUsd - tutorPayoutAmount) * 100) / 100;
+    const tutorPayoutUsd = computePayoutUsd(tutorPayoutAmount, tutorCurrencyPref, usdToTnd);
+    const platformMargin = Math.round((captured.amountUsd - tutorPayoutUsd) * 100) / 100;
 
     booking = await db.booking.create({
       data: {
@@ -101,6 +104,7 @@ export async function POST(req: NextRequest) {
         studentPriceUsd:  captured.amountUsd,
         studentCurrency:  "USD",
         tutorPayoutAmount,
+        tutorPayoutUsd,
         tutorCurrency:    tutorCurrencyPref as "USD" | "CAD" | "EUR" | "TND",
         platformMargin,
         paymentProvider:  "paypal",

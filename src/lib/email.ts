@@ -419,6 +419,33 @@ export async function sendReviewInvitation(params: {
   `);
 }
 
+export async function sendDisputeResolutionEmail(
+  to: string,
+  name: string,
+  resolutionLabel: string,
+  internalNote: string | undefined,
+  disputeType: string,
+) {
+  await sendEmail(to, "WithYou — Résolution de votre litige", `
+    <div style="font-family:sans-serif;max-width:560px;margin:auto">
+      <div style="background:#5C3D00;padding:20px 32px;border-radius:16px 16px 0 0;text-align:center">
+        <span style="font-size:24px;font-weight:900;color:#F5C400">WithYou</span>
+      </div>
+      <div style="background:#fff;padding:32px;border:1px solid #E8DFC8;border-top:none;border-radius:0 0 16px 16px">
+        <h2 style="color:#2D1A00;margin:0 0 8px">Votre litige a été traité</h2>
+        <p style="color:#6B5E44">Bonjour ${name},</p>
+        <p style="color:#6B5E44">Votre litige (<em>${disputeType}</em>) a été examiné par notre équipe. Voici la décision :</p>
+        <div style="background:#FFF3B0;border:1px solid #F5C400;border-radius:12px;padding:16px 20px;margin:16px 0">
+          <p style="margin:0;font-weight:700;color:#5C3D00;font-size:16px">${resolutionLabel}</p>
+          ${internalNote ? `<p style="margin:12px 0 0;color:#6B5E44;font-size:14px">${internalNote}</p>` : ""}
+        </div>
+        <p style="color:#9B8A6B;font-size:13px">Si vous avez des questions, répondez directement à cet e-mail.</p>
+        <p style="color:#9B8A6B;font-size:12px;margin-top:24px">WithYou · Plateforme d'apprentissage des langues</p>
+      </div>
+    </div>
+  `);
+}
+
 export async function sendNewMessageNotification(params: {
   recipientEmail: string;
   recipientName: string;

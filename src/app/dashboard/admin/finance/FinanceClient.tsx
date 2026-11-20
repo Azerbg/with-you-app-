@@ -14,6 +14,7 @@ interface PaymentRow {
   sessionType: string;
   durationMins: number;
   amountUsd: number;
+  tutorPayoutUsd: number;
   marginUsd: number;
   provider: string;
   status: string;
@@ -313,9 +314,10 @@ export default function FinancePage() {
                       <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Étudiant", "Student")}</th>
                       <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Tuteur", "Tutor")}</th>
                       <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Séance", "Session")}</th>
-                      <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Méthode", "Method")}</th>
-                      <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-5 py-3">{t("Montant", "Amount")}</th>
-                      <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-5 py-3">{t("Marge", "Margin")}</th>
+                      <th className="text-left text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Via", "Via")}</th>
+                      <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Étudiant paie", "Student pays")}</th>
+                      <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Part tuteur", "Tutor share")}</th>
+                      <th className="text-right text-[10px] font-bold text-[#9B8A6B] uppercase tracking-widest px-4 py-3">{t("Commission", "Commission")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/5">
@@ -324,15 +326,16 @@ export default function FinancePage() {
                         <td className="px-5 py-3 text-xs text-[#6B5E44] whitespace-nowrap">
                           {new Date(p.createdAt).toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
-                        <td className="px-4 py-3 text-xs font-semibold text-[#2D1A00] max-w-[120px] truncate">{p.studentName}</td>
-                        <td className="px-4 py-3 text-xs text-[#6B5E44] max-w-[120px] truncate">{p.tutorName}</td>
-                        <td className="px-4 py-3 text-xs text-[#9B8A6B]">
+                        <td className="px-4 py-3 text-xs font-semibold text-[#2D1A00] max-w-[110px] truncate">{p.studentName}</td>
+                        <td className="px-4 py-3 text-xs text-[#6B5E44] max-w-[110px] truncate">{p.tutorName}</td>
+                        <td className="px-4 py-3 text-xs text-[#9B8A6B] whitespace-nowrap">
                           {p.sessionType === "DISCOVERY" ? t("Découverte", "Discovery") : t("Séance", "Session")}
                           <span className="ml-1">· {p.durationMins} min</span>
                         </td>
                         <td className="px-4 py-3"><Badge provider={p.provider} /></td>
-                        <td className="px-5 py-3 text-right font-bold text-green-700">{formatUsd(p.amountUsd, 2)}</td>
-                        <td className={`px-5 py-3 text-right font-semibold text-sm ${p.marginUsd < 0 ? "text-red-500" : "text-[#9B8A6B]"}`}>{formatUsd(p.marginUsd, 2)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-green-700 text-xs">{formatUsd(p.amountUsd, 2)}</td>
+                        <td className="px-4 py-3 text-right text-xs text-[#6B5E44]">{formatUsd(p.tutorPayoutUsd, 2)}</td>
+                        <td className={`px-4 py-3 text-right font-semibold text-xs ${p.marginUsd < 0 ? "text-red-500" : "text-[#5C3D00]"}`}>{formatUsd(p.marginUsd, 2)}</td>
                       </tr>
                     ))}
                   </tbody>
