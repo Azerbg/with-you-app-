@@ -36,11 +36,12 @@ interface Application {
   cvUrl?: string | null;
   motivationLetterUrl?: string | null;
   certificateUrls?: string[];
+  attestationUrls?: string[];
   availabilityDays: string[];
   timeWindowPreference: string[];
   status: string;
   createdAt: string;
-  user: { email: string };
+  user: { email: string; id?: string; image?: string | null; tutorProfile?: { profilePhotoUrl?: string | null } | null };
   notes: HrNote[];
   interviewSlots?: string[];
   interviewToken?: string | null;
@@ -49,6 +50,16 @@ interface Application {
   interviewMeetingUrl?: string | null;
   videoSubmissionUrl?: string | null;
   videoSubmittedAt?: string | null;
+  // Offer / compensation
+  offerHourlyRateTnd?: number | null;
+  offerHourlyRateCad?: number | null;
+  offerCurrency?: string | null;
+  offerMaxWeeklyHours?: number | null;
+  // Teaching levels
+  cefrTeachingMin?: string | null;
+  cefrTeachingMax?: string | null;
+  // Timezone
+  timezone?: string | null;
 }
 
 // ─── Kanban columns ───────────────────────────────────────────────────────────
@@ -65,6 +76,7 @@ const COLUMNS: { key: string; labelFr: string; labelEn: string; sublabelFr: stri
   { key: "OFFER_PENDING",       labelFr: "Offre envoyée",     labelEn: "Offer sent",         sublabelFr: "Signature en attente",    sublabelEn: "Awaiting signature",     color: "bg-pink-50 border-pink-200",     icon: "📄" },
   { key: "SIGNED",              labelFr: "Signé ✍️",           labelEn: "Signed ✍️",           sublabelFr: "Contrat accepté",         sublabelEn: "Contract accepted",      color: "bg-teal-50 border-teal-200",     icon: "✅" },
   { key: "ACTIVE",              labelFr: "Actif ✓",           labelEn: "Active ✓",           sublabelFr: "En ligne",                sublabelEn: "Online",                 color: "bg-green-50 border-green-200",   icon: "🟢" },
+  { key: "SUSPENDED",           labelFr: "Suspendu",          labelEn: "Suspended",          sublabelFr: "Compte suspendu",         sublabelEn: "Account suspended",      color: "bg-orange-50 border-orange-300", icon: "⛔" },
   { key: "REJECTED",            labelFr: "Rejeté",            labelEn: "Rejected",           sublabelFr: "",                        sublabelEn: "",                       color: "bg-red-50 border-red-200",       icon: "❌" },
 ];
 
@@ -79,7 +91,8 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   RESERVE:             ["STAGE1_REVIEW", "VIDEO_REQUESTED", "OFFER_PENDING", "REJECTED"],
   OFFER_PENDING:       ["SIGNED", "REJECTED"],
   SIGNED:              ["ACTIVE", "REJECTED"],
-  ACTIVE:              [],
+  ACTIVE:              ["SUSPENDED"],
+  SUSPENDED:           ["ACTIVE", "REJECTED"],
   REJECTED:            [],
 };
 
@@ -224,6 +237,12 @@ function DetailPanel({
   const [savingReply, setSavingReply] = useState(false);
   const [movingTo, setMovingTo] = useState("");
   const [interviewToken, setInterviewToken] = useState(app.interviewToken ?? null);
+  const [cefrMin, setCefrMin] = useState(app.cefrTeachingMin ?? null);
+  const [cefrMax, setCefrMax] = useState(app.cefrTeachingMax ?? null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectPreset, setRejectPreset] = useState("");
+  const [rejectCustom, setRejectCustom] = useState("");
+  const [rejectSaving, setRejectSaving] = useState(false);
 
   // Lazy-loaded full application data (documents, video, interviewToken)
   const [fullApp, setFullApp] = useState<Application | null>(null);
@@ -241,6 +260,22 @@ function DetailPanel({
   }, [app.id]);
 
   const nextStatuses = STATUS_TRANSITIONS[app.status] ?? [];
+
+  // Pre-compute ACTIVE blocking reasons (shown as tooltips)
+  function getActiveBlockReason(): string | null {
+    if (fullLoading) return null;
+    if (!fullApp?.videoSubmissionUrl)
+      return t("Vidéo de présentation manquante", "Presentation video missing");
+    if (!fullApp?.certificateUrls?.length)
+      return t("Aucun diplôme / certificat fourni", "No diploma / certificate provided");
+    if (!app.phone)
+      return t("Numéro de téléphone manquant", "Phone number missing");
+    const ok = ["ADVANCED", "VERY_ADVANCED", "PROFESSIONAL"];
+    if (!app.englishLevel || !ok.includes(app.englishLevel))
+      return t("Niveau d'anglais insuffisant (B2+ requis)", "Insufficient English level (B2+ required)");
+    return null;
+  }
+  const activeBlockReason = getActiveBlockReason();
 
   const candidateMessages = app.notes.filter(n => n.isFromCandidate || n.visibleToCandidate);
   const internalNotes = app.notes.filter(n => !n.isFromCandidate && !n.visibleToCandidate);
@@ -324,17 +359,65 @@ function DetailPanel({
       {/* Panel */}
       <div className="w-full max-w-lg bg-white h-full overflow-y-auto overflow-x-hidden shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="font-bold text-[#5C3D00] text-lg">{app.fullName}</h2>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${colInfo?.color}`}>
-              {lang === "fr" ? colInfo?.labelFr : colInfo?.labelEn}
-            </span>
+        <div className="sticky top-0 bg-white border-b border-[#6B5E44]/10 px-6 py-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Profile photo */}
+            {(() => {
+              const photo = fullApp?.user?.tutorProfile?.profilePhotoUrl ?? app.user.image;
+              return photo ? (
+                <img src={photo} alt={app.fullName} className="w-12 h-12 rounded-full object-cover border-2 border-[#F5C400]/50 flex-shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-[#F5C400]/30 flex items-center justify-center flex-shrink-0 border-2 border-[#F5C400]/30">
+                  <span className="text-lg font-black text-[#5C3D00]">{app.fullName.charAt(0)}</span>
+                </div>
+              );
+            })()}
+            <div className="min-w-0">
+              <h2 className="font-bold text-[#5C3D00] text-lg leading-tight truncate">{app.fullName}</h2>
+              <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${colInfo?.color}`}>
+                  {lang === "fr" ? colInfo?.labelFr : colInfo?.labelEn}
+                </span>
+                {app.status === "ACTIVE" && app.user.id && (
+                  <a
+                    href={`/tutors/${app.user.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    {t("Voir le profil public", "View public profile")} ↗
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
-          <button onClick={onClose} className="text-[#6B5E44] hover:text-[#5C3D00] text-2xl leading-none">×</button>
+          <button onClick={onClose} className="text-[#6B5E44] hover:text-[#5C3D00] text-2xl leading-none flex-shrink-0">×</button>
         </div>
 
         <div className="p-6 flex-1 space-y-6">
+          {/* Incohérence warnings for ACTIVE tutors */}
+          {app.status === "ACTIVE" && !fullLoading && (() => {
+            const warnings: string[] = [];
+            if (!fullApp?.videoSubmissionUrl) warnings.push(t("Aucune vidéo de présentation soumise", "No presentation video submitted"));
+            if (!fullApp?.certificateUrls?.length) warnings.push(t("Aucun diplôme fourni", "No diploma provided"));
+            if (!app.phone) warnings.push(t("Numéro de téléphone manquant", "Phone number missing"));
+            const ok = ["ADVANCED", "VERY_ADVANCED", "PROFESSIONAL"];
+            if (!app.englishLevel || !ok.includes(app.englishLevel)) warnings.push(t("Niveau d'anglais insuffisant (B2+ requis)", "Insufficient English level (B2+ required)"));
+            if (warnings.length === 0) return null;
+            return (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-xs font-bold text-red-700 uppercase tracking-widest mb-2">{t("Incohérences détectées", "Inconsistencies detected")}</p>
+                <ul className="space-y-1">
+                  {warnings.map((w, i) => (
+                    <li key={i} className="text-sm text-red-600 flex items-start gap-2">
+                      <span className="mt-0.5">⚠️</span> {w}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
+
           {/* Contact */}
           <Section title={t("Contact", "Contact")}>
             <Row label="E-mail"          value={app.user.email} />
@@ -345,18 +428,61 @@ function DetailPanel({
 
           {/* Teaching */}
           <Section title={t("Profil d'enseignant", "Teacher profile")}>
-            <Row label={t("Langues", "Languages")}          value={app.languagesTaught.map(l => getLangLabel(l, lang)).join(", ")} />
+            <Row label={t("Langues enseignées", "Languages taught")} value={app.languagesTaught.map(l => getLangLabel(l, lang)).join(", ")} />
             <Row label={t("Spécialisations", "Specializations")} value={fmtSpecs(app.specializations)} />
             <Row label={t("Expérience", "Experience")}      value={app.yearsExperience != null ? `${app.yearsExperience} ${t("ans", "yrs")}` : null} />
             <Row label={t("Niveau en anglais", "English level")} value={fmtEnglish(app.englishLevel)} />
             <Row label={t("Certifications", "Certifications")} value={fmtCerts(app.certifications)} />
+            {/* CEFR teaching levels — RH#9 */}
+            <div className="py-2 border-b border-[#6B5E44]/10">
+              <p className="text-xs text-[#6B5E44] mb-2">{t("Niveaux d'enseignement acceptés (CECR)", "Accepted teaching levels (CEFR)")}</p>
+              <CefrLevelEditor
+                appId={app.id}
+                min={cefrMin}
+                max={cefrMax}
+                onSaved={(mn, mx) => { setCefrMin(mn); setCefrMax(mx); }}
+              />
+            </div>
           </Section>
 
           {/* Availability */}
           <Section title={t("Disponibilités", "Availability")}>
             <Row label={t("Jours", "Days")}     value={fmtDays(app.availabilityDays)} />
             <Row label={t("Créneaux", "Slots")} value={fmtTimes(app.timeWindowPreference)} />
+            {/* Timezone — RH#10 */}
+            <Row
+              label={t("Fuseau horaire", "Time zone")}
+              value={app.timezone
+                ? `${app.timezone} (${new Intl.DateTimeFormat("fr-FR", { timeZone: app.timezone, timeZoneName: "short" }).formatToParts(new Date()).find(p => p.type === "timeZoneName")?.value ?? app.timezone})`
+                : t("Non renseigné", "Not provided")}
+            />
           </Section>
+
+          {/* Compensation — shown from OFFER_PENDING onwards */}
+          {["OFFER_PENDING", "SIGNED", "ACTIVE", "SUSPENDED"].includes(app.status) && (
+            <Section title={t("Rémunération & Paiement", "Compensation & Payment")}>
+              {app.offerHourlyRateTnd != null ? (
+                <Row label={t("Tarif horaire (TND)", "Hourly rate (TND)")} value={`${app.offerHourlyRateTnd} TND`} />
+              ) : (
+                <div className="flex items-center gap-2 py-1.5 border-b border-[#6B5E44]/10 text-sm">
+                  <span className="text-[#6B5E44]">{t("Tarif horaire (TND)", "Hourly rate (TND)")}</span>
+                  <span className="ml-auto text-red-500 font-semibold text-xs">{t("Non défini", "Not set")}</span>
+                </div>
+              )}
+              {app.offerHourlyRateCad != null && (
+                <Row label={t("Tarif horaire (CAD)", "Hourly rate (CAD)")} value={`${app.offerHourlyRateCad} CAD`} />
+              )}
+              {app.offerMaxWeeklyHours != null && (
+                <Row label={t("Max heures/semaine", "Max hours/week")} value={`${app.offerMaxWeeklyHours}h`} />
+              )}
+              <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm items-center">
+                <span className="text-[#6B5E44]">{t("Moyen de paiement tuteur", "Tutor payment method")}</span>
+                <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  {t("À configurer dans l'espace tuteur", "To be set in tutor dashboard")}
+                </span>
+              </div>
+            </Section>
+          )}
 
           {/* Bio */}
           {app.bio && (
@@ -365,15 +491,14 @@ function DetailPanel({
             </Section>
           )}
 
-          {/* Documents — lazy-loaded */}
-          {fullLoading ? (
-            <Section title={t("Documents", "Documents")}>
+          {/* Documents — always visible, lazy-loaded */}
+          <Section title={t("Documents & Pièces justificatives", "Documents & Supporting files")}>
+            {fullLoading ? (
               <p className="text-xs text-[#6B5E44]">{t("Chargement…", "Loading…")}</p>
-            </Section>
-          ) : (fullApp?.cvUrl || fullApp?.motivationLetterUrl || (fullApp?.certificateUrls?.length ?? 0) > 0) ? (
-            <Section title={t("Documents", "Documents")}>
+            ) : (
               <div className="flex flex-col gap-2">
-                {fullApp?.cvUrl && (
+                {/* CV */}
+                {fullApp?.cvUrl ? (
                   <a
                     href={fullApp.cvUrl.startsWith("data:") ? fullApp.cvUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.cvUrl)}`}
                     target="_blank"
@@ -383,13 +508,19 @@ function DetailPanel({
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/>
                     </svg>
-                    <span className="text-sm font-bold text-[#5C3D00]">{t("Télécharger le CV", "Download CV")}</span>
+                    <span className="text-sm font-bold text-[#5C3D00]">{t("CV", "CV")}</span>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-[#9B8A6B] ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                    <span className="text-sm text-red-600 font-semibold">{t("CV — non fourni", "CV — not provided")}</span>
+                  </div>
                 )}
-                {fullApp?.motivationLetterUrl && (
+
+                {/* Lettre de motivation */}
+                {fullApp?.motivationLetterUrl ? (
                   <a
                     href={fullApp.motivationLetterUrl.startsWith("data:") ? fullApp.motivationLetterUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.motivationLetterUrl)}`}
                     target="_blank"
@@ -404,27 +535,65 @@ function DetailPanel({
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                    <span className="text-sm text-red-600 font-semibold">{t("Lettre de motivation — non fournie", "Motivation letter — not provided")}</span>
+                  </div>
                 )}
-                {fullApp?.certificateUrls?.map((url, i) => (
+
+                {/* Diplômes / certificats */}
+                {(fullApp?.certificateUrls?.length ?? 0) > 0 ? (
+                  fullApp!.certificateUrls!.map((url, i) => (
+                    <a
+                      key={i}
+                      href={url.startsWith("data:") ? url : `/api/hr/document?url=${encodeURIComponent(url)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[10px] font-black text-red-600">PDF</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-700">{t("Diplôme / Certificat", "Diploma / Certificate")} {i + 1}</span>
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 ml-auto flex-shrink-0">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                      </svg>
+                    </a>
+                  ))
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                    <span className="text-sm text-red-600 font-semibold">{t("Diplômes — non fournis", "Diplomas — not provided")}</span>
+                  </div>
+                )}
+
+                {/* Attestations de travail */}
+                {(fullApp?.attestationUrls?.length ?? 0) > 0 && fullApp!.attestationUrls!.map((url, i) => (
                   <a
                     key={i}
                     href={url.startsWith("data:") ? url : `/api/hr/document?url=${encodeURIComponent(url)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition"
+                    className="flex items-center gap-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[10px] font-black text-red-600">PDF</span>
+                    <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-black text-green-700">ATT</span>
                     </div>
-                    <span className="text-sm font-bold text-gray-700">{t("Document justificatif", "Supporting document")} {i + 1}</span>
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-gray-400 ml-auto flex-shrink-0">
+                    <span className="text-sm font-bold text-green-800">{t("Attestation de travail", "Work attestation")} {i + 1}</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-green-500 ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
                   </a>
                 ))}
+
+                {/* Note pièce d'identité */}
+                <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                  <span className="text-sm text-amber-700">
+                    {t("Pièce d'identité (CIN/Passeport) — champ à ajouter lors de la prochaine mise à jour du formulaire de candidature.", "ID document (CIN/Passport) — field to be added in the next onboarding update.")}
+                  </span>
+                </div>
               </div>
-            </Section>
-          ) : null}
+            )}
+          </Section>
 
           {/* Video — shown for VIDEO_SUBMITTED and all subsequent stages */}
           {VIDEO_STAGES.includes(app.status) && !fullLoading && (
@@ -504,25 +673,77 @@ function DetailPanel({
             </Section>
           )}
 
+          {/* Post-signature meeting scheduler — shown for SIGNED and ACTIVE */}
+          {["SIGNED", "ACTIVE"].includes(app.status) && (
+            <Section title={t("Proposer un créneau de réunion", "Propose a meeting slot")}>
+              <InterviewScheduler
+                app={app}
+                onScheduled={() => {}}
+                label={t("Envoyer l'invitation au tuteur", "Send meeting invitation to tutor")}
+                hint={t(
+                  "Proposez 1 à 3 créneaux pour votre réunion de suivi avec ce tuteur.",
+                  "Propose 1 to 3 slots for your follow-up meeting with this tutor."
+                )}
+              />
+            </Section>
+          )}
+
           {/* Move actions */}
           {nextStatuses.length > 0 && (
-            <Section title={t("Déplacer vers", "Move to")}>
+            <Section title={t("Actions", "Actions")}>
               <div className="flex flex-wrap gap-2">
                 {nextStatuses.map(s => {
                   const col = COLUMNS.find(c => c.key === s);
                   const isRejected = s === "REJECTED";
+                  const isSuspend = s === "SUSPENDED";
+                  const isReactivate = s === "ACTIVE" && app.status === "SUSPENDED";
                   const noVideo = s === "VIDEO_SUBMITTED" && !fullLoading && !fullApp?.videoSubmissionUrl;
+                  const isActivate = s === "ACTIVE" && app.status !== "SUSPENDED";
+                  const blockReason = isActivate ? activeBlockReason : (noVideo ? t("Aucune vidéo soumise par le candidat", "No video submitted by candidate") : null);
+
+                  // Action label mapping
+                  const ACTION_LABELS: Record<string, { fr: string; en: string }> = {
+                    STAGE1_REVIEW:       { fr: "Passer en évaluation", en: "Move to review" },
+                    VIDEO_REQUESTED:     { fr: "Demander la vidéo",   en: "Request video"  },
+                    VIDEO_SUBMITTED:     { fr: "Vidéo reçue",         en: "Video received" },
+                    INTERVIEW_SCHEDULED: { fr: "Planifier entretien", en: "Schedule interview" },
+                    INTERVIEW_COMPLETE:  { fr: "Entretien terminé",   en: "Interview done" },
+                    OFFER_PENDING:       { fr: "Envoyer l'offre",     en: "Send offer"     },
+                    SIGNED:              { fr: "Contrat signé",       en: "Contract signed" },
+                    ACTIVE:              isReactivate
+                      ? { fr: "Réactiver le compte", en: "Reactivate account" }
+                      : { fr: "Activer le compte",   en: "Activate account"   },
+                    SUSPENDED:           { fr: "Suspendre le compte", en: "Suspend account" },
+                    RESERVE:             { fr: "Mettre en réserve",   en: "Put on reserve" },
+                    INCOMPLETE:          { fr: "Dossier incomplet",   en: "Mark incomplete" },
+                    REJECTED:            { fr: "Rejeter",             en: "Reject"         },
+                  };
+                  const label = ACTION_LABELS[s]?.[lang as "fr" | "en"] ?? (lang === "fr" ? col?.labelFr : col?.labelEn);
+
+                  if (isRejected) {
+                    return (
+                      <button key={s}
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={!!movingTo}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold border-2 border-red-400 bg-red-50 text-red-700 hover:bg-red-100 transition disabled:opacity-50"
+                      >
+                        {label}
+                      </button>
+                    );
+                  }
                   return (
                     <button key={s}
                       onClick={() => handleMove(s)}
-                      disabled={!!movingTo || noVideo}
-                      title={noVideo ? t("Aucune vidéo soumise par le candidat", "No video submitted by candidate") : undefined}
+                      disabled={!!movingTo || !!blockReason}
+                      title={blockReason ?? undefined}
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isRejected
-                          ? "border-red-300 text-red-600 hover:bg-red-50"
+                        isSuspend
+                          ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          : isReactivate
+                          ? "border-green-400 bg-green-50 text-green-700 hover:bg-green-100"
                           : "border-[#F5C400] text-[#5C3D00] hover:bg-[#FFF3B0]"
                       }`}>
-                      {movingTo === s ? "…" : (lang === "fr" ? col?.labelFr : col?.labelEn)}
+                      {movingTo === s ? "…" : label}
                     </button>
                   );
                 })}
@@ -604,6 +825,79 @@ function DetailPanel({
           </Section>
         </div>
       </div>
+
+      {/* Reject Modal — RH#12 */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h3 className="font-bold text-[#5C3D00] text-lg">{t("Motif de refus", "Rejection reason")}</h3>
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest">{t("Motif prédéfini", "Preset reason")}</p>
+              {[
+                { fr: "Qualité audio/vidéo insuffisante",           en: "Insufficient audio/video quality"       },
+                { fr: "Diplôme ou certification manquant(e)",       en: "Missing diploma or certification"       },
+                { fr: "Niveau d'anglais insuffisant (B2+ requis)",  en: "Insufficient English level (B2+ required)" },
+                { fr: "Bio à reformuler / trop courte",             en: "Bio to rework / too short"              },
+                { fr: "Profil incomplet (documents manquants)",     en: "Incomplete profile (missing documents)" },
+                { fr: "Pas de disponibilité compatible",            en: "No compatible availability"             },
+                { fr: "Niveau d'enseignement non conforme",         en: "Teaching level not compliant"           },
+                { fr: "Comportement non professionnel en entretien", en: "Unprofessional behavior in interview"  },
+              ].map(opt => (
+                <button key={opt.fr}
+                  onClick={() => setRejectPreset(lang === "fr" ? opt.fr : opt.en)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm border-2 transition ${
+                    rejectPreset === (lang === "fr" ? opt.fr : opt.en)
+                      ? "border-red-400 bg-red-50 text-red-700 font-semibold"
+                      : "border-[#6B5E44]/20 text-[#5C3D00] hover:border-red-200 hover:bg-red-50/50"
+                  }`}
+                >
+                  {lang === "fr" ? opt.fr : opt.en}
+                </button>
+              ))}
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[#9B8A6B] uppercase tracking-widest mb-1">{t("Ou message personnalisé", "Or custom message")}</p>
+              <textarea
+                value={rejectCustom}
+                onChange={e => setRejectCustom(e.target.value)}
+                rows={3}
+                placeholder={t("Précisez le motif…", "Specify reason…")}
+                className="w-full border border-[#6B5E44]/30 rounded-xl px-3 py-2 text-sm text-[#5C3D00] bg-white focus:outline-none focus:border-red-400 resize-none"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => { setShowRejectModal(false); setRejectPreset(""); setRejectCustom(""); }}
+                disabled={rejectSaving}
+                className="flex-1 py-2.5 text-sm font-bold border-2 border-[#6B5E44]/30 text-[#5C3D00] rounded-full hover:bg-gray-50 transition">
+                {t("Annuler", "Cancel")}
+              </button>
+              <button
+                onClick={async () => {
+                  const reason = rejectCustom.trim() || rejectPreset;
+                  if (!reason) return;
+                  setRejectSaving(true);
+                  const res = await fetch(`/api/console/hr/applications/${app.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "REJECTED", rejectionReason: reason }),
+                  });
+                  setRejectSaving(false);
+                  if (res.ok) {
+                    onStatusChange(app.id, "REJECTED");
+                    setShowRejectModal(false);
+                    setRejectPreset("");
+                    setRejectCustom("");
+                  }
+                }}
+                disabled={rejectSaving || (!rejectPreset && !rejectCustom.trim())}
+                className="flex-1 py-2.5 text-sm font-bold bg-red-600 text-white rounded-full hover:bg-red-700 disabled:opacity-50 transition">
+                {rejectSaving ? t("Envoi…", "Sending…") : t("Confirmer le refus", "Confirm rejection")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -612,7 +906,7 @@ function DetailPanel({
 
 const BASE_URL = typeof window !== "undefined" ? window.location.origin : "";
 
-function InterviewScheduler({ app, onScheduled }: { app: Application; onScheduled: (token: string) => void }) {
+function InterviewScheduler({ app, onScheduled, label, hint }: { app: Application; onScheduled: (token: string) => void; label?: string; hint?: string }) {
   const [slots, setSlots] = useState(["", "", ""]);
   const [meetingUrl, setMeetingUrl] = useState(app.interviewMeetingUrl ?? "");
   const [sending, setSending] = useState(false);
@@ -661,7 +955,7 @@ function InterviewScheduler({ app, onScheduled }: { app: Application; onSchedule
   return (
     <div className="space-y-3">
       <p className="text-xs text-[#6B5E44]">
-        Proposez 1 à 3 créneaux (en heure locale de votre navigateur — ils seront convertis en heure de Tunis pour le candidat).
+        {hint ?? "Proposez 1 à 3 créneaux (en heure locale de votre navigateur — ils seront convertis en heure de Tunis pour le candidat)."}
       </p>
       {slots.map((val, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -690,7 +984,7 @@ function InterviewScheduler({ app, onScheduled }: { app: Application; onSchedule
         disabled={sending || filledSlots.length === 0}
         className="w-full bg-[#F5C400] text-[#5C3D00] font-bold rounded-full py-2 text-sm hover:bg-[#FFDE59] disabled:opacity-50 transition"
       >
-        {sending ? "Envoi…" : "Envoyer le lien au candidat"}
+        {sending ? "Envoi…" : (label ?? "Envoyer le lien au candidat")}
       </button>
     </div>
   );
@@ -734,6 +1028,72 @@ function InterviewStatus({ app }: { app: Application }) {
           className="flex-1 border border-[#6B5E44]/20 rounded-xl px-3 py-1.5 text-xs text-[#5C3D00] bg-[#FAF8F0] cursor-text"
         />
       </div>
+    </div>
+  );
+}
+
+const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+function CefrLevelEditor({
+  appId,
+  min,
+  max,
+  onSaved,
+}: {
+  appId: string;
+  min: string | null | undefined;
+  max: string | null | undefined;
+  onSaved: (min: string, max: string) => void;
+}) {
+  const [localMin, setLocalMin] = useState(min ?? "");
+  const [localMax, setLocalMax] = useState(max ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save(newMin: string, newMax: string) {
+    setSaving(true);
+    await fetch(`/api/console/hr/applications/${appId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cefrTeachingMin: newMin || null, cefrTeachingMax: newMax || null }),
+    });
+    setSaving(false);
+    if (newMin && newMax) onSaved(newMin, newMax);
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <p className="text-[10px] text-[#9B8A6B] font-bold uppercase mb-1">Niveau min</p>
+          <div className="flex gap-1 flex-wrap">
+            {CEFR_LEVELS.map(l => (
+              <button key={l} onClick={() => { setLocalMin(l); save(l, localMax); }}
+                className={`px-2 py-1 rounded-lg text-xs font-bold border transition ${localMin === l ? "bg-[#5C3D00] text-white border-[#5C3D00]" : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#5C3D00]/40"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex-1">
+          <p className="text-[10px] text-[#9B8A6B] font-bold uppercase mb-1">Niveau max</p>
+          <div className="flex gap-1 flex-wrap">
+            {CEFR_LEVELS.map(l => (
+              <button key={l} onClick={() => { setLocalMax(l); save(localMin, l); }}
+                className={`px-2 py-1 rounded-lg text-xs font-bold border transition ${localMax === l ? "bg-[#F5C400] text-[#5C3D00] border-[#F5C400]" : "border-[#6B5E44]/30 text-[#6B5E44] hover:border-[#F5C400]/60"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {localMin && localMax && (
+        <p className="text-xs text-green-700 font-semibold">
+          {saving ? "Enregistrement…" : `Niveaux acceptés : ${localMin} → ${localMax}`}
+        </p>
+      )}
+      {(!localMin || !localMax) && (
+        <p className="text-xs text-amber-600">{saving ? "Enregistrement…" : "Niveaux non définis — cliquez pour les renseigner"}</p>
+      )}
     </div>
   );
 }
@@ -1037,14 +1397,9 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
   // All languages present in applications
   const allLanguages = Array.from(new Set(apps.flatMap(a => a.languagesTaught))).sort();
 
-  // All specializations for selected language
-  const specsForLang = activeLang
-    ? Array.from(new Set(
-        apps
-          .filter(a => a.languagesTaught.includes(activeLang))
-          .flatMap(a => a.specializations)
-      )).sort()
-    : [];
+  // All specializations for selected language (always show full list when a language is active)
+  const ALL_SPECS = ["CONVERSATIONAL", "PROFESSIONAL", "ACADEMIC", "EXAM_PREP"];
+  const specsForLang = activeLang ? ALL_SPECS : [];
 
   // Reset specialty when language changes
   function selectLang(langCode: string | null) {
@@ -1153,7 +1508,6 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
           </button>
           {allLanguages.map(langCode => {
             const count = apps.filter(a => a.languagesTaught.includes(langCode)).length;
-            const flag = LANG_FLAGS[langCode] ?? "🌐";
             const label = getLangLabel(langCode, lang);
             return (
               <button
@@ -1165,7 +1519,7 @@ export default function HrKanban({ hrEmail, role }: { hrEmail: string; role?: st
                     : "border-[#6B5E44]/25 text-[#6B5E44] hover:border-[#F5C400]/60"
                 }`}
               >
-                {flag} {label}
+                {label}
                 <span className="text-xs opacity-70">({count})</span>
               </button>
             );

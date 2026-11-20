@@ -28,6 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       specializations: true,
       certifications: true,
       certificateUrls: true,
+      attestationUrls: true,
       englishLevel: true,
       yearsExperience: true,
       bio: true,
@@ -48,7 +49,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       offerHourlyRateCad: true,
       offerMaxWeeklyHours: true,
       reapplyAfter: true,
-      user: { select: { email: true } },
+      cefrTeachingMin: true,
+      cefrTeachingMax: true,
+      timezone: true,
+      user: { select: { email: true, id: true, image: true, tutorProfile: { select: { profilePhotoUrl: true } } } },
       notes: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -93,6 +97,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     offerHourlyRateCad,
     offerCurrency,
     offerMaxWeeklyHours,
+    // HR-editable fields
+    cefrTeachingMin,
+    cefrTeachingMax,
   } = body;
 
   // Allow rubric-only saves (no status change)
@@ -104,7 +111,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     scoreCulturalFit !== undefined
   );
 
-  if (!isRubricOnlySave && !Object.values(ApplicationStatus).includes(status)) {
+  // Allow HR-field-only saves (no status change)
+  const isHrFieldSave = !status && (cefrTeachingMin !== undefined || cefrTeachingMax !== undefined);
+
+  if (!isRubricOnlySave && !isHrFieldSave && !Object.values(ApplicationStatus).includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 422 });
   }
 
@@ -122,8 +132,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // Guards: ACTIVE requires video, at least one diploma, phone, and B2+ English
+  if (status === "ACTIVE") {
+    const current = await db.hrApplication.findUnique({
+      where: { id },
+      select: {
+        videoSubmissionUrl: true,
+        certificateUrls: true,
+        phone: true,
+        englishLevel: true,
+      },
+    });
+    if (!current?.videoSubmissionUrl) {
+      return NextResponse.json(
+        { error: "Impossible d'activer : aucune vidéo de présentation soumise." },
+        { status: 422 }
+      );
+    }
+    if (!current.certificateUrls || current.certificateUrls.length === 0) {
+      return NextResponse.json(
+        { error: "Impossible d'activer : aucun diplôme / certificat fourni." },
+        { status: 422 }
+      );
+    }
+    if (!current.phone) {
+      return NextResponse.json(
+        { error: "Impossible d'activer : numéro de téléphone manquant." },
+        { status: 422 }
+      );
+    }
+    const acceptedEnglish = ["ADVANCED", "VERY_ADVANCED", "PROFESSIONAL"];
+    if (!current.englishLevel || !acceptedEnglish.includes(current.englishLevel)) {
+      return NextResponse.json(
+        { error: "Impossible d'activer : niveau d'anglais insuffisant (B2+ requis)." },
+        { status: 422 }
+      );
+    }
+  }
+
   const updateData: Record<string, unknown> = {};
   if (status) updateData.status = status;
+  if (cefrTeachingMin !== undefined) updateData.cefrTeachingMin = cefrTeachingMin;
+  if (cefrTeachingMax !== undefined) updateData.cefrTeachingMax = cefrTeachingMax;
 
   // ── Rubric scores ──────────────────────────────────────────────────────────
   if (scoreLanguageProficiency !== undefined) updateData.scoreLanguageProficiency = scoreLanguageProficiency;
@@ -189,6 +239,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         offerHourlyRateCad: true,
         offerCurrency: true,
         offerMaxWeeklyHours: true,
+        cefrTeachingMin: true,
+        cefrTeachingMax: true,
       },
     });
 
@@ -208,6 +260,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           videoIntroUrl:    app.videoUrl,
           city:             app.city,
           maxWeeklyHours:   maxWeekly,
+          cefrTeachingMin:  app.cefrTeachingMin,
+          cefrTeachingMax:  app.cefrTeachingMax,
           verificationTier:   "VERIFIED",
           verificationStatus: "VERIFIED",
         },
@@ -215,6 +269,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           verificationTier:   "VERIFIED",
           verificationStatus: "VERIFIED",
           maxWeeklyHours:     maxWeekly,
+          cefrTeachingMin:    app.cefrTeachingMin,
+          cefrTeachingMax:    app.cefrTeachingMax,
         },
       });
 

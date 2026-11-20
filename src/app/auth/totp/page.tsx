@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 export default function TotpPage() {
-  const { update } = useSession();
-  const router = useRouter();
+  const { data: session, update } = useSession();
+  const role = (session?.user as any)?.role as string | undefined;
 
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +31,7 @@ export default function TotpPage() {
     }
 
     await update({ totpVerified: true });
-    window.location.href = "/console/hr";
+    window.location.href = role === "ADMIN" ? "/dashboard/admin" : "/console/hr";
   }
 
   return (
@@ -41,7 +40,12 @@ export default function TotpPage() {
         <div className="text-center mb-6">
           <div className="text-3xl mb-2">🔐</div>
           <h1 className="text-2xl font-bold text-gray-900">Two-Factor Authentication</h1>
-          <p className="text-sm text-gray-500 mt-1">Enter the 6-digit code from your authenticator app.</p>
+          {role && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 mt-2">
+              {role}
+            </span>
+          )}
+          <p className="text-sm text-gray-500 mt-2">Enter the 6-digit code from your authenticator app.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -45,18 +45,23 @@ export async function GET(req: NextRequest) {
   const pathname = parsed.pathname.slice(1); // strip leading "/"
   const validUntil = Date.now() + 5 * 60 * 1000;
 
-  const signedToken = await issueSignedToken({
-    pathname,
-    operations: ["get"],
-    validUntil,
-  });
+  try {
+    const signedToken = await issueSignedToken({
+      pathname,
+      operations: ["get"],
+      validUntil,
+    });
 
-  const { presignedUrl } = await presignUrl(signedToken, {
-    operation: "get",
-    pathname,
-    validUntil,
-    access: "private",
-  });
+    const { presignedUrl } = await presignUrl(signedToken, {
+      operation: "get",
+      pathname,
+      validUntil,
+      access: "private",
+    });
 
-  return NextResponse.redirect(presignedUrl);
+    return NextResponse.redirect(presignedUrl);
+  } catch {
+    // Fallback: redirect directly (works for public blobs or if presign fails)
+    return NextResponse.redirect(rawUrl);
+  }
 }

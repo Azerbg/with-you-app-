@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 
 export default function Setup2FAPage() {
-  const { update } = useSession();
-  const router = useRouter();
+  const { data: session, update } = useSession();
+  const role = (session?.user as any)?.role as string | undefined;
 
   const [qrUrl, setQrUrl] = useState("");
   const [secret, setSecret] = useState("");
@@ -54,7 +53,7 @@ export default function Setup2FAPage() {
 
     setStep("done");
     await update({ totpVerified: true, totpEnabled: true });
-    setTimeout(() => { window.location.href = "/console/hr"; }, 1500);
+    setTimeout(() => { window.location.href = role === "ADMIN" ? "/dashboard/admin" : "/console/hr"; }, 1500);
   }
 
   if (step === "loading") {
@@ -71,7 +70,7 @@ export default function Setup2FAPage() {
         <div className="bg-white rounded-2xl shadow-md p-8 text-center max-w-sm w-full">
           <div className="text-4xl mb-3">✅</div>
           <h2 className="text-xl font-bold text-gray-800">2FA Activated!</h2>
-          <p className="text-gray-500 text-sm mt-2">Redirecting to HR Console…</p>
+          <p className="text-gray-500 text-sm mt-2">Redirecting…</p>
         </div>
       </div>
     );

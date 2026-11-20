@@ -41,7 +41,10 @@ export async function GET() {
         offerHourlyRateCad: true,
         offerMaxWeeklyHours: true,
         reapplyAfter: true,
-        user: { select: { email: true } },
+        cefrTeachingMin: true,
+        cefrTeachingMax: true,
+        timezone: true,
+        user: { select: { email: true, id: true, image: true } },
         notes: {
           orderBy: { createdAt: "asc" },
           select: {

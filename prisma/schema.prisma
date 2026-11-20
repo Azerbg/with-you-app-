@@ -83,6 +83,7 @@ enum ApplicationStatus {
   OFFER_PENDING        // Offer sent, awaiting candidate acceptance
   SIGNED               // Offer accepted (e-signature)
   ACTIVE               // Fully onboarded — profile live on platform
+  SUSPENDED            // Account suspended by HR/Admin — hidden from students
   REJECTED             // Rejected at any stage — 90-day reapplication block
 }
 
@@ -610,6 +611,10 @@ model HrApplication {
   availabilityDays     String[]  // MON, TUE, WED, THU, FRI, SAT, SUN
   timeWindowPreference String[]  // MORNING | AFTERNOON | EVENING
   timezone             String?   // IANA timezone string
+
+  // Teaching levels (CEFR) — set by HR after reviewing the application
+  cefrTeachingMin  String?  // Lowest level tutor can teach (A1–C2)
+  cefrTeachingMax  String?  // Highest level tutor can teach (A1–C2)
 
   // Application materials
   bio          String?  // Short bio for HR team
