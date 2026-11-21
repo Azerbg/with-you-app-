@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { sendTutorApplicationConfirmation } from "@/lib/email";
+import { notifyAdmins } from "@/lib/adminNotify";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
 
       if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
       sendTutorApplicationConfirmation(session.user.email!, data.fullName).catch(() => {});
+      notifyAdmins({ type: "HR_APPLICATION", title: `Nouvelle candidature : ${data.fullName}`, body: `${data.languagesTaught?.join(", ") ?? ""}`, link: "/console/hr", includeHr: true }).catch(() => {});
       return NextResponse.json({ success: true, userId }, { status: 201 });
     }
 
@@ -153,6 +155,7 @@ export async function POST(req: NextRequest) {
 
     if (data.phone) db.tempPhoneVerification.deleteMany({ where: { phone: data.phone } }).catch(() => {});
     sendTutorApplicationConfirmation(data.email, data.fullName).catch(() => {});
+    notifyAdmins({ type: "HR_APPLICATION", title: `Nouvelle candidature : ${data.fullName}`, body: `${data.languagesTaught?.join(", ") ?? ""}`, link: "/console/hr", includeHr: true }).catch(() => {});
     return NextResponse.json({ success: true, userId: user.id }, { status: 201 });
 
   } catch (err) {

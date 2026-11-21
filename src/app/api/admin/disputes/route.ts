@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminGuard";
 import { db } from "@/lib/db";
 import { sendDisputeResolutionEmail } from "@/lib/email";
+import { notifyAdmins } from "@/lib/adminNotify";
 import { DisputeStatus } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -79,6 +80,13 @@ export async function POST(req: NextRequest) {
 
   db.auditLog.create({
     data: { actorId: session!.user.id, action: "OPEN_DISPUTE", targetEntity: "Dispute", targetId: dispute.id },
+  }).catch(() => {});
+
+  notifyAdmins({
+    type: "DISPUTE_OPENED",
+    title: `Nouveau litige ouvert`,
+    body: description.trim().slice(0, 80),
+    link: `/dashboard/admin/disputes`,
   }).catch(() => {});
 
   return NextResponse.json(dispute, { status: 201 });

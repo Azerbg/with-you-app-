@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { notifyAdmins } from "@/lib/adminNotify";
 
 const REFERRER_CREDIT = 15; // TND
 const REFERRED_CREDIT = 10; // TND
@@ -98,6 +99,13 @@ export async function PATCH(
   });
 
   triggerReferralReward(booking.studentId).catch(() => {});
+
+  notifyAdmins({
+    type: "PAYOUT_PENDING",
+    title: "Virement à effectuer",
+    body: `Séance terminée — virement tuteur en attente`,
+    link: "/dashboard/admin/payouts",
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

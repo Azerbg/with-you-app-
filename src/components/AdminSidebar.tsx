@@ -121,7 +121,9 @@ function NotificationBell() {
                   <span className="text-base flex-shrink-0 mt-0.5">
                     {n.type === "PAYMENT_RECEIVED" ? "💳" :
                      n.type === "PAYOUT_PROCESSED" ? "💸" :
-                     n.type === "DISPUTE_OPENED"   ? "⚠️" : "🔔"}
+                     n.type === "PAYOUT_PENDING"   ? "💸" :
+                     n.type === "DISPUTE_OPENED"   ? "⚠️" :
+                     n.type === "HR_APPLICATION"   ? "🗂️" : "🔔"}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold truncate ${n.isRead ? "text-white/50" : "text-white"}`}>{n.title}</p>
