@@ -45,6 +45,45 @@ export async function GET(req: NextRequest) {
   });
 }
 
+export async function POST(req: NextRequest) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+
+  const { bookingId, type, description } = await req.json() as {
+    bookingId: string;
+    type: string;
+    description: string;
+  };
+
+  if (!bookingId || !type || !description?.trim()) {
+    return NextResponse.json({ error: "bookingId, type and description are required" }, { status: 400 });
+  }
+
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, studentId: true, tutorId: true },
+  });
+  if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+  const dispute = await db.dispute.create({
+    data: {
+      bookingId: booking.id,
+      studentId: booking.studentId,
+      tutorId:   booking.tutorId,
+      type:      type as import("@prisma/client").DisputeType,
+      description: description.trim(),
+      slaDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
+    },
+    select: { id: true, type: true, status: true },
+  });
+
+  db.auditLog.create({
+    data: { actorId: session!.user.id, action: "OPEN_DISPUTE", targetEntity: "Dispute", targetId: dispute.id },
+  }).catch(() => {});
+
+  return NextResponse.json(dispute, { status: 201 });
+}
+
 export async function PATCH(req: NextRequest) {
   const { error } = await requireAdmin();
   if (error) return error;

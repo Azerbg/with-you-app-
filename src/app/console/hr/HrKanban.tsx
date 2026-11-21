@@ -41,7 +41,7 @@ interface Application {
   timeWindowPreference: string[];
   status: string;
   createdAt: string;
-  user: { email: string; id?: string; image?: string | null; tutorProfile?: { profilePhotoUrl?: string | null } | null };
+  user: { email: string; id?: string; image?: string | null; tutorProfile?: { profilePhotoUrl?: string | null } | null; paymentMethod?: { type: string; email?: string | null; phone?: string | null; rib?: string | null } | null };
   notes: HrNote[];
   interviewSlots?: string[];
   interviewToken?: string | null;
@@ -475,12 +475,28 @@ function DetailPanel({
               {app.offerMaxWeeklyHours != null && (
                 <Row label={t("Max heures/semaine", "Max hours/week")} value={`${app.offerMaxWeeklyHours}h`} />
               )}
-              <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm items-center">
-                <span className="text-[#6B5E44]">{t("Moyen de paiement tuteur", "Tutor payment method")}</span>
-                <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  {t("À configurer dans l'espace tuteur", "To be set in tutor dashboard")}
-                </span>
-              </div>
+              {(() => {
+                const pm = fullApp?.user?.paymentMethod;
+                if (!fullLoading && pm) {
+                  const detail = [pm.email, pm.phone, pm.rib ? `RIB: ${pm.rib}` : null].filter(Boolean).join(" · ");
+                  return (
+                    <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm items-center gap-2">
+                      <span className="text-[#6B5E44] shrink-0">{t("Moyen de paiement tuteur", "Tutor payment method")}</span>
+                      <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200 text-right">
+                        {pm.type}{detail ? ` — ${detail}` : ""}
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex justify-between py-1.5 border-b border-[#6B5E44]/10 text-sm items-center">
+                    <span className="text-[#6B5E44]">{t("Moyen de paiement tuteur", "Tutor payment method")}</span>
+                    <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      {fullLoading ? "…" : t("Non configuré", "Not configured")}
+                    </span>
+                  </div>
+                );
+              })()}
             </Section>
           )}
 
@@ -501,6 +517,7 @@ function DetailPanel({
                 {fullApp?.cvUrl ? (
                   <a
                     href={fullApp.cvUrl.startsWith("data:") ? fullApp.cvUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.cvUrl)}`}
+                    download={fullApp.cvUrl.startsWith("data:") ? "cv.pdf" : undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#FFF3B0] border border-[#F5C400]/50 rounded-xl hover:bg-[#FFDE59]/30 transition"
@@ -508,7 +525,7 @@ function DetailPanel({
                     <svg viewBox="0 0 24 24" fill="none" stroke="#5C3D00" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/><line x1="12" y1="10" x2="12" y2="18"/>
                     </svg>
-                    <span className="text-sm font-bold text-[#5C3D00]">{t("CV", "CV")}</span>
+                    <span className="text-sm font-bold text-[#5C3D00]">{t("Télécharger le CV", "Download CV")}</span>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-[#9B8A6B] ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>
@@ -523,6 +540,7 @@ function DetailPanel({
                 {fullApp?.motivationLetterUrl ? (
                   <a
                     href={fullApp.motivationLetterUrl.startsWith("data:") ? fullApp.motivationLetterUrl : `/api/hr/document?url=${encodeURIComponent(fullApp.motivationLetterUrl)}`}
+                    download={fullApp.motivationLetterUrl.startsWith("data:") ? "lettre-motivation.pdf" : undefined}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 px-4 py-2.5 bg-[#F0F7FF] border border-blue-200 rounded-xl hover:bg-blue-50 transition"
@@ -530,7 +548,7 @@ function DetailPanel({
                     <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" className="w-4 h-4 flex-shrink-0">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                     </svg>
-                    <span className="text-sm font-bold text-blue-700">{t("Lettre de motivation", "Motivation letter")}</span>
+                    <span className="text-sm font-bold text-blue-700">{t("Télécharger la lettre de motivation", "Download motivation letter")}</span>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-blue-400 ml-auto flex-shrink-0">
                       <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
                     </svg>

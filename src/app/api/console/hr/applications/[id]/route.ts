@@ -52,7 +52,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       cefrTeachingMin: true,
       cefrTeachingMax: true,
       timezone: true,
-      user: { select: { email: true, id: true, image: true, tutorProfile: { select: { profilePhotoUrl: true } } } },
+      user: { select: { email: true, id: true, image: true, tutorProfile: { select: { profilePhotoUrl: true } }, paymentMethod: { select: { type: true, email: true, phone: true, rib: true } } } },
       notes: {
         orderBy: { createdAt: "asc" },
         select: {

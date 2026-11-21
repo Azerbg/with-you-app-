@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true, status: true, sessionType: true, studentPriceUsd: true, studentCurrency: true,
         scheduledAt: true, durationMins: true, createdAt: true,
-        paymentProvider: true, stripePaymentIntentId: true, paypalOrderId: true,
+        paymentProvider: true, stripePaymentIntentId: true, paypalOrderId: true, paypalCaptureId: true,
         cancelledAt: true, cancelledBy: true,
         student: { select: { id: true, email: true, firstName: true, lastName: true } },
         tutor:   { select: { id: true, email: true, firstName: true, lastName: true, hrApplication: { select: { fullName: true } } } },
